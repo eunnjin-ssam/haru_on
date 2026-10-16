@@ -24,6 +24,8 @@
 
 ## 새 컴퓨터 준비
 1. Node.js, Git 설치
-2. 이 저장소 내려받기 → 폴더에서 `npm install`
+2. 프로젝트 가져오기 → 폴더에서 `npm install`
+   - 지금은 USB로 옮긴다: `class-app-날짜.zip`(node_modules 제외, .git 포함)을 풀어서 쓴다.
+   - 옮기기 전에 커밋하고, 압축은 바탕화면에 만든다. 두 컴퓨터에서 동시에 고치지 않는다.
 3. 규칙 시험을 돌리려면 Java 21 설치 (`winget install EclipseAdoptium.Temurin.21.JRE`)와 `npm install -g firebase-tools`
 4. 앱 띄우기: `npm run serve` → http://localhost:5500 (진짜 Firebase), 에뮬레이터는 `npm run emu` 후 주소에 `?emu`
