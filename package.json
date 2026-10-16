@@ -1,0 +1,13 @@
+{
+  "name": "class-app",
+  "private": true,
+  "type": "module",
+  "description": "학급관리 웹앱. 앱 자체는 빌드 없이 동작하고, 이 파일은 보안 규칙 시험용이다.",
+  "scripts": {
+    "test:rules": "firebase emulators:exec --only firestore --project demo-class-app \"node --test tests/rules.test.js\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.2",
+    "firebase": "12.4.0"
+  }
+}
