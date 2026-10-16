@@ -25,7 +25,12 @@
 /data/             문제은행 등 정적 데이터(JSON)
 /firestore.rules   보안 규칙
 /docs/spec.md      기획서
+/docs/data-model.md  컬렉션 구조와 쓰기 순서
+/tests/            보안 규칙 자동 시험 (npm run test:rules, Java 필요)
+/tools/serve.js    로컬 웹 서버 (npm run serve → localhost:5500)
 ```
+- 로컬 시험: `npm run emu`(에뮬레이터)와 `npm run serve`를 켜고 주소 끝에 `?emu`를 붙이면 진짜 Firebase 대신 에뮬레이터에 연결된다.
+- 학생 화면과 선생님 화면은 로그인이 섞이지 않게 다른 주소(127.0.0.1 / localhost)로 열어 시험한다.
 
 ## 로그인
 - 학생: 익명 로그인 후 번호 + PIN 확인. PIN은 학생이 읽을 수 없는 문서에 두고, 보안 규칙의 get()으로 대조한다. 확인되면 익명 uid와 학생을 연결하는 세션 문서를 만든다.

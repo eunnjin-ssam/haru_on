@@ -1,0 +1,69 @@
+/* 공통 스타일 */
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --text: #1f2430;
+  --muted: #6b7280;
+  --line: #e3e6ee;
+  --primary: #3b6cf6;
+  --primary-dark: #2c55c9;
+  --primary-soft: #e8eefe;
+  --danger: #d9443a;
+  --danger-soft: #fdecea;
+  --ok: #1f9d63;
+  --ok-soft: #e4f6ec;
+  --radius: 14px;
+  --font: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; cursor: pointer; }
+button:disabled { cursor: default; opacity: .5; }
+input, textarea { font: inherit; }
+
+.muted { color: var(--muted); }
+.hidden { display: none !important; }
+
+.btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 18px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+.btn:hover:not(:disabled) { background: var(--primary-dark); }
+.btn.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
+.btn.secondary:hover:not(:disabled) { background: var(--bg); }
+.btn.danger { background: var(--danger); }
+.btn.small { padding: 6px 12px; font-size: 14px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  background: #222;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-weight: 600;
+  z-index: 100;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .2);
+}
+.toast.error { background: var(--danger); }
