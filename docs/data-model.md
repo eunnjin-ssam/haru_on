@@ -1,0 +1,95 @@
+# Firestore 데이터 구조
+
+1단계에서 정한 구조. 보안 규칙은 `/firestore.rules`. 새 컬렉션을 만들면 이 문서와 규칙을 함께 고친다.
+
+표기: `학생` = 학생ID, `날짜` = KST `20261016`, `주` = 그 주 월요일 날짜, `월` = `202610`. 🔒 = 교사 전용.
+날짜는 모두 서버 시간(request.time + 9시간)으로 규칙이 검사하므로, 앱은 같은 방식으로 계산한 값을 넣어야 한다.
+
+## 컬렉션
+
+| 컬렉션 | 문서 id | 필드 |
+|---|---|---|
+| teachers 🔒 | 교사 uid | (콘솔에서 직접 추가) |
+| students | 학생ID | number, name, active |
+| numbers | 번호 `'7'` | sid (로그인 전 조회용, 한 장씩만 읽기) |
+| studentPins 🔒 | 번호 `'7'` | pin(4자리 문자열), sid |
+| sessions | 익명 uid | number, sid, pin, at |
+| settings | `main` / `teacher`🔒 | `js/common/defaults.js` 참고 |
+| notices | 자동 | title, body, start, end |
+| notices/{id}/reads | 학생 | at |
+| messages | 자동 | to(학생), body, from, at, readAt(처음엔 null) |
+| feedback | 학생_날짜_1~3 | sid, kind(bug/idea), menu, category, body, device, status, at |
+| points | 아래 '거래 id' | sid, type, wallet, total, reason, ref, by, at |
+| summaries | 학생 | wallet, total, lastTx, reading, missionDays, roleDays |
+| moods | 학생_날짜 | sid, date, mood(excited/good/okay/upset/angry/tired/custom), at |
+| moodNotes | 학생_날짜 | sid, date, text, at (본인·교사만) |
+| attendance 🔒 | 날짜 | absent: [학생] |
+| missionKeys 🔒 | 문제 id | unit, answers: [정답 문자열] |
+| missionAttempts | 학생_날짜_1~5 | sid, date, n, qid, answer, at, correct(채점 후) |
+| roles | 자동 | name, desc, members: [학생], checker, points |
+| roleChecks | 날짜_역할_학생 | sid, role, date, status(requested/approved/redo), by, at |
+| roleTerms | 자동 | start, end, wishOpen, assignments |
+| roleWishes | 기간_학생 | sid, term, picks: [역할 1~3개], at |
+| posts | 학생_날짜 | author, readDate, title, summary, thoughts, status(public/reported/hidden/deleted), likes, editedByTeacher, at |
+| posts/{id}/likes | 학생 | at |
+| writingWeeks | 학생_주 | sid, week, days: [날짜] |
+| drafts | 학생 | readDate, title, summary, thoughts, at |
+| reports 🔒 | post_글id_신고자 / comment_댓글id_신고자 | kind, target, story, reporter, reason(tease/swear/etc), at |
+| stories | 자동 | mode(named/anon), author(named일 때만), wish, reason, when, what, feeling, likes, stage(story/agenda/promise/hold), hidden, at (+교사: decided, mergedInto) |
+| stories/{id}/likes | 학생 | at |
+| stories/{id}/comments | 자동 | author, text, status(public/reported/hidden), at |
+| storyAuthors 🔒 | 이야기 id | sid, at (본인은 자기 것 읽기 가능) |
+| privateStories | 자동 | author, wish, reason, when, what, feeling, at (본인·교사만) |
+| storyNotes 🔒 | 자동 | 상담 메모 |
+| promises | 자동 | text, story, confirmedAt, reviewAt, status |
+| tasks | 자동 | kind(homework/check), title, desc, subject, dueAt, submitType(check/text), points, targets: [학생], notify, repeatWeekly |
+| submissions | 과제_학생 | task, sid, status(submitted/done/redo/exempt), text, firstAt, lastAt (+교사: comment) |
+| shopItems | 자동 | name, desc, price, instant, buyLimit(0=무제한), buyPeriod(week/month/none), dailyUse(0=무제한), onSale, order |
+| coupons | 학생_쿠폰_기간_번호 | sid, coupon, period, n, status(pending/owned/useRequested/used/rejected), price, use, at |
+| couponUses | 쿠폰_날짜_1~한도 / u_쿠폰id | sid, coupon, type, date, n, task, status, at |
+| couponIdeas | 학생_주_1~2 | sid, week, n, what, price, why, at |
+| goals | 자동 | title, target, reward, raised, donors, status(open/done/closed), lastTx |
+| goals/{id}/donors 🔒 | 학생 | total (본인은 자기 것 읽기 가능) |
+| items | 아이템 id | category(hair/face/top/bottom/shoes/headAcc/faceAcc), name, prices: {색: 가격}, onSale, starter |
+| ownedItems | 학생_아이템_색 / 학생_아이템_free | sid, item, category, color, at |
+| profiles | 학생 | equip: {칸: {owned, item, color} 또는 null}, title, awarded: [칭호 이름] |
+| careNotes 🔒 | 학생 | 살핌판 메모, checkedAt |
+
+업적 칭호는 저장하지 않는다. summaries의 횟수와 settings.titles 기준으로 계산한다.
+칭호 id: `reading_0`~`reading_4`, `mission_0`~`4`, `role_0`~`4`, 선생님 수여는 `award_번호`(awarded 목록 위치).
+
+## 포인트 쓰기 방법
+
+학생 쪽 포인트는 **거래 1줄 + summaries 변경을 하나의 batch**로 쓴다.
+summaries는 `increment()`로 바꾸고 `lastTx`에 거래 id를 넣는다. 다른 학생의 요약은 읽을 수 없으므로 꼭 increment를 쓴다.
+
+| type | 거래 id | 같은 batch에 들어가야 하는 것 |
+|---|---|---|
+| mission | `mission_학생_날짜_n` | missionAttempts 채점(correct: true) |
+| writing | `writing_학생_날짜` | posts 새 글, summaries.reading +1 |
+| writingBonus | `writingBonus_학생_주` | (writingWeeks.days가 기준 이상이어야 함) |
+| role | `role_날짜_역할_학생` | roleChecks requested→approved (확인 담당이 씀), summaries.roleDays +1 |
+| buy | `buy_쿠폰문서id` | coupons 새 문서 |
+| item | `item_학생_아이템_색` | ownedItems 새 문서 |
+| donate | `donate_자동id` | goals.raised·donors·lastTx, goals/{id}/donors/{학생}.total |
+
+교사 쪽(과제 포인트, 지급, 지급 취소, 차감, 환불, 글 삭제 회수)은 규칙이 금액을 검사하지 않는다. 교사 화면 코드가 거래와 요약을 같은 batch로 맞춰 써야 한다.
+- 과제: `task_과제_학생`, 지급 취소: wallet·total 모두 감소, 차감: wallet만 감소, 환불: wallet만 증가.
+
+## 기초미션 순서
+
+1. `missionAttempts/학생_날짜_n` 만들기 (qid, answer). 답은 이후 수정 불가.
+2. 같은 문서에 `correct` 추가 → 규칙이 missionKeys의 answers와 대조해 참/거짓이 맞아야 통과.
+   정답이면 같은 batch에 mission 거래 + summaries. n = 5이면 summaries.missionDays +1.
+3. n번을 채점해야 n+1번을 만들 수 있다.
+
+분수 답은 앱이 약분한 형태로 바꿔서 보내고, missionKeys.answers에도 약분한 형태를 넣는다.
+
+## 학생 로그인 순서
+
+1. 익명 로그인
+2. `numbers/{번호}`를 읽어 sid 확인
+3. `sessions/{uid}`에 {number, sid, pin, at: serverTimestamp()} 만들기. 규칙이 studentPins와 대조한다.
+4. PIN 재설정 또는 전학 시 교사가 그 학생의 sessions를 모두 지운다. 전학이면 numbers·studentPins도 지운다.
+
+학생 등록 시 교사 화면이 한 batch로 만드는 것: students, numbers, studentPins, summaries(0으로), profiles.

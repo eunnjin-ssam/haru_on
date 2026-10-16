@@ -1,0 +1,796 @@
+rules_version = '2';
+
+// 학급관리 웹앱 보안 규칙. 구조 설명은 docs/data-model.md.
+// 원칙: 교사는 거의 모든 것을 읽고 쓴다(포인트 내역 수정만 불가).
+//       학생은 자기 데이터만, 정해진 모양으로만 쓴다.
+//       포인트는 내역(points)과 요약(summaries)을 한 묶음으로만 바꿀 수 있다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== 공통 도우미 =====
+
+    function p(coll, id) { return /databases/$(database)/documents/$(coll)/$(id); }
+
+    function signedIn() { return request.auth != null; }
+    function isTeacher() {
+      return signedIn() && exists(p('teachers', request.auth.uid));
+    }
+    // 학생 = PIN 확인을 통과해 세션 문서가 있는 익명 사용자
+    function isStudent() {
+      return signedIn() && exists(p('sessions', request.auth.uid));
+    }
+    function me() { return get(p('sessions', request.auth.uid)).data.sid; }
+    function cfg() { return get(p('settings', 'main')).data; }
+
+    // 날짜는 서버 시간(한국 시간) 기준. 예: '20261016'
+    function kst() { return request.time + duration.value(9, 'h'); }
+    function ymd(t) { return string(t.year() * 10000 + t.month() * 100 + t.day()); }
+    function today() { return ymd(kst()); }
+    function weekId() { return ymd(kst() - duration.value(kst().dayOfWeek() - 1, 'd')); }
+    function monthId() { return string(kst().year() * 100 + kst().month()); }
+    function isWeekday() { return kst().dayOfWeek() <= 5; }
+
+    function exactKeys(keys) {
+      return request.resource.data.keys().hasAll(keys)
+        && request.resource.data.keys().hasOnly(keys);
+    }
+    function onlyChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+    function text(v, max) { return v is string && v.size() <= max; }
+    function safeId(v) { return v is string && v.matches('[A-Za-z0-9_~-]{1,120}'); }
+    // 이번 요청(batch)에서 새로 만들어지는 문서인지
+    function createdNow(path) { return !exists(path) && existsAfter(path); }
+
+    // ===== 사람·로그인 =====
+
+    match /teachers/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      // 쓰기는 Firebase 콘솔에서만
+    }
+
+    match /students/{sid} {
+      allow read: if isStudent();
+      allow read, write: if isTeacher();
+    }
+
+    // 번호 → 학생ID 안내표. 로그인 전에 필요하므로 로그인한(익명 포함) 사람은 한 장씩 읽을 수 있다.
+    // 이름·PIN은 없다.
+    match /numbers/{number} {
+      allow get: if signedIn();
+      allow read, write: if isTeacher();
+    }
+
+    // PIN 명부. 문서 id = 번호('7'). 학생은 절대 읽을 수 없고, 아래 세션 규칙이 get()으로 대조한다.
+    match /studentPins/{number} {
+      allow read, write: if isTeacher();
+    }
+
+    match /sessions/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider == 'anonymous'
+        && sessionOK();
+      allow read, delete: if isTeacher();
+    }
+    function sessionOK() {
+      let r = request.resource.data;
+      let pin = get(p('studentPins', r.number)).data;
+      return exactKeys(['number', 'sid', 'pin', 'at'])
+        && r.number is string && r.number.matches('[0-9]{1,2}')
+        && r.pin is string && r.pin.matches('[0-9]{4}')
+        && pin.pin == r.pin && pin.sid == r.sid
+        && r.at == request.time;
+    }
+
+    // ===== 설정·알림 =====
+
+    // main: 학생도 읽음 / teacher: 살핌판 기준, 교사만
+    match /settings/{docId} {
+      allow read: if docId == 'main' && isStudent();
+      allow read, write: if isTeacher();
+    }
+
+    match /notices/{nid} {
+      allow read: if isStudent();
+      allow read, write: if isTeacher();
+
+      match /reads/{sid} {
+        allow read: if isStudent() && sid == me();
+        allow create: if isStudent() && sid == me()
+          && exactKeys(['at']) && request.resource.data.at == request.time;
+        allow read, write: if isTeacher();
+      }
+    }
+
+    match /messages/{mid} {
+      allow read: if isStudent() && resource.data.to == me();
+      allow update: if isStudent() && resource.data.to == me()
+        && resource.data.readAt == null
+        && onlyChanged(['readAt']) && request.resource.data.readAt == request.time;
+      allow read, write: if isTeacher();
+    }
+
+    // 건의함. 문서 id = 학생_날짜_1~3 → 하루 3건
+    match /feedback/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create: if isStudent() && feedbackOK(id);
+      allow read, write: if isTeacher();
+    }
+    function feedbackOK(id) {
+      let r = request.resource.data;
+      let base = me() + '_' + today() + '_';
+      return exactKeys(['sid', 'kind', 'menu', 'category', 'body', 'device', 'status', 'at'])
+        && r.sid == me() && id in [base + '1', base + '2', base + '3']
+        && r.kind in ['bug', 'idea']
+        && text(r.menu, 30) && text(r.category, 30)
+        && text(r.body, 1000) && text(r.device, 300)
+        && r.status == 'new' && r.at == request.time;
+    }
+
+    // ===== 포인트 =====
+
+    // 거래 기록. 한 번 쓰면 아무도 고칠 수 없다(교사는 정정 줄을 새로 추가).
+    // 지우기는 교사의 학년말 초기화 때만.
+    match /points/{txId} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create: if isStudent() && studentTxOK(txId);
+      allow read, create, delete: if isTeacher();
+    }
+
+    function summaryAfter(sid) { return getAfter(p('summaries', sid)).data; }
+    function txAfter(id) { return getAfter(p('points', id)).data; }
+
+    function studentTxOK(txId) {
+      let t = request.resource.data;
+      return exactKeys(['sid', 'type', 'wallet', 'total', 'reason', 'ref', 'by', 'at'])
+        && t.by == me() && t.at == request.time
+        && t.wallet is int && t.total is int
+        && text(t.reason, 200) && safeId(t.ref) && safeId(t.sid)
+        // 요약 문서도 같은 묶음에서 이 거래를 가리키도록 바뀌어야 한다
+        && summaryAfter(t.sid).lastTx == txId
+        && txTypeOK(txId, t);
+    }
+
+    function txTypeOK(txId, t) {
+      return (t.type == 'mission' && missionTxOK(txId, t))
+        || (t.type == 'writing' && writingTxOK(txId, t))
+        || (t.type == 'writingBonus' && bonusTxOK(txId, t))
+        || (t.type == 'role' && roleTxOK(txId, t))
+        || (t.type == 'buy' && buyTxOK(txId, t))
+        || (t.type == 'item' && itemTxOK(txId, t))
+        || (t.type == 'donate' && donateTxOK(txId, t));
+    }
+
+    // 기초미션: 오늘 채점되어 정답인 문제 1개당 1줄 (id = mission_학생_날짜_번호)
+    function missionTxOK(txId, t) {
+      let a = getAfter(p('missionAttempts', t.ref)).data;
+      return t.sid == me() && txId == 'mission_' + t.ref
+        && a.sid == me() && a.date == today() && a.correct == true
+        && t.wallet == cfg().points.mission && t.total == t.wallet;
+    }
+
+    // 글마당: 오늘 글을 올리는 바로 그 묶음에서만 (id = writing_학생_날짜)
+    function writingTxOK(txId, t) {
+      let postId = me() + '_' + today();
+      return t.sid == me() && t.ref == postId && txId == 'writing_' + postId
+        && createdNow(p('posts', postId))
+        && t.wallet == cfg().points.writing && t.total == t.wallet;
+    }
+
+    // 주간 보너스: 이번 주 글 쓴 날이 기준 이상 (id = writingBonus_학생_주)
+    function bonusTxOK(txId, t) {
+      let wk = me() + '_' + weekId();
+      return t.sid == me() && t.ref == wk && txId == 'writingBonus_' + wk
+        && getAfter(p('writingWeeks', wk)).data.days.size() >= cfg().points.bonusDays
+        && t.wallet == cfg().points.writingBonus && t.total == t.wallet;
+    }
+
+    // 1인1역: 그 역할의 확인 담당이 승인하는 묶음에서만 (id = role_날짜_역할_학생)
+    function roleTxOK(txId, t) {
+      let rc = getAfter(p('roleChecks', t.ref)).data;
+      let role = get(p('roles', rc.role)).data;
+      return txId == 'role_' + t.ref && rc.sid == t.sid
+        && rc.status == 'approved'
+        && get(p('roleChecks', t.ref)).data.status == 'requested'
+        && role.checker == me()
+        && t.wallet == role.points && t.total == t.wallet;
+    }
+
+    // 쿠폰 구매: 쿠폰 가격만큼 지갑에서만 빠짐, 잔액 0 미만 불가
+    function buyTxOK(txId, t) {
+      let c = getAfter(p('coupons', t.ref)).data;
+      return t.sid == me() && txId == 'buy_' + t.ref
+        && createdNow(p('coupons', t.ref)) && c.sid == me()
+        && t.wallet + c.price == 0 && t.total == 0
+        && summaryAfter(me()).wallet >= 0;
+    }
+
+    // 아이템 구매
+    function itemTxOK(txId, t) {
+      let o = getAfter(p('ownedItems', t.ref)).data;
+      return t.sid == me() && txId == 'item_' + t.ref
+        && createdNow(p('ownedItems', t.ref)) && o.sid == me()
+        && t.wallet + get(p('items', o.item)).data.prices[o.color] == 0
+        && t.total == 0 && summaryAfter(me()).wallet >= 0;
+    }
+
+    // 공동 목표 보태기: 금액 검사는 goals 규칙에서
+    function donateTxOK(txId, t) {
+      return t.sid == me() && txId.matches('donate_[A-Za-z0-9_-]{1,100}')
+        && getAfter(p('goals', t.ref)).data.lastTx == txId
+        && t.wallet < 0 && t.total == 0
+        && summaryAfter(me()).wallet >= 0;
+    }
+
+    // 학생별 요약: 지갑, 누적, 칭호용 횟수, 마지막 거래
+    match /summaries/{sid} {
+      allow read: if isStudent() && me() == sid;
+      allow update: if isStudent() && summaryUpdateOK(sid);
+      allow read, write: if isTeacher();
+    }
+    function summaryUpdateOK(sid) {
+      let b = resource.data;
+      let a = request.resource.data;
+      let ch = a.diff(b).affectedKeys();
+      let money = ch.hasAny(['wallet', 'total', 'lastTx']);
+      return ch.hasOnly(['wallet', 'total', 'lastTx', 'reading', 'missionDays', 'roleDays'])
+        // 지갑·누적은 새 거래 1건만큼만 바뀐다
+        && (!money || (
+              ch.hasAny(['lastTx'])
+              && createdNow(p('points', a.lastTx))
+              && txAfter(a.lastTx).sid == sid
+              && a.wallet == b.wallet + txAfter(a.lastTx).wallet
+              && a.total == b.total + txAfter(a.lastTx).total))
+        // 남의 요약은 1인1역 확인 담당의 승인으로만
+        && (sid == me() || (money && txAfter(a.lastTx).type == 'role'
+              && ch.hasOnly(['wallet', 'total', 'lastTx', 'roleDays'])))
+        && (!ch.hasAny(['reading']) || (a.reading == b.reading + 1
+              && createdNow(p('posts', sid + '_' + today()))))
+        && (!ch.hasAny(['missionDays']) || (a.missionDays == b.missionDays + 1
+              && gradedNow(sid + '_' + today() + '_5')))
+        && (!ch.hasAny(['roleDays']) || (a.roleDays == b.roleDays + 1
+              && money && txAfter(a.lastTx).type == 'role'));
+    }
+    function gradedNow(attemptId) {
+      return !('correct' in get(p('missionAttempts', attemptId)).data)
+        && getAfter(p('missionAttempts', attemptId)).data.correct is bool;
+    }
+
+    // ===== 매일 할 일 =====
+
+    // 기분: 하루 1장, 그날 안에서는 다시 고를 수 있음
+    match /moods/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create, update: if isStudent() && id == me() + '_' + today()
+        && exactKeys(['sid', 'date', 'mood', 'at'])
+        && request.resource.data.sid == me()
+        && request.resource.data.date == today()
+        && request.resource.data.at == request.time
+        && request.resource.data.mood in ['excited', 'good', 'okay', 'upset', 'angry', 'tired', 'custom'];
+      allow read, write: if isTeacher();
+    }
+
+    // 직접 쓴 기분: 본인과 교사만
+    match /moodNotes/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create, update: if isStudent() && id == me() + '_' + today()
+        && exactKeys(['sid', 'date', 'text', 'at'])
+        && request.resource.data.sid == me()
+        && request.resource.data.date == today()
+        && request.resource.data.at == request.time
+        && text(request.resource.data.text, 100);
+      allow read, write: if isTeacher();
+    }
+
+    match /attendance/{date} {
+      allow read, write: if isTeacher();
+    }
+
+    // 기초미션 정답. 학생은 못 읽고, 채점 규칙이 get()으로 대조한다.
+    match /missionKeys/{qid} {
+      allow read, write: if isTeacher();
+    }
+
+    // 기초미션 풀이. id = 학생_날짜_1~5
+    // 1) 답을 제출(만들기) → 2) 채점(correct 추가). 제출한 답은 고칠 수 없다.
+    match /missionAttempts/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create: if isStudent() && attemptCreateOK(id);
+      allow update: if isStudent() && attemptGradeOK();
+      allow read, write: if isTeacher();
+    }
+    function attemptCreateOK(id) {
+      let a = request.resource.data;
+      return exactKeys(['sid', 'date', 'n', 'qid', 'answer', 'at'])
+        && a.sid == me() && a.date == today() && a.at == request.time
+        && a.n is int && a.n >= 1 && a.n <= 5
+        && id == me() + '_' + today() + '_' + string(a.n)
+        && safeId(a.qid) && text(a.answer, 50)
+        && get(p('missionKeys', a.qid)).data.unit in cfg().mission.units
+        // 앞 문제를 채점한 뒤에만 다음 문제
+        && (a.n == 1 || 'correct' in get(p('missionAttempts',
+              me() + '_' + today() + '_' + string(a.n - 1))).data);
+    }
+    function attemptGradeOK() {
+      return resource.data.sid == me()
+        && !('correct' in resource.data)
+        && onlyChanged(['correct'])
+        && request.resource.data.correct
+          == (resource.data.answer in get(p('missionKeys', resource.data.qid)).data.answers);
+    }
+
+    // 1인1역
+    match /roles/{roleId} {
+      allow read: if isStudent();
+      allow read, write: if isTeacher();
+    }
+
+    // id = 날짜_역할_학생
+    match /roleChecks/{id} {
+      allow read: if isStudent();
+      allow create: if isStudent() && roleRequestOK(id);
+      allow update: if isStudent() && (roleReRequestOK() || roleDecideOK(id));
+      allow read, write: if isTeacher();
+    }
+    function roleRequestOK(id) {
+      let r = request.resource.data;
+      return exactKeys(['sid', 'role', 'date', 'status', 'by', 'at'])
+        && r.sid == me() && r.by == me() && r.date == today()
+        && r.at == request.time && r.status == 'requested'
+        && safeId(r.role) && id == today() + '_' + r.role + '_' + me()
+        && me() in get(p('roles', r.role)).data.members;
+    }
+    // '다시 해줘'를 받은 뒤 다시 요청
+    function roleReRequestOK() {
+      return resource.data.sid == me() && resource.data.status == 'redo'
+        && resource.data.date == today()
+        && onlyChanged(['status', 'by', 'at'])
+        && request.resource.data.status == 'requested'
+        && request.resource.data.by == me()
+        && request.resource.data.at == request.time;
+    }
+    // 확인 담당의 승인 / 다시 해줘. 승인은 포인트 지급과 같은 묶음에서만.
+    function roleDecideOK(id) {
+      let r = request.resource.data;
+      return resource.data.status == 'requested' && resource.data.date == today()
+        && get(p('roles', resource.data.role)).data.checker == me()
+        && onlyChanged(['status', 'by', 'at'])
+        && r.by == me() && r.at == request.time
+        && (r.status == 'redo'
+          || (r.status == 'approved' && existsAfter(p('points', 'role_' + id))));
+    }
+
+    match /roleTerms/{termId} {
+      allow read: if isStudent();
+      allow read, write: if isTeacher();
+    }
+
+    // 1~3지망. id = 기간_학생
+    match /roleWishes/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create, update: if isStudent() && wishOK(id);
+      allow read, write: if isTeacher();
+    }
+    function wishOK(id) {
+      let r = request.resource.data;
+      return exactKeys(['sid', 'term', 'picks', 'at'])
+        && r.sid == me() && safeId(r.term) && id == r.term + '_' + me()
+        && r.picks is list && r.picks.size() >= 1 && r.picks.size() <= 3
+        && r.at == request.time
+        && get(p('roleTerms', r.term)).data.wishOpen == true;
+    }
+
+    // ===== 글마당 =====
+
+    // id = 학생_날짜 → 하루 1편
+    match /posts/{postId} {
+      allow read: if isStudent()
+        && (resource.data.status == 'public' || resource.data.author == me());
+      allow create: if isStudent() && postCreateOK(postId);
+      allow update: if isStudent() && (postLikeOK(postId) || postReportOK(postId));
+      allow read, write: if isTeacher();
+
+      match /likes/{sid} {
+        allow read: if isStudent() && sid == me();
+        allow create: if isStudent() && sid == me()
+          && exactKeys(['at']) && request.resource.data.at == request.time
+          && get(p('posts', postId)).data.author != me()
+          && getAfter(p('posts', postId)).data.likes == get(p('posts', postId)).data.likes + 1;
+        allow read, write: if isTeacher();
+      }
+    }
+    function postCreateOK(postId) {
+      let r = request.resource.data;
+      return exactKeys(['author', 'readDate', 'title', 'summary', 'thoughts',
+                        'status', 'likes', 'editedByTeacher', 'at'])
+        && postId == me() + '_' + today()
+        && r.author == me() && r.status == 'public' && r.likes == 0
+        && r.editedByTeacher == false && r.at == request.time
+        && text(r.readDate, 10) && text(r.title, 100)
+        && text(r.summary, 3000) && text(r.thoughts, 3000);
+    }
+    // 공감: 공감 수 +1과 내 공감 표시를 함께, 1인 1회, 내 글 불가
+    function postLikeOK(postId) {
+      return resource.data.status == 'public' && resource.data.author != me()
+        && onlyChanged(['likes'])
+        && request.resource.data.likes == resource.data.likes + 1
+        && createdNow(/databases/$(database)/documents/posts/$(postId)/likes/$(me()));
+    }
+    // 신고: 신고 기록과 함께 즉시 숨김
+    function postReportOK(postId) {
+      return resource.data.status == 'public' && resource.data.author != me()
+        && onlyChanged(['status']) && request.resource.data.status == 'reported'
+        && createdNow(p('reports', 'post_' + postId + '_' + me()));
+    }
+
+    // 이번 주 글 쓴 날 목록 (주간 보너스 판정용)
+    match /writingWeeks/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create: if isStudent() && weekBaseOK(id)
+        && exactKeys(['sid', 'week', 'days'])
+        && request.resource.data.sid == me()
+        && request.resource.data.week == weekId()
+        && request.resource.data.days == [today()];
+      allow update: if isStudent() && weekBaseOK(id)
+        && onlyChanged(['days'])
+        && !(today() in resource.data.days)
+        && request.resource.data.days == resource.data.days.concat([today()]);
+      allow read, write: if isTeacher();
+    }
+    // 오늘 쓴 글이 있어야 오늘 날짜를 넣을 수 있다
+    function weekBaseOK(id) {
+      return id == me() + '_' + weekId() && isWeekday()
+        && existsAfter(p('posts', me() + '_' + today()));
+    }
+
+    match /drafts/{sid} {
+      allow read, delete: if isStudent() && sid == me();
+      allow create, update: if isStudent() && sid == me()
+        && request.resource.data.keys().hasOnly(['readDate', 'title', 'summary', 'thoughts', 'at'])
+        && text(request.resource.data.get('title', ''), 100)
+        && text(request.resource.data.get('summary', ''), 3000)
+        && text(request.resource.data.get('thoughts', ''), 3000);
+      allow read, write: if isTeacher();
+    }
+
+    // 신고 기록(글마당 글, 약속마당 댓글). 신고자는 교사만 안다. id = 종류_대상_신고자 → 중복 신고 불가
+    match /reports/{id} {
+      allow read: if isStudent() && resource.data.reporter == me();
+      allow create: if isStudent() && reportCreateOK(id);
+      allow read, write: if isTeacher();
+    }
+    function reportCreateOK(id) {
+      let r = request.resource.data;
+      return exactKeys(['kind', 'target', 'story', 'reporter', 'reason', 'at'])
+        && r.reporter == me() && r.at == request.time
+        && r.reason in ['tease', 'swear', 'etc']
+        && safeId(r.target)
+        && id == r.kind + '_' + r.target + '_' + me()
+        && ((r.kind == 'post' && r.story == ''
+              && getAfter(p('posts', r.target)).data.status == 'reported')
+          || (r.kind == 'comment' && safeId(r.story)
+              && getAfter(/databases/$(database)/documents/stories/$(r.story)/comments/$(r.target))
+                   .data.status == 'reported'));
+    }
+
+    // ===== 약속마당 =====
+
+    // 이름 공개 / 익명 이야기. 익명이면 작성자 칸이 없고, 작성자는 storyAuthors에만 있다.
+    match /stories/{storyId} {
+      allow read: if isStudent() && resource.data.hidden == false;
+      allow create: if isStudent() && storyCreateOK(storyId);
+      allow update: if isStudent() && storyLikeOK(storyId);
+      allow read, write: if isTeacher();
+
+      match /likes/{sid} {
+        allow read: if isStudent() && sid == me();
+        allow create: if isStudent() && sid == me()
+          && exactKeys(['at']) && request.resource.data.at == request.time
+          && getAfter(p('stories', storyId)).data.likes == get(p('stories', storyId)).data.likes + 1;
+        allow read, write: if isTeacher();
+      }
+
+      match /comments/{cid} {
+        allow read: if isStudent()
+          && (resource.data.status == 'public' || resource.data.author == me());
+        allow create: if isStudent()
+          && exactKeys(['author', 'text', 'status', 'at'])
+          && request.resource.data.author == me()
+          && request.resource.data.status == 'public'
+          && request.resource.data.at == request.time
+          && text(request.resource.data.text, 300)
+          && get(p('stories', storyId)).data.hidden == false;
+        allow update: if isStudent()
+          && resource.data.status == 'public' && resource.data.author != me()
+          && onlyChanged(['status']) && request.resource.data.status == 'reported'
+          && createdNow(p('reports', 'comment_' + cid + '_' + me()));
+        allow read, write: if isTeacher();
+      }
+    }
+    function storyCreateOK(storyId) {
+      let r = request.resource.data;
+      return r.keys().hasAll(['mode', 'wish', 'reason', 'likes', 'stage', 'hidden', 'at'])
+        && r.keys().hasOnly(['mode', 'author', 'wish', 'reason', 'when', 'what', 'feeling',
+                             'likes', 'stage', 'hidden', 'at'])
+        && ((r.mode == 'named' && r.get('author', '') == me())
+          || (r.mode == 'anon' && !('author' in r)))
+        && r.likes == 0 && r.stage == 'story' && r.hidden == false
+        && r.at == request.time
+        && text(r.wish, 500) && text(r.reason, 1000)
+        && text(r.get('when', ''), 300) && text(r.get('what', ''), 1000)
+        && text(r.get('feeling', ''), 500)
+        && createdNow(p('storyAuthors', storyId))
+        && getAfter(p('storyAuthors', storyId)).data.sid == me();
+    }
+    function storyLikeOK(storyId) {
+      return resource.data.hidden == false
+        && onlyChanged(['likes'])
+        && request.resource.data.likes == resource.data.likes + 1
+        && get(p('storyAuthors', storyId)).data.sid != me()
+        && createdNow(/databases/$(database)/documents/stories/$(storyId)/likes/$(me()));
+    }
+
+    // 이야기 작성자(익명 포함). 친구는 못 보고, 본인은 자기 것만.
+    match /storyAuthors/{storyId} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create: if isStudent()
+        && exactKeys(['sid', 'at'])
+        && request.resource.data.sid == me()
+        && request.resource.data.at == request.time
+        && createdNow(p('stories', storyId));
+      allow read, write: if isTeacher();
+    }
+
+    // 선생님만 보기 이야기
+    match /privateStories/{id} {
+      allow read: if isStudent() && resource.data.author == me();
+      allow create: if isStudent() && privateStoryOK();
+      allow read, write: if isTeacher();
+    }
+    function privateStoryOK() {
+      let r = request.resource.data;
+      return r.keys().hasAll(['author', 'wish', 'reason', 'at'])
+        && r.keys().hasOnly(['author', 'wish', 'reason', 'when', 'what', 'feeling', 'at'])
+        && r.author == me() && r.at == request.time
+        && text(r.wish, 500) && text(r.reason, 1000)
+        && text(r.get('when', ''), 300) && text(r.get('what', ''), 1000)
+        && text(r.get('feeling', ''), 500);
+    }
+
+    // 상담 메모 (선생님만 보기 이야기용)
+    match /storyNotes/{id} {
+      allow read, write: if isTeacher();
+    }
+
+    match /promises/{id} {
+      allow read: if isStudent();
+      allow read, write: if isTeacher();
+    }
+
+    // ===== 과제 =====
+
+    match /tasks/{taskId} {
+      allow read: if isStudent() && me() in resource.data.targets;
+      allow read, write: if isTeacher();
+    }
+
+    // id = 과제_학생. 처음 제출 시각(firstAt)은 서버 시간으로 한 번만 정해진다.
+    match /submissions/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create: if isStudent() && submitOK(id);
+      allow update: if isStudent() && resubmitOK();
+      allow read, write: if isTeacher();
+    }
+    function submitOK(id) {
+      let r = request.resource.data;
+      let task = get(p('tasks', r.task)).data;
+      return exactKeys(['task', 'sid', 'status', 'text', 'firstAt', 'lastAt'])
+        && safeId(r.task) && id == r.task + '_' + me() && r.sid == me()
+        && task.kind == 'homework' && me() in task.targets
+        && r.status == 'submitted'
+        && r.firstAt == request.time && r.lastAt == request.time
+        && text(r.text, 5000);
+    }
+    function resubmitOK() {
+      return resource.data.sid == me() && resource.data.status == 'redo'
+        && onlyChanged(['status', 'text', 'lastAt'])
+        && request.resource.data.status == 'submitted'
+        && request.resource.data.lastAt == request.time
+        && text(request.resource.data.text, 5000);
+    }
+
+    // ===== 상점·공동 목표 =====
+
+    match /shopItems/{itemId} {
+      allow read: if isStudent();
+      allow read, write: if isTeacher();
+    }
+
+    // 내 쿠폰. id = 학생_쿠폰_기간_번호 → 번호가 구매 한도를 넘을 수 없다.
+    match /coupons/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create: if isStudent() && couponBuyOK(id);
+      allow update: if isStudent() && couponUseRequestOK(id);
+      allow read, write: if isTeacher();
+    }
+    function periodKey(item) {
+      return item.buyPeriod == 'week' ? weekId()
+        : (item.buyPeriod == 'month' ? monthId() : 'all');
+    }
+    function couponBuyOK(id) {
+      let r = request.resource.data;
+      let item = get(p('shopItems', r.coupon)).data;
+      return exactKeys(['sid', 'coupon', 'period', 'n', 'status', 'price', 'use', 'at'])
+        && safeId(r.coupon) && r.sid == me() && item.onSale == true
+        && r.period == periodKey(item)
+        && r.n is int && r.n >= 1
+        && r.n <= (item.buyLimit == 0 ? 999 : item.buyLimit)
+        && id == me() + '_' + r.coupon + '_' + r.period + '_' + string(r.n)
+        && r.price == item.price
+        && r.status == (item.instant == true ? 'owned' : 'pending')
+        && r.use == null && r.at == request.time
+        && createdNow(p('points', 'buy_' + id));
+    }
+    function couponUseRequestOK(id) {
+      let r = request.resource.data;
+      return resource.data.sid == me() && resource.data.status == 'owned'
+        && onlyChanged(['status', 'use'])
+        && r.status == 'useRequested' && safeId(r.use)
+        && createdNow(p('couponUses', r.use))
+        && getAfter(p('couponUses', r.use)).data.coupon == id;
+    }
+
+    // 쿠폰 사용 요청. 반 전체 하루 한도가 있으면 id = 쿠폰종류_날짜_1~한도
+    match /couponUses/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create: if isStudent() && useCreateOK(id);
+      allow read, write: if isTeacher();
+    }
+    function useCreateOK(id) {
+      let r = request.resource.data;
+      let owned = get(p('coupons', r.coupon)).data;
+      let item = get(p('shopItems', owned.coupon)).data;
+      return exactKeys(['sid', 'coupon', 'type', 'date', 'n', 'task', 'status', 'at'])
+        && safeId(r.coupon) && r.sid == me()
+        && owned.sid == me() && owned.status == 'owned'
+        && r.type == owned.coupon && r.date == today()
+        && r.status == 'requested' && r.at == request.time
+        && (r.task == null || safeId(r.task))
+        && r.n is int
+        && (item.dailyUse == 0
+          ? id == 'u_' + r.coupon
+          : (r.n >= 1 && r.n <= item.dailyUse
+              && id == r.type + '_' + today() + '_' + string(r.n)))
+        && getAfter(p('coupons', r.coupon)).data.status == 'useRequested';
+    }
+
+    // 쿠폰 제안. id = 학생_주_1~2 → 1인 주 2개
+    match /couponIdeas/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create: if isStudent() && ideaOK(id);
+      allow read, write: if isTeacher();
+    }
+    function ideaOK(id) {
+      let r = request.resource.data;
+      return exactKeys(['sid', 'week', 'n', 'what', 'price', 'why', 'at'])
+        && r.sid == me() && r.week == weekId() && r.n in [1, 2]
+        && id == me() + '_' + weekId() + '_' + string(r.n)
+        && text(r.what, 100) && text(r.why, 300)
+        && r.price is int && r.price >= 0 && r.price <= 1000
+        && r.at == request.time;
+    }
+
+    // 공동 목표. 학생은 보탤 때 모인 포인트·인원만 바꿀 수 있다.
+    match /goals/{goalId} {
+      allow read: if isStudent();
+      allow update: if isStudent() && donateOK(goalId);
+      allow read, write: if isTeacher();
+
+      // 학생별 보탠 금액: 교사만 (본인은 자기 것만)
+      match /donors/{sid} {
+        allow read: if isStudent() && sid == me();
+        allow create, update: if isStudent() && sid == me() && donorOK(goalId);
+        allow read, write: if isTeacher();
+      }
+    }
+    function donateOK(goalId) {
+      let b = resource.data;
+      let a = request.resource.data;
+      let t = getAfter(p('points', a.lastTx)).data;
+      let donor = /databases/$(database)/documents/goals/$(goalId)/donors/$(me());
+      return b.status == 'open'
+        && a.diff(b).affectedKeys().hasOnly(['raised', 'donors', 'lastTx', 'status'])
+        && createdNow(p('points', a.lastTx))
+        && t.type == 'donate' && t.sid == me() && t.ref == goalId
+        && a.raised == b.raised - t.wallet
+        && a.raised <= b.target
+        && a.donors == b.donors + (exists(donor) ? 0 : 1)
+        && existsAfter(donor)
+        && a.status == (a.raised == b.target ? 'done' : 'open');
+    }
+    function donorOK(goalId) {
+      let g = p('goals', goalId);
+      let delta = getAfter(g).data.raised - get(g).data.raised;
+      return exactKeys(['total']) && delta > 0
+        && request.resource.data.total == (resource == null ? 0 : resource.data.total) + delta;
+    }
+
+    // ===== 캐릭터·칭호 =====
+
+    match /items/{itemId} {
+      allow read: if isStudent();
+      allow read, write: if isTeacher();
+    }
+
+    // 가진 아이템. 처음 지급 아이템은 id = 학생_아이템_free (아이템마다 1번 무료)
+    // 산 아이템은 id = 학생_아이템_색 (포인트 차감과 같은 묶음)
+    match /ownedItems/{id} {
+      allow read: if isStudent() && resource.data.sid == me();
+      allow create: if isStudent() && ownItemOK(id);
+      allow read, write: if isTeacher();
+    }
+    function ownItemOK(id) {
+      let r = request.resource.data;
+      let item = get(p('items', r.item)).data;
+      return exactKeys(['sid', 'item', 'category', 'color', 'at'])
+        && safeId(r.item) && safeId(r.color) && r.sid == me()
+        && r.category == item.category && r.color in item.prices
+        && r.at == request.time
+        && ((item.starter == true && id == me() + '_' + r.item + '_free')
+          || (item.onSale == true && id == me() + '_' + r.item + '_' + r.color
+              && createdNow(p('points', 'item_' + id))));
+    }
+
+    // 캐릭터 모습과 착용 칭호. 우리 반 탭에서 모두 볼 수 있다(포인트는 없음).
+    match /profiles/{sid} {
+      allow read: if isStudent();
+      allow update: if isStudent() && sid == me() && profileUpdateOK(sid);
+      allow read, write: if isTeacher();
+    }
+    function profileUpdateOK(sid) {
+      let ch = request.resource.data.diff(resource.data).affectedKeys();
+      let eq = request.resource.data.equip.diff(resource.data.equip).affectedKeys();
+      return ch.hasOnly(['equip', 'title'])
+        && !ch.hasAll(['equip', 'title'])
+        && request.resource.data.equip.keys()
+             .hasOnly(['hair', 'face', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc'])
+        && slotOK(sid, eq, 'hair') && slotOK(sid, eq, 'face')
+        && slotOK(sid, eq, 'top') && slotOK(sid, eq, 'bottom')
+        && slotOK(sid, eq, 'shoes') && slotOK(sid, eq, 'headAcc')
+        && slotOK(sid, eq, 'faceAcc')
+        && (!ch.hasAny(['title']) || titleOK(sid, request.resource.data.title));
+    }
+    // 바뀐 칸만 검사: 내가 가진 아이템이어야 한다
+    function slotOK(sid, eq, slot) {
+      return !(slot in eq) || equipOK(sid, slot, request.resource.data.equip[slot]);
+    }
+    function equipOK(sid, slot, e) {
+      return e == null || (
+        e.keys().hasOnly(['owned', 'item', 'color']) && safeId(e.owned)
+        && ownedMatches(sid, slot, e, get(p('ownedItems', e.owned)).data));
+    }
+    function ownedMatches(sid, slot, e, o) {
+      return o.sid == sid && o.category == slot && o.item == e.item && o.color == e.color;
+    }
+    // 칭호: 'reading_0'~'reading_4' 같은 업적 칭호(기준 달성 시) 또는 'award_번호'(선생님 수여)
+    function titleOK(sid, t) {
+      return t == null
+        || (t.matches('award_[0-9]{1,2}')
+            && int(t.split('_')[1]) < resource.data.awarded.size())
+        || achvOK(sid, t.split('_'));
+    }
+    function achvOK(sid, parts) {
+      let field = {'reading': 'reading', 'mission': 'missionDays', 'role': 'roleDays'};
+      return parts.size() == 2 && parts[0] in field && parts[1].matches('[0-4]')
+        && get(p('summaries', sid)).data[field[parts[0]]]
+             >= cfg().titles[parts[0]][int(parts[1])].min;
+    }
+
+    // ===== 교사 전용 =====
+
+    match /careNotes/{sid} {
+      allow read, write: if isTeacher();
+    }
+  }
+}
