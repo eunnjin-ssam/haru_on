@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>우리 반 캐릭터</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: radial-gradient(circle at 50% 30%, #2a3356, #141a2e); overflow: hidden; }
+    #board { width: 100vw; height: 100vh; }
+    .title { position: fixed; top: 18px; left: 0; right: 0; text-align: center; color: #fff; font: 700 28px system-ui, sans-serif; opacity: .85; pointer-events: none; }
+    .msg { color: #fff; font: 500 20px system-ui, sans-serif; text-align: center; margin-top: 40vh; padding: 0 20px; }
+  </style>
+</head>
+<body>
+  <div class="title">우리 반 캐릭터</div>
+  <div id="board"></div>
+  <script type="module" src="js/character/board.js"></script>
+</body>
+</html>
