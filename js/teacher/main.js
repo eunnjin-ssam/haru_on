@@ -10,6 +10,7 @@ import { renderMission } from './mission.js';
 import { renderToday } from './today.js';
 import { renderBoard } from './board.js';
 import { renderWritingAdmin } from './writing-admin.js';
+import { renderStoriesAdmin } from './stories-admin.js';
 
 const root = document.getElementById('app');
 
@@ -17,6 +18,7 @@ const TABS = [
   { id: 'today', label: '오늘 현황', render: renderToday },
   { id: 'board', label: '체크판', render: renderBoard },
   { id: 'writing', label: '글마당 관리', render: renderWritingAdmin },
+  { id: 'stories', label: '약속마당 관리', render: renderStoriesAdmin },
   { id: 'roster', label: '학생 명단', render: renderRoster },
   { id: 'roles', label: '1인1역', render: renderRoles },
   { id: 'mission', label: '기초미션', render: renderMission },

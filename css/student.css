@@ -163,3 +163,23 @@ body { font-size: 20px; }
 .chip-s.wait { background: #fff3d6; color: #9a6b00; }
 .chip-s.ok { background: var(--ok-soft); color: var(--ok); }
 .chip-s.redo { background: var(--danger-soft); color: var(--danger); }
+
+/* 약속마당 */
+.story-list { display: flex; flex-direction: column; gap: 12px; }
+.story-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+.sc-head { display: flex; justify-content: space-between; align-items: center; }
+.sc-wish { font-size: 18px; font-weight: 700; margin: 10px 0 4px; }
+.stage { border-radius: 999px; padding: 3px 12px; font-size: 13px; font-weight: 600; background: var(--bg); color: var(--muted); }
+.stage-agenda { background: #fff3d6; color: #9a6b00; }
+.stage-promise { background: var(--ok-soft); color: var(--ok); }
+.stage-hold { background: var(--line); }
+.sc-actions { margin: 10px 0; }
+.comments { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.comment { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; }
+.add-comment { display: flex; gap: 6px; }
+.add-comment input { flex: 1; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+.promises { border: 2px solid var(--ok); }
+.promise-item { font-size: 17px; font-weight: 600; margin: 6px 0; }
+.stories .writeform .wf, .stories .card .wf { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.stories textarea { padding: 12px; border: 2px solid var(--line); border-radius: 10px; font-size: 17px; min-height: 64px; resize: vertical; width: 100%; }
+.stories .wf > span { font-weight: 600; font-size: 15px; }
