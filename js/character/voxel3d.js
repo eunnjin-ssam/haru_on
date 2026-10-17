@@ -13,7 +13,7 @@ function titleSprite(text, color) {
   const tex = new THREE.CanvasTexture(cv);
   tex.minFilter = THREE.LinearFilter;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
-  sp.scale.set(14, 3.5, 1); sp.position.set(0, 25, 0);
+  sp.scale.set(12, 3, 1); sp.position.set(0, 23.5, 0);
   return sp;
 }
 
@@ -23,9 +23,9 @@ export function renderCharacter3D(container, equip, opts = {}) {
   const w = container.clientWidth || 280;
   const hgt = container.clientHeight || 340;
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, w / hgt, 0.1, 200);
-  camera.position.set(0, 12, 46);
-  camera.lookAt(0, 11, 0);
+  const camera = new THREE.PerspectiveCamera(34, w / hgt, 0.1, 200);
+  camera.position.set(0, 13, 52);
+  camera.lookAt(0, 12, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
