@@ -106,3 +106,47 @@ body { font-size: 20px; }
 .result .big { font-size: 30px; font-weight: 700; }
 .result.ok .big { color: var(--ok); }
 .result.no .big { color: var(--danger); }
+
+/* 앱 셸 + 아래 메뉴 */
+#app:has(.student-app) { padding: 0; align-items: stretch; }
+.student-app { width: 100%; max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; min-height: 100dvh; }
+.app-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; }
+.app-header .who { color: var(--muted); font-size: 16px; }
+.screen { flex: 1; padding: 8px 16px 90px; display: flex; flex-direction: column; gap: 16px; }
+.bottomnav { position: sticky; bottom: 0; display: flex; background: var(--surface); border-top: 1px solid var(--line); padding: 6px 4px env(safe-area-inset-bottom); }
+.nav-btn { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; color: var(--muted); font-size: 13px; font-weight: 600; }
+.nav-btn .ico { font-size: 22px; }
+.nav-btn.on { color: var(--primary); }
+
+/* 하위 탭·칩 */
+.subtabs, .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.subtab, .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 8px 18px; font-size: 16px; color: var(--text); }
+.subtab.on, .chip.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* 글쓰기 폼 */
+.writeform .wf { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.writeform .wf > span { font-weight: 600; font-size: 15px; }
+.writeform input, .writeform textarea { padding: 12px; border: 2px solid var(--line); border-radius: 10px; font-size: 17px; }
+.writeform textarea { min-height: 90px; resize: vertical; }
+
+/* 글 카드 */
+.post-list { display: flex; flex-direction: column; gap: 12px; }
+.post-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+.pc-head { display: flex; justify-content: space-between; gap: 8px; }
+.pc-title { font-size: 19px; font-weight: 700; }
+.pc-meta { font-size: 14px; }
+.pc-preview, .pc-body { margin: 10px 0; }
+.pc-body p { margin: 6px 0; }
+.pc-actions { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.like { border: 0; background: none; color: var(--muted); font-weight: 700; font-size: 16px; }
+.like.on { color: var(--danger); }
+.linkish { border: 0; background: none; color: var(--primary-dark); text-decoration: underline; font-size: 15px; }
+.linkish.report { color: var(--muted); margin-left: auto; }
+.badge-bad { background: var(--danger-soft); color: var(--danger); border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 600; height: fit-content; white-space: nowrap; }
+.post-read { margin-top: 12px; }
+
+/* 아래에서 올라오는 선택지 */
+.sheet { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: flex-end; justify-content: center; z-index: 200; }
+.sheet-box { background: var(--surface); width: 100%; max-width: 480px; border-radius: 18px 18px 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
+.sheet-box h3 { margin: 0 0 6px; }
+.sheet-box .link { align-self: center; }

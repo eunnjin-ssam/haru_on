@@ -87,6 +87,18 @@ table.board .taskname { vertical-align: top; }
 .cell.sub .redo, .cell .redo { border: 0; background: none; color: var(--muted); font-size: 14px; }
 .cell.redo-cell { color: var(--muted); }
 
+/* 글마당 관리 */
+.admin-posts { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.admin-post { border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.admin-post.flag { border-color: var(--danger); background: var(--danger-soft); }
+.ap-body { margin: 8px 0; white-space: pre-wrap; }
+.sheet { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 200; }
+.sheet-box { background: var(--surface); width: 100%; max-width: 560px; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px; max-height: 90vh; overflow: auto; }
+.sheet-box.wide .wf { display: flex; flex-direction: column; gap: 6px; }
+.sheet-box .wf > span { font-weight: 600; font-size: 13px; color: var(--muted); }
+.sheet-box input, .sheet-box textarea { padding: 10px; border: 1px solid var(--line); border-radius: 8px; width: 100%; }
+.sheet-box textarea { min-height: 80px; }
+
 /* PIN 카드 인쇄 */
 #print-area { display: none; }
 @media print {

@@ -3,16 +3,13 @@
 import { doc, getDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { logoutStudent } from '../common/student-session.js';
-import { loadSettings } from '../common/settings.js';
 import { todayId } from '../common/dates.js';
 import { loadMood, renderMood, moodLabel } from './mood.js';
 import { loadRoles, requestRole, approveRole, redoRole } from './roles.js';
-import { renderMission } from './mission.js';
 
-export async function renderDashboard(root, student, onLogout) {
+// content: 화면 영역. openMission: 기초미션 전체 화면 열기(셸이 넘겨줌).
+export async function renderDashboard(content, student, settings, { openMission }) {
   const sid = student.sid;
-  const settings = await loadSettings();
   const currency = settings.names.currency;
   const perDay = settings.mission.perDay;
 
@@ -44,27 +41,7 @@ export async function renderDashboard(root, student, onLogout) {
     await refresh();
   }
 
-  function openMission() {
-    renderMission(root, student, settings, refresh);
-  }
-
   // ---- 조각 ----
-  function logoutButton() {
-    let asking = false;
-    const btn = h('button', { class: 'logout', type: 'button', onclick: async () => {
-      if (!asking) {
-        asking = true;
-        btn.textContent = '정말 나갈까요?';
-        btn.classList.add('confirm');
-        setTimeout(() => { asking = false; btn.textContent = '나가기'; btn.classList.remove('confirm'); }, 3000);
-        return;
-      }
-      await logoutStudent();
-      onLogout();
-    } }, '나가기');
-    return btn;
-  }
-
   function todos() {
     const items = [];
     if (!data.mood.mood) items.push('기분');
@@ -160,8 +137,7 @@ export async function renderDashboard(root, student, onLogout) {
   }
 
   function draw() {
-    root.replaceChildren(h('div', { class: 'dash' },
-      h('header', null, h('span', { class: 'who' }, `${student.number}번 ${student.name}`), logoutButton()),
+    content.replaceChildren(h('div', { class: 'dash' },
       hero(),
       requestCard(),
       moodCard(),
