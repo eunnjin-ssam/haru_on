@@ -2,6 +2,17 @@
 
 다른 컴퓨터나 새 대화에서 이어서 작업할 때 이 문서부터 읽는다. 단계를 마칠 때마다 고친다.
 
+## ⏩ 지금 이어서 할 일 (6단계: 상점·포인트 관리·씨앗 나무·공동 목표)
+6단계 진행 중. 커밋 `e0c43e8`까지 됨.
+- **완료**: 학생 상점 초안 `js/student/shop.js`(씨앗 나무, 쿠폰 사기/쓰기/제안). 시드(`tools/seed-emu.mjs`)에 기본 쿠폰 5종·공동목표 g1 추가.
+- **다음 할 일**:
+  1. `shop.js`를 `js/student/app.js`에 연결(메뉴 'shop'은 아직 하단 메뉴에 없음 → NAV에 상점 추가 또는 라우팅). 학생 하단 메뉴는 현재 대시보드·글마당·과제마당·약속마당 4개.
+  2. 상점 CSS를 `css/student.css`에 추가(.shop .tree .shop-item .idea-form .badge-wait 등).
+  3. 교사 **포인트 관리**(`js/teacher/points-admin.js` 새로): 쿠폰 구매 승인(pending→owned)/거절(환불 tx), 쿠폰 사용 요청 확인(used)/다음에, 상점 쿠폰 관리(shopItems CRUD), 학생 제안(couponIdeas) 보기·상점에 올리기·삭제. 교사 메뉴에 탭 추가.
+  4. **공동 목표**(`js/student/goal.js` + 교사 목표 관리): 보태기(donate: goals.raised+ ·donors+ ·goals/{id}/donors/{sid} ·거래 donate_). 규칙은 `firestore.rules` donateOK/donorOK 참고. 대시보드에도 진행 바(읽기전용).
+- **검증 방법**: `export PATH="/c/Program Files/Java/jdk-27/bin:$PATH"` 하고 `npm run emu`(백그라운드) → `node tools/seed-emu.mjs` → `npm run serve`. 학생은 `127.0.0.1:5500/?emu`(1번/1111)·`localhost:5500/?emu`(2번/2222). 교사는 자동 브라우저에서 Google 팝업이 막히므로, teacher.html에서 JS로 이메일 계정 로그인(`createUserWithEmailAndPassword(auth,'t@test.com','test1234')`) 후 그 uid를 규칙 우회로 `teachers/{uid}`에 넣고 새로고침(이전 단계들에서 쓴 방법). 포인트는 거래+요약을 같은 batch로, 금액 일치가 규칙으로 검증됨.
+- 끝나면 이 ⏩ 구역을 지우고 아래 '끝난 단계'에 6단계를 추가한다.
+
 ## 끝난 단계
 - **1단계 (2026-10-16)**: Firestore 구조(`docs/data-model.md`), 보안 규칙(`firestore.rules`), 규칙 자동 시험 65개(`tests/`).
   규칙은 Firebase 프로젝트 `our-class-2026`에 게시됨.
