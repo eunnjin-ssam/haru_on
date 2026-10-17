@@ -99,6 +99,10 @@ table.board .taskname { vertical-align: top; }
 .sheet-box input, .sheet-box textarea { padding: 10px; border: 1px solid var(--line); border-radius: 8px; width: 100%; }
 .sheet-box textarea { min-height: 80px; }
 
+/* 포인트 관리 */
+.req-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 2px; border-top: 1px solid var(--line); }
+.content h2 + .req-row, .req-row:first-child { border-top: 0; }
+
 /* PIN 카드 인쇄 */
 #print-area { display: none; }
 @media print {

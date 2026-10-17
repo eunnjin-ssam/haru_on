@@ -7,6 +7,7 @@ import { renderMission } from './mission.js';
 import { renderWriting } from './writing.js';
 import { renderTasks } from './tasks.js';
 import { renderStories } from './stories.js';
+import { renderShop } from './shop.js';
 
 export async function renderApp(root, student, onLogout) {
   const settings = await loadSettings();
@@ -19,6 +20,7 @@ export async function renderApp(root, student, onLogout) {
     ['writing', menus.writing, '📖'],
     ['tasks', menus.tasks, '📋'],
     ['stories', menus.stories, '💬'],
+    ['shop', menus.shop, '🛒'],
   ];
   const navButtons = NAV.map(([id, label, icon]) => h('button', {
     class: 'nav-btn', type: 'button', onclick: () => open(id),
@@ -53,6 +55,7 @@ export async function renderApp(root, student, onLogout) {
       else if (id === 'writing') await renderWriting(content, student, settings);
       else if (id === 'tasks') await renderTasks(content, student, settings);
       else if (id === 'stories') await renderStories(content, student, settings);
+      else if (id === 'shop') await renderShop(content, student, settings);
       else content.replaceChildren(h('section', { class: 'card' },
         h('h2', null, NAV.find(([n]) => n === id)[1]),
         h('p', { class: 'muted' }, '곧 만들어요.')));

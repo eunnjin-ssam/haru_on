@@ -1,6 +1,6 @@
 // 상점: 내 씨앗 나무 + 쿠폰 사기/쓰기 + 쿠폰 제안. (공동 목표는 goal.js)
 import {
-  collection, doc, getDocs, query, where, setDoc, updateDoc,
+  collection, doc, getDoc, getDocs, query, where, setDoc,
   writeBatch, increment, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
@@ -19,13 +19,12 @@ export async function renderShop(content, student, settings) {
     const [itemSnap, couponSnap, sumSnap, ideaSnap] = await Promise.all([
       getDocs(query(collection(db, 'shopItems'), where('onSale', '==', true))),
       getDocs(query(collection(db, 'coupons'), where('sid', '==', sid))),
-      getDocs(query(collection(db, 'summaries'), where('__name__', '==', sid))).catch(() => null),
+      getDoc(doc(db, 'summaries', sid)).catch(() => null),
       getDocs(query(collection(db, 'couponIdeas'), where('sid', '==', sid))),
     ]);
     const items = itemSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     const coupons = couponSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    let summary = { wallet: 0, total: 0 };
-    if (sumSnap && sumSnap.docs[0]) summary = sumSnap.docs[0].data();
+    const summary = sumSnap?.exists() ? sumSnap.data() : { wallet: 0, total: 0 };
     const ideasThisWeek = ideaSnap.docs.map((d) => d.data()).filter((i) => i.week === weekId());
     data = { items, coupons, summary, ideasThisWeek };
   }

@@ -183,3 +183,19 @@ body { font-size: 20px; }
 .stories .writeform .wf, .stories .card .wf { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .stories textarea { padding: 12px; border: 2px solid var(--line); border-radius: 10px; font-size: 17px; min-height: 64px; resize: vertical; width: 100%; }
 .stories .wf > span { font-weight: 600; font-size: 15px; }
+
+/* 상점 */
+.shop { display: flex; flex-direction: column; gap: 16px; }
+.tree { display: flex; gap: 14px; align-items: center; background: linear-gradient(135deg, #e4f6ec 0%, #d7f0e2 100%); border-color: #bfe6cf; }
+.tree-emoji { font-size: 44px; }
+.tree-info { flex: 1; }
+.tree-name { font-size: 18px; font-weight: 700; }
+.tree .bar { height: 12px; background: rgba(0,0,0,.08); margin: 8px 0 4px; }
+.tree .bar .fill { height: 100%; background: var(--ok); border-radius: 999px; transition: width .3s; }
+.shop-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 2px; border-top: 1px solid var(--line); }
+.card h2 + .shop-item, .shop-item:first-child { border-top: 0; }
+.si-name { font-weight: 600; font-size: 17px; }
+.badge-wait { background: #fff3d6; color: #9a6b00; border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; }
+.idea-form { display: flex; flex-direction: column; gap: 8px; }
+.idea-form input { padding: 11px; border: 2px solid var(--line); border-radius: 10px; font-size: 16px; }
+.idea-form .row input { flex: 1; }

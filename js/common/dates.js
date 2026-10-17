@@ -18,6 +18,12 @@ export function todayId(now = new Date()) {
   return ymd(kstNow(now));
 }
 
+// 이번 달 '202610'
+export function monthId(now = new Date()) {
+  const k = kstNow(now);
+  return `${k.getUTCFullYear()}${String(k.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 // 이번 주 월요일 '20261013' (규칙과 동일하게 월요일 시작)
 export function weekId(now = new Date()) {
   const k = kstNow(now);
