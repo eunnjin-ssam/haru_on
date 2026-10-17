@@ -205,3 +205,21 @@ body { font-size: 20px; }
 .goal .bar { height: 16px; background: var(--line); margin: 6px 0; }
 .goal .bar .fill { height: 100%; background: var(--ok); border-radius: 999px; transition: width .3s; }
 .goal input { padding: 10px; border: 2px solid var(--line); border-radius: 10px; }
+
+/* 내 캐릭터 */
+.character { display: flex; flex-direction: column; gap: 14px; }
+.char-top { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; }
+.char-stage { width: 100%; height: 320px; display: flex; justify-content: center; align-items: center; touch-action: pan-y; cursor: grab; }
+.char-stage canvas { border-radius: 12px; }
+.char-shop { display: flex; flex-direction: column; gap: 12px; }
+.item-grid { display: flex; flex-direction: column; gap: 10px; }
+.item-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.ic-name { font-weight: 700; font-size: 16px; margin-bottom: 8px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch { width: 40px; height: 40px; border-radius: 10px; border: 2px solid var(--line); color: #fff; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; }
+.swatch.on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+.char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }
+.char-cell { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px; text-align: center; }
+.char-cell canvas { width: 100%; height: 110px; }
+.char-cell .nm { font-size: 14px; font-weight: 600; margin-top: 4px; }
+.char-cell .tt { font-size: 12px; }

@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { doc, setDoc } from 'firebase/firestore';
 import { DEFAULT_SETTINGS, DEFAULT_TEACHER_SETTINGS } from '../js/common/defaults.js';
+import { CATALOG } from '../js/character/catalog.js';
 
 const bank = JSON.parse(readFileSync('data/math-sample.json', 'utf8'));
 const units = [...new Set(bank.map((q) => q.unit))];
@@ -53,6 +54,11 @@ await env.withSecurityRulesDisabled(async (ctx) => {
 
   // 공동 목표
   await put('goals/g1', { title: '학급 보드게임 사기', target: 100, reward: '다 같이 보드게임!', raised: 0, donors: 0, status: 'open', lastTx: '' });
+
+  // 캐릭터 아이템(Firestore 메타: 가격·판매 여부)
+  for (const [id, it] of Object.entries(CATALOG)) {
+    await put(`items/${id}`, { category: it.category, name: it.name, prices: it.prices, onSale: true, starter: !!it.starter });
+  }
 });
 
 await env.cleanup();
