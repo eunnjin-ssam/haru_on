@@ -292,6 +292,12 @@ service cloud.firestore {
       allow read, write: if isTeacher();
     }
 
+    // 기초미션 문제 내용(지문·보기). 정답은 없다 → 학생이 읽어도 된다.
+    match /missionQuestions/{qid} {
+      allow read: if isStudent();
+      allow read, write: if isTeacher();
+    }
+
     // 기초미션 풀이. id = 학생_날짜_1~5
     // 1) 답을 제출(만들기) → 2) 채점(correct 추가). 제출한 답은 고칠 수 없다.
     match /missionAttempts/{id} {

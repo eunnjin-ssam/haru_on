@@ -5,11 +5,15 @@ import { h, toast } from '../common/ui.js';
 import { signInTeacher, signOutTeacher, isTeacher } from '../common/teacher-auth.js';
 import { renderRoster } from './roster.js';
 import { renderSetup } from './setup.js';
+import { renderRoles } from './roles.js';
+import { renderMission } from './mission.js';
 
 const root = document.getElementById('app');
 
 const TABS = [
   { id: 'roster', label: '학생 명단', render: renderRoster },
+  { id: 'roles', label: '1인1역', render: renderRoles },
+  { id: 'mission', label: '기초미션', render: renderMission },
   { id: 'setup', label: '기본 설정', render: renderSetup },
 ];
 

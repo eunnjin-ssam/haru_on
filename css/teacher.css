@@ -39,6 +39,23 @@ td.actions .btn { margin-left: 4px; }
 
 textarea.paste { width: 100%; min-height: 140px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; resize: vertical; }
 
+.btn.danger { background: var(--danger); color: #fff; }
+
+/* 1인1역 역할 만들기 */
+.role-form { display: flex; flex-direction: column; gap: 14px; max-width: 640px; }
+.role-form .field { display: flex; flex-direction: column; gap: 6px; }
+.role-form .field > span { font-size: 13px; color: var(--muted); font-weight: 600; }
+.role-form input[type=text], .role-form input[type=number], .role-form select {
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+}
+.picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.pick { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; }
+
+/* 기초미션 단원 */
+.units { display: flex; flex-direction: column; gap: 8px; }
+.unit-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.unit-row .unit-name { font-weight: 600; min-width: 140px; }
+
 /* PIN 카드 인쇄 */
 #print-area { display: none; }
 @media print {

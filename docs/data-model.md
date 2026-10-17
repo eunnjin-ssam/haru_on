@@ -25,6 +25,7 @@
 | moodNotes | 학생_날짜 | sid, date, text, at (본인·교사만) |
 | attendance 🔒 | 날짜 | absent: [학생] |
 | missionKeys 🔒 | 문제 id | unit, answers: [정답 문자열] |
+| missionQuestions | 문제 id | grade, term, topic, unit, difficulty(basic/normal/challenge), type(choice/number), question, choices: [보기] (정답 없음, 학생 읽기 가능) |
 | missionAttempts | 학생_날짜_1~5 | sid, date, n, qid, answer, at, correct(채점 후) |
 | roles | 자동 | name, desc, members: [학생], checker, points |
 | roleChecks | 날짜_역할_학생 | sid, role, date, status(requested/approved/redo), by, at |
@@ -77,6 +78,10 @@ summaries는 `increment()`로 바꾸고 `lastTx`에 거래 id를 넣는다. 다�
 - 과제: `task_과제_학생`, 지급 취소: wallet·total 모두 감소, 차감: wallet만 감소, 환불: wallet만 증가.
 
 ## 기초미션 순서
+
+문제 지문·보기는 `missionQuestions`(정답 없음, 학생 읽기 가능)에서 읽고, 정답은 `missionKeys`(교사 전용)에만 둔다. 둘은 같은 문제 id로 연결된다. 선생님이 문제은행을 가져올 때 두 컬렉션을 함께 쓴다.
+
+채점은 학생이 정답을 모르므로 '정답이라 가정'하고 포인트까지 한 묶음으로 써 본다. 규칙이 missionKeys와 대조해 틀리면 묶음 전체가 거부되고, 앱은 그때 포인트 없이 `correct: false`만 쓴다.
 
 1. `missionAttempts/학생_날짜_n` 만들기 (qid, answer). 답은 이후 수정 불가.
 2. 같은 문서에 `correct` 추가 → 규칙이 missionKeys의 answers와 대조해 참/거짓이 맞아야 통과.
