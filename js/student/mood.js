@@ -24,12 +24,13 @@ export function moodLabel(id) {
 // 오늘의 기분 { mood, note } (없으면 mood: null)
 export async function loadMood(sid) {
   const id = `${sid}_${todayId()}`;
+  // 아직 안 만든 문서는 규칙이 읽기를 거부한다 → '없음'으로 본다.
   const [mood, note] = await Promise.all([
-    getDoc(doc(db, 'moods', id)),
+    getDoc(doc(db, 'moods', id)).catch(() => null),
     getDoc(doc(db, 'moodNotes', id)).catch(() => null),
   ]);
   return {
-    mood: mood.exists() ? mood.data().mood : null,
+    mood: mood?.exists() ? mood.data().mood : null,
     note: note?.exists() ? note.data().text : '',
   };
 }
@@ -72,10 +73,10 @@ export function renderMood(container, sid, current, onChange) {
       h('button', { class: 'btn small', onclick: () => commit('custom') }, '저장'),
     ) : null;
 
-    container.replaceChildren(
+    container.replaceChildren(...[
       h('div', { class: 'mood-grid' }, ...buttons, customBtn),
       customBox,
-    );
+    ].filter(Boolean));
   }
 
   function choose(mood) {

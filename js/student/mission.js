@@ -11,9 +11,10 @@ import { todayId } from '../common/dates.js';
 // 오늘 푼 문제들 (index 0 = 1번). 없으면 null, 채점 전이면 correct 없음
 async function loadAttempts(sid, perDay) {
   const snaps = await Promise.all(
-    Array.from({ length: perDay }, (_, i) => getDoc(doc(db, 'missionAttempts', `${sid}_${todayId()}_${i + 1}`))),
+    Array.from({ length: perDay }, (_, i) =>
+      getDoc(doc(db, 'missionAttempts', `${sid}_${todayId()}_${i + 1}`)).catch(() => null)),
   );
-  return snaps.map((s, i) => (s.exists() ? { n: i + 1, ...s.data() } : null));
+  return snaps.map((s, i) => (s?.exists() ? { n: i + 1, ...s.data() } : null));
 }
 
 async function loadQuestions(units) {

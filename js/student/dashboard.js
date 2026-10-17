@@ -24,15 +24,15 @@ export async function renderDashboard(root, student, onLogout) {
       loadMood(sid),
       loadRoles(sid),
       Promise.all(Array.from({ length: perDay }, (_, i) =>
-        getDoc(doc(db, 'missionAttempts', `${sid}_${todayId()}_${i + 1}`)))),
+        getDoc(doc(db, 'missionAttempts', `${sid}_${todayId()}_${i + 1}`)).catch(() => null))),
       getDocs(collection(db, 'students')),
     ]);
     data = {
       summary: summarySnap.exists() ? summarySnap.data() : { wallet: 0, total: 0 },
       mood,
       roles,
-      missionGraded: attemptSnaps.filter((s) => s.exists() && 'correct' in s.data()).length,
-      missionGot: attemptSnaps.filter((s) => s.exists() && s.data().correct === true).length,
+      missionGraded: attemptSnaps.filter((s) => s?.exists() && 'correct' in s.data()).length,
+      missionGot: attemptSnaps.filter((s) => s?.exists() && s.data().correct === true).length,
       names: new Map(studentsSnap.docs.map((d) => [d.id, d.data().name])),
     };
   }
