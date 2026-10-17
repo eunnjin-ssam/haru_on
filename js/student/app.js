@@ -5,6 +5,7 @@ import { loadSettings } from '../common/settings.js';
 import { renderDashboard } from './dashboard.js';
 import { renderMission } from './mission.js';
 import { renderWriting } from './writing.js';
+import { renderTasks } from './tasks.js';
 
 export async function renderApp(root, student, onLogout) {
   const settings = await loadSettings();
@@ -49,6 +50,7 @@ export async function renderApp(root, student, onLogout) {
     try {
       if (id === 'dashboard') await renderDashboard(content, student, settings, { openMission });
       else if (id === 'writing') await renderWriting(content, student, settings);
+      else if (id === 'tasks') await renderTasks(content, student, settings);
       else content.replaceChildren(h('section', { class: 'card' },
         h('h2', null, NAV.find(([n]) => n === id)[1]),
         h('p', { class: 'muted' }, '곧 만들어요.')));

@@ -150,3 +150,16 @@ body { font-size: 20px; }
 .sheet-box { background: var(--surface); width: 100%; max-width: 480px; border-radius: 18px 18px 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
 .sheet-box h3 { margin: 0 0 6px; }
 .sheet-box .link { align-self: center; }
+
+/* 과제마당 */
+.task-list { display: flex; flex-direction: column; gap: 12px; }
+.task-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.tc-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.tc-title { font-size: 19px; font-weight: 700; }
+.task-card textarea { padding: 12px; border: 2px solid var(--line); border-radius: 10px; font-size: 17px; min-height: 90px; resize: vertical; }
+.task-card .btn { align-self: flex-start; }
+.chip-s { border-radius: 999px; padding: 4px 12px; font-size: 14px; font-weight: 600; background: var(--bg); color: var(--muted); white-space: nowrap; height: fit-content; }
+.chip-s.todo { background: var(--primary-soft); color: var(--primary-dark); }
+.chip-s.wait { background: #fff3d6; color: #9a6b00; }
+.chip-s.ok { background: var(--ok-soft); color: var(--ok); }
+.chip-s.redo { background: var(--danger-soft); color: var(--danger); }
