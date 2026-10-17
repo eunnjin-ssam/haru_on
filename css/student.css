@@ -199,3 +199,9 @@ body { font-size: 20px; }
 .idea-form { display: flex; flex-direction: column; gap: 8px; }
 .idea-form input { padding: 11px; border: 2px solid var(--line); border-radius: 10px; font-size: 16px; }
 .idea-form .row input { flex: 1; }
+
+/* 공동 목표 */
+.goal .goal-title { font-size: 18px; font-weight: 700; margin: 4px 0 8px; }
+.goal .bar { height: 16px; background: var(--line); margin: 6px 0; }
+.goal .bar .fill { height: 100%; background: var(--ok); border-radius: 999px; transition: width .3s; }
+.goal input { padding: 10px; border: 2px solid var(--line); border-radius: 10px; }

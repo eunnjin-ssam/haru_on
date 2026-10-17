@@ -1,6 +1,6 @@
 // 학생 대시보드: 지갑 포인트와 오늘 남은 할 일을 가장 먼저 보여준다.
 // 3단계 범위: 기분 고르기, 기초미션, 1인1역. (과제·공동목표·쪽지는 이후 단계)
-import { doc, getDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
+import { doc, getDoc, getDocs, collection, query, where } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId } from '../common/dates.js';
@@ -16,13 +16,14 @@ export async function renderDashboard(content, student, settings, { openMission 
   let data;
 
   async function load() {
-    const [summarySnap, mood, roles, attemptSnaps, studentsSnap] = await Promise.all([
+    const [summarySnap, mood, roles, attemptSnaps, studentsSnap, goalSnap] = await Promise.all([
       getDoc(doc(db, 'summaries', sid)),
       loadMood(sid),
       loadRoles(sid),
       Promise.all(Array.from({ length: perDay }, (_, i) =>
         getDoc(doc(db, 'missionAttempts', `${sid}_${todayId()}_${i + 1}`)).catch(() => null))),
       getDocs(collection(db, 'students')),
+      getDocs(query(collection(db, 'goals'), where('status', '==', 'open'))).catch(() => null),
     ]);
     data = {
       summary: summarySnap.exists() ? summarySnap.data() : { wallet: 0, total: 0 },
@@ -31,6 +32,7 @@ export async function renderDashboard(content, student, settings, { openMission 
       missionGraded: attemptSnaps.filter((s) => s?.exists() && 'correct' in s.data()).length,
       missionGot: attemptSnaps.filter((s) => s?.exists() && s.data().correct === true).length,
       names: new Map(studentsSnap.docs.map((d) => [d.id, d.data().name])),
+      goals: goalSnap ? goalSnap.docs.map((d) => ({ id: d.id, ...d.data() })) : [],
     };
   }
 
@@ -136,14 +138,28 @@ export async function renderDashboard(content, student, settings, { openMission 
     return h('section', { class: 'card' }, h('h2', null, '오늘 한 일'), ...rows);
   }
 
+  function goalCard() {
+    const goal = (data.goals ?? [])[0];
+    if (!goal) return null;
+    const pct = goal.target ? Math.min(100, (goal.raised / goal.target) * 100) : 0;
+    return h('section', { class: 'card goal' },
+      h('h2', null, '우리반 공동 목표'),
+      h('div', { class: 'goal-title' }, goal.title),
+      h('div', { class: 'bar' }, h('div', { class: 'fill', style: `width:${pct}%` })),
+      h('div', { class: 'muted small' }, `${goal.raised} / ${goal.target} ${currency} · ${goal.donors ?? 0}명이 보탰어요`),
+      h('p', { class: 'muted small' }, '상점에서 보탤 수 있어요 🛒'),
+    );
+  }
+
   function draw() {
-    content.replaceChildren(h('div', { class: 'dash' },
+    content.replaceChildren(h('div', { class: 'dash' }, ...[
       hero(),
       requestCard(),
       moodCard(),
       todoCard(),
       doneCard(),
-    ));
+      goalCard(),
+    ].filter(Boolean)));
   }
 
   await load();

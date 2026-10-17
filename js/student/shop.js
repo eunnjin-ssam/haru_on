@@ -16,17 +16,34 @@ export async function renderShop(content, student, settings) {
   let data;
 
   async function load() {
-    const [itemSnap, couponSnap, sumSnap, ideaSnap] = await Promise.all([
+    const [itemSnap, couponSnap, sumSnap, ideaSnap, goalSnap] = await Promise.all([
       getDocs(query(collection(db, 'shopItems'), where('onSale', '==', true))),
       getDocs(query(collection(db, 'coupons'), where('sid', '==', sid))),
       getDoc(doc(db, 'summaries', sid)).catch(() => null),
       getDocs(query(collection(db, 'couponIdeas'), where('sid', '==', sid))),
+      getDocs(query(collection(db, 'goals'), where('status', '==', 'open'))),
     ]);
     const items = itemSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     const coupons = couponSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     const summary = sumSnap?.exists() ? sumSnap.data() : { wallet: 0, total: 0 };
     const ideasThisWeek = ideaSnap.docs.map((d) => d.data()).filter((i) => i.week === weekId());
-    data = { items, coupons, summary, ideasThisWeek };
+    const goals = goalSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    data = { items, coupons, summary, ideasThisWeek, goals };
+  }
+
+  // 공동 목표 보태기: 거래 + 목표 + 내 기부액 + 요약을 한 묶음으로
+  async function donate(goal, amount) {
+    const donateId = `donate_${goal.id}_${sid}_${Date.now()}`;
+    const donorRef = doc(db, 'goals', goal.id, 'donors', sid);
+    const donorSnap = await getDoc(donorRef).catch(() => null);
+    const firstTime = !donorSnap?.exists();
+    const newRaised = goal.raised + amount;
+    const b = writeBatch(db);
+    b.set(doc(db, 'points', donateId), { sid, type: 'donate', wallet: -amount, total: 0, reason: `공동 목표 ${goal.title}`, ref: goal.id, by: sid, at: serverTimestamp() });
+    b.update(doc(db, 'goals', goal.id), { raised: increment(amount), donors: increment(firstTime ? 1 : 0), lastTx: donateId, status: newRaised >= goal.target ? 'done' : 'open' });
+    b.set(donorRef, { total: increment(amount) });
+    b.update(doc(db, 'summaries', sid), { wallet: increment(-amount), lastTx: donateId });
+    await b.commit();
   }
 
   async function reload() { await load(); draw(); }
@@ -149,9 +166,37 @@ export async function renderShop(content, student, settings) {
     return h('div', { class: 'idea-form' }, what, h('div', { class: 'row' }, price, why), btn);
   }
 
+  function goalCard(goal) {
+    const remaining = goal.target - goal.raised;
+    const pct = Math.min(100, (goal.raised / goal.target) * 100);
+    const wallet = data.summary.wallet ?? 0;
+    const amounts = [1, 5, 10].filter((a) => a <= remaining);
+    const give = async (amount) => {
+      if (amount <= 0) return;
+      if (amount > wallet) { toast('지갑 포인트가 모자라요.', 'error'); return; }
+      if (amount > remaining) { toast('남은 포인트보다 많이 보탤 수 없어요.', 'error'); return; }
+      if (!confirm(`'${goal.title}'에 ${amount} ${currency}을 보탤까요?`)) return;
+      try { await donate(goal, amount); toast(`${amount} ${currency}을 보탰어요! 고마워요 💚`); await reload(); }
+      catch (e) { console.error(e); toast('보태지 못했어요. 다시 해 주세요.', 'error'); }
+    };
+    const custom = h('input', { type: 'number', min: '1', placeholder: '직접', style: 'width:90px' });
+    return h('section', { class: 'card goal' },
+      h('h2', null, '우리반 공동 목표'),
+      h('div', { class: 'goal-title' }, goal.title),
+      h('div', { class: 'bar' }, h('div', { class: 'fill', style: `width:${pct}%` })),
+      h('div', { class: 'muted small' }, `${goal.raised} / ${goal.target} ${currency} · 남은 ${remaining} · ${goal.donors ?? 0}명이 보탰어요`),
+      h('div', { class: 'row', style: 'margin-top:10px' },
+        ...amounts.map((a) => h('button', { class: 'btn secondary small', onclick: () => give(a) }, `+${a}`)),
+        custom,
+        h('button', { class: 'btn small', onclick: () => give(Number(custom.value) || 0) }, '보태기')),
+      h('div', { class: 'muted small', style: 'margin-top:6px' }, `내 지갑: ${wallet} ${currency}`),
+    );
+  }
+
   function draw() {
     content.replaceChildren(h('div', { class: 'shop' },
       treeCard(),
+      ...(data.goals ?? []).map(goalCard),
       h('section', { class: 'card' }, h('h2', null, '쿠폰 사기'),
         h('div', { class: 'muted small', style: 'margin-bottom:8px' }, `내 지갑: ${data.summary.wallet ?? 0} ${currency}`),
         data.items.length ? h('div', null, ...data.items.map(buyCard)) : h('p', { class: 'muted' }, '상점에 쿠폰이 없어요.')),
