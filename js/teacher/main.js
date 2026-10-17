@@ -7,10 +7,14 @@ import { renderRoster } from './roster.js';
 import { renderSetup } from './setup.js';
 import { renderRoles } from './roles.js';
 import { renderMission } from './mission.js';
+import { renderToday } from './today.js';
+import { renderBoard } from './board.js';
 
 const root = document.getElementById('app');
 
 const TABS = [
+  { id: 'today', label: '오늘 현황', render: renderToday },
+  { id: 'board', label: '체크판', render: renderBoard },
   { id: 'roster', label: '학생 명단', render: renderRoster },
   { id: 'roles', label: '1인1역', render: renderRoles },
   { id: 'mission', label: '기초미션', render: renderMission },
@@ -23,7 +27,7 @@ async function start() {
   if (!user || user.isAnonymous) return showSignIn();
   if (!(await isTeacher(user))) return showNotRegistered(user);
   const hasSettings = (await getDoc(doc(db, 'settings', 'main'))).exists();
-  showApp(user, hasSettings ? 'roster' : 'setup');
+  showApp(user, hasSettings ? 'today' : 'setup');
 }
 
 function showSignIn() {

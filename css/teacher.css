@@ -56,6 +56,37 @@ textarea.paste { width: 100%; min-height: 140px; padding: 12px; border: 1px soli
 .unit-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
 .unit-row .unit-name { font-weight: 600; min-width: 140px; }
 
+/* 오늘 현황 */
+.today-sum { display: flex; gap: 24px; font-size: 18px; font-weight: 700; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.todo-badge { padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--primary-soft); color: var(--primary-dark); }
+.todo-badge.wait { background: #fff3d6; color: #9a6b00; }
+.todo-badge.care { background: var(--danger-soft); color: var(--danger); }
+.table-wrap { overflow-x: auto; }
+.row-neg td { background: var(--danger-soft); }
+.mood-neg { color: var(--danger); font-weight: 600; }
+.role-done { color: var(--ok); font-weight: 600; }
+.role-todo { color: var(--muted); }
+.role-req { color: var(--primary-dark); font-weight: 600; }
+
+/* 체크판 격자 */
+.btn.tiny { padding: 3px 8px; font-size: 12px; }
+table.board th, table.board td { text-align: center; white-space: nowrap; }
+table.board th.stu { width: 34px; padding: 8px 4px; }
+table.board .stick { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; min-width: 180px; box-shadow: 1px 0 0 var(--line); }
+table.board thead .stick { background: var(--bg); }
+table.board .taskname { vertical-align: top; }
+.small { font-size: 12px; }
+.cell { width: 34px; height: 40px; padding: 0; }
+.cell.blank { cursor: pointer; }
+.cell.blank:hover { background: var(--primary-soft); }
+.cell.off { background: var(--bg); }
+.cell.done { color: var(--ok); font-weight: 700; }
+.cell.done.late { color: #b8860b; }
+.cell.sub .dot { border: 0; background: none; color: var(--primary); font-size: 18px; }
+.cell.sub .redo, .cell .redo { border: 0; background: none; color: var(--muted); font-size: 14px; }
+.cell.redo-cell { color: var(--muted); }
+
 /* PIN 카드 인쇄 */
 #print-area { display: none; }
 @media print {
