@@ -23,9 +23,9 @@ export function renderCharacter3D(container, equip, opts = {}) {
   const w = container.clientWidth || 280;
   const hgt = container.clientHeight || 340;
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(34, w / hgt, 0.1, 200);
-  camera.position.set(0, 13, 52);
-  camera.lookAt(0, 12, 0);
+  const camera = new THREE.PerspectiveCamera(32, w / hgt, 0.1, 200);
+  camera.position.set(0, 14, 45);
+  camera.lookAt(0, 12.5, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -37,6 +37,14 @@ export function renderCharacter3D(container, equip, opts = {}) {
   dir.position.set(10, 20, 15); scene.add(dir);
   const dir2 = new THREE.DirectionalLight(0xffffff, 0.3);
   dir2.position.set(-10, 5, -10); scene.add(dir2);
+
+  // 바닥 그림자
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(6, 32),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12 }),
+  );
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.05; shadow.scale.set(1, 0.6, 1);
+  scene.add(shadow);
 
   const group = new THREE.Group();
   for (const bx of buildBoxes(equip)) {
