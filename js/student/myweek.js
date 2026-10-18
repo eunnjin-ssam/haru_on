@@ -124,17 +124,23 @@ export async function renderMyWeek(content, student, settings) {
 
   async function draw() {
     const wk = await weekData();
+    const nav = h('div', { class: 'row' },
+      h('button', { class: 'pill', onclick: () => { offset = Math.min(4, offset + 1); draw(); } }, '◀ 지난주'),
+      offset > 0 ? h('button', { class: 'pill', onclick: () => { offset = Math.max(0, offset - 1); draw(); } }, '이번 주 ▶') : null);
+    const head = h('div', { class: 'board-head' },
+      h('div', null,
+        h('div', { class: 'bh-title' }, offset === 0 ? '이번 주 나의마당' : '지난 주 나의마당'),
+        h('div', { class: 'bh-sub' }, '과제·포인트·기분·기초미션·글마당을 한눈에 봐요')),
+      nav);
     content.replaceChildren(h('div', { class: 'myweek' },
-      h('div', { class: 'row', style: 'justify-content:space-between;align-items:center' },
-        h('h2', null, offset === 0 ? '이번 주 나의마당' : '지난주 나의마당'),
-        h('div', { class: 'row' },
-          h('button', { class: 'btn secondary small', onclick: () => { offset = Math.min(4, offset + 1); draw(); } }, '◀ 지난주'),
-          offset > 0 ? h('button', { class: 'btn secondary small', onclick: () => { offset = Math.max(0, offset - 1); draw(); } }, '이번 주 ▶') : null)),
-      taskCard(),
-      pointCard(wk.days),
-      moodCard(wk.moods),
-      missionCard(wk.days),
-      writingCard(wk.days, wk.writingDays),
+      head,
+      h('div', { class: 'feed-grid' },
+        taskCard(),
+        pointCard(wk.days),
+        moodCard(wk.moods),
+        missionCard(wk.days),
+        writingCard(wk.days, wk.writingDays),
+      ),
     ));
   }
 

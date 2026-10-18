@@ -170,9 +170,10 @@ export async function renderCharacter(content, student, settings) {
   }
 
   async function draw() {
-    const toggle = h('div', { class: 'subtabs', style: 'margin-bottom:12px' },
-      h('button', { class: `subtab${topView === 'me' ? ' on' : ''}`, onclick: () => { topView = 'me'; draw(); } }, '내 캐릭터'),
-      h('button', { class: `subtab${topView === 'class' ? ' on' : ''}`, onclick: () => { if (view) { view.dispose(); view = null; } topView = 'class'; draw(); } }, '우리 반'));
+    const toggle = h('div', { class: 'filterbar', style: 'margin-bottom:4px' },
+      h('div', { class: 'seg' },
+        h('button', { class: `subtab${topView === 'me' ? ' on' : ''}`, onclick: () => { topView = 'me'; draw(); } }, '내 캐릭터'),
+        h('button', { class: `subtab${topView === 'class' ? ' on' : ''}`, onclick: () => { if (view) { view.dispose(); view = null; } topView = 'class'; draw(); } }, '우리 반')));
 
     if (topView === 'class') {
       if (view) { view.dispose(); view = null; }

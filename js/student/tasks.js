@@ -112,14 +112,21 @@ export async function renderTasks(content, student, settings) {
 
   function draw() {
     const TABS = [['todo', '해야 할 과제'], ['sent', '제출한 과제'], ['past', '지난 과제']];
+    const counts = { todo: listFor('todo').length, sent: listFor('sent').length, past: listFor('past').length };
     const list = listFor(tab);
+    const head = h('div', { class: 'board-head' },
+      h('div', null,
+        h('div', { class: 'bh-title' }, '과제마당'),
+        h('div', { class: 'bh-sub' }, `해야 할 과제 ${counts.todo}개 · 제출한 과제 ${counts.sent}개`)));
     content.replaceChildren(h('div', { class: 'tasks' },
-      h('div', { class: 'subtabs' }, ...TABS.map(([id, label]) => h('button', {
-        class: `subtab${tab === id ? ' on' : ''}`, onclick: () => { tab = id; draw(); },
-      }, label))),
+      head,
+      h('div', { class: 'filterbar' },
+        h('div', { class: 'seg' }, ...TABS.map(([id, label]) => h('button', {
+          class: `subtab${tab === id ? ' on' : ''}`, onclick: () => { tab = id; draw(); },
+        }, counts[id] ? `${label} ${counts[id]}` : label)))),
       list.length === 0
         ? h('p', { class: 'muted', style: 'padding:20px' }, '여기에는 과제가 없어요.')
-        : h('div', { class: 'task-list' }, ...list.map(card)),
+        : h('div', { class: 'feed-grid' }, ...list.map(card)),
     ));
   }
 

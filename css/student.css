@@ -169,6 +169,24 @@ body { font-size: 17px; }
 .subtab, .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 8px 18px; font-size: 16px; color: var(--text); }
 .subtab.on, .chip.on { background: var(--primary); color: #fff; border-color: var(--primary); }
 
+/* 메뉴 화면 공통 머리줄: 제목·설명(왼쪽) + 주요 버튼(오른쪽) */
+.board-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.bh-title { font-size: 21px; font-weight: 800; letter-spacing: -.02em; color: var(--text); }
+.bh-sub { color: var(--muted); font-size: 15px; margin-top: 4px; }
+.board-head .btn { flex: 0 0 auto; }
+.wallet-chip { flex: 0 0 auto; background: var(--primary-soft); color: var(--primary-dark); border-radius: 999px; padding: 9px 18px; font-size: 16px; font-weight: 800; }
+
+/* 필터 바: 칩을 하나의 세그먼트로 묶는다 */
+.filterbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 2px; }
+.seg .chip, .seg .subtab { border: 0; background: none; border-radius: 999px; padding: 7px 16px; font-size: 15px; color: var(--muted); font-weight: 700; }
+.seg .chip.on, .seg .subtab.on { background: var(--surface); color: var(--primary-dark); box-shadow: 0 1px 5px rgba(90, 60, 30, .14); }
+
+/* 카드 피드: 넓은 화면에서 여러 열, 좁으면 한 열 */
+.feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.writing, .stories, .tasks { display: flex; flex-direction: column; gap: 18px; }
+.screen > .writing, .screen > .stories, .screen > .tasks, .screen > .myweek { max-width: 1180px; }
+
 /* 글쓰기 폼 */
 .writeform .wf { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .writeform .wf > span { font-weight: 600; font-size: 15px; }
@@ -258,7 +276,7 @@ body { font-size: 17px; }
 .char-stage { width: 100%; height: 320px; display: flex; justify-content: center; align-items: center; touch-action: pan-y; cursor: grab; }
 .char-stage canvas { border-radius: 12px; }
 .char-shop { display: flex; flex-direction: column; gap: 12px; }
-.item-grid { display: flex; flex-direction: column; gap: 10px; }
+.item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; align-items: start; }
 .item-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
 .ic-name { font-weight: 700; font-size: 16px; margin-bottom: 8px; }
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; }

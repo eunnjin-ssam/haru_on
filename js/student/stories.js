@@ -78,7 +78,7 @@ export async function renderStories(content, student, settings) {
     function drawForm() {
       const btns = modeBtns.map(([m, label]) => h('button', { class: `chip${mode === m ? ' on' : ''}`, onclick: () => { mode = m; drawForm(); } }, label));
       container.replaceChildren(h('section', { class: 'card' },
-        h('h3', null, '우리 반 이야기 올리기'),
+        h('h3', null, '누구에게 보여줄까요?'),
         h('div', { class: 'row' }, ...btns),
         mode === 'anon' ? h('p', { class: 'muted small' }, '친구들에게는 익명이지만, 선생님은 누가 썼는지 볼 수 있어요.') : null,
         mode === 'private' ? h('p', { class: 'muted small' }, '선생님만 볼 수 있어요. 공감·회의 안건에는 올라가지 않아요.') : null,
@@ -207,16 +207,20 @@ export async function renderStories(content, student, settings) {
         ...promises.map((s) => h('p', { class: 'promise-item' }, `✅ ${s.decided || s.wish}`))) : null,
       others.length === 0
         ? h('p', { class: 'muted', style: 'padding:20px' }, '아직 이야기가 없어요. 우리 반 이야기를 올려 보세요!')
-        : h('div', { class: 'story-list' }, ...others.map(storyCard)),
+        : h('div', { class: 'feed-grid' }, ...others.map(storyCard)),
     );
   }
 
   function draw() {
+    const writeBtn = h('button', { class: view === 'write' ? 'btn secondary' : 'btn', onclick: () => { view = view === 'write' ? 'list' : 'write'; draw(); } },
+      view === 'write' ? '← 이야기 보기' : '✏️ 이야기 올리기');
+    const head = h('div', { class: 'board-head' },
+      h('div', null,
+        h('div', { class: 'bh-title' }, view === 'write' ? '우리 반 이야기 올리기' : '우리 반 이야기'),
+        h('div', { class: 'bh-sub' }, view === 'write' ? '이름 공개·익명·선생님만 보기 중에 골라요' : '함께 읽고 공감·댓글을 남겨요')),
+      writeBtn);
     content.replaceChildren(h('div', { class: 'stories' },
-      h('div', { class: 'subtabs' },
-        h('button', { class: `subtab${view === 'write' ? ' on' : ''}`, onclick: () => { view = 'write'; draw(); } }, '이야기 올리기'),
-        h('button', { class: `subtab${view === 'list' ? ' on' : ''}`, onclick: () => { view = 'list'; draw(); } }, '이야기 보기'),
-      ),
+      head,
       view === 'write' ? writeView() : listView(),
     ));
   }

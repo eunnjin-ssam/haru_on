@@ -207,22 +207,29 @@ export async function renderWriting(content, student, settings) {
   function feedView() {
     const list = data.posts.filter((p) => (onlyMine ? p.author === sid : (p.status === 'public' || p.author === sid)));
     return h('section', null,
-      h('div', { class: 'row', style: 'margin-bottom:12px' },
-        h('button', { class: `chip${onlyMine ? '' : ' on'}`, onclick: () => { onlyMine = false; draw(); } }, '전체'),
-        h('button', { class: `chip${onlyMine ? ' on' : ''}`, onclick: () => { onlyMine = true; draw(); } }, '내 글'),
+      h('div', { class: 'filterbar', style: 'margin-bottom:16px' },
+        h('div', { class: 'seg' },
+          h('button', { class: `chip${onlyMine ? '' : ' on'}`, onclick: () => { onlyMine = false; draw(); } }, '전체'),
+          h('button', { class: `chip${onlyMine ? ' on' : ''}`, onclick: () => { onlyMine = true; draw(); } }, '내 글'),
+        ),
       ),
       list.length === 0
         ? h('p', { class: 'muted', style: 'padding:20px' }, '아직 글이 없어요. 첫 글을 올려 보세요!')
-        : h('div', { class: 'post-list' }, ...list.map(card)),
+        : h('div', { class: 'feed-grid' }, ...list.map(card)),
     );
   }
 
   function draw() {
+    const count = data.posts.filter((p) => p.status === 'public' || p.author === sid).length;
+    const writeBtn = h('button', { class: view === 'write' ? 'btn secondary' : 'btn', onclick: () => { view = view === 'write' ? 'feed' : 'write'; draw(); } },
+      view === 'write' ? '← 친구 글 보기' : '✍️ 글쓰기');
+    const head = h('div', { class: 'board-head' },
+      h('div', null,
+        h('div', { class: 'bh-title' }, view === 'write' ? '오늘의 글쓰기' : '친구들 글'),
+        h('div', { class: 'bh-sub' }, view === 'write' ? '하루 한 편, 올리면 포인트를 받아요' : `친구들이 쓴 글을 함께 봐요 · 전체 ${count}편`)),
+      writeBtn);
     content.replaceChildren(h('div', { class: 'writing' },
-      h('div', { class: 'subtabs' },
-        h('button', { class: `subtab${view === 'write' ? ' on' : ''}`, onclick: () => { view = 'write'; draw(); } }, '글쓰기'),
-        h('button', { class: `subtab${view === 'feed' ? ' on' : ''}`, onclick: () => { view = 'feed'; draw(); } }, '친구 글'),
-      ),
+      head,
       view === 'write' ? writeView() : feedView(),
     ));
   }

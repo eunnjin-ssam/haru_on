@@ -194,14 +194,21 @@ export async function renderShop(content, student, settings) {
   }
 
   function draw() {
+    const wallet = data.summary.wallet ?? 0;
+    const head = h('div', { class: 'board-head' },
+      h('div', null,
+        h('div', { class: 'bh-title' }, '상점'),
+        h('div', { class: 'bh-sub' }, '모은 포인트로 쿠폰을 사고 씨앗 나무를 키워요')),
+      h('div', { class: 'wallet-chip' }, `🪙 ${wallet} ${currency}`));
     content.replaceChildren(h('div', { class: 'shop' },
+      head,
       treeCard(),
       ...(data.goals ?? []).map(goalCard),
-      h('section', { class: 'card' }, h('h2', null, '쿠폰 사기'),
-        h('div', { class: 'muted small', style: 'margin-bottom:8px' }, `내 지갑: ${data.summary.wallet ?? 0} ${currency}`),
-        data.items.length ? h('div', null, ...data.items.map(buyCard)) : h('p', { class: 'muted' }, '상점에 쿠폰이 없어요.')),
-      h('section', { class: 'card' }, h('h2', null, '내 쿠폰'), myCoupons()),
-      h('section', { class: 'card' }, h('h2', null, '이런 쿠폰이 있으면 좋겠어요'), ideaForm()),
+      h('div', { class: 'feed-grid' },
+        h('section', { class: 'card' }, h('h2', null, '쿠폰 사기'),
+          data.items.length ? h('div', null, ...data.items.map(buyCard)) : h('p', { class: 'muted' }, '상점에 쿠폰이 없어요.')),
+        h('section', { class: 'card' }, h('h2', null, '내 쿠폰'), myCoupons()),
+        h('section', { class: 'card' }, h('h2', null, '이런 쿠폰이 있으면 좋겠어요'), ideaForm())),
     ));
   }
 
