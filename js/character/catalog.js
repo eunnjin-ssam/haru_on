@@ -124,8 +124,6 @@ export const CATALOG = {
     ] },
   catEars: { category: 'headAcc', name: '고양이 귀', starter: false, prices: { black: 50, brown: 50, pink: 50, white: 50, orange: 50, purple: 50, blue: 50 },
     boxes: (c) => [b(-4.0, 23, -1.8, 2.4, 2.0, 2.4, c), b(-3.5, 24.8, -1.3, 1.5, 1.5, 1.5, c), b(1.6, 23, -1.8, 2.4, 2.0, 2.4, c), b(2.0, 24.8, -1.3, 1.5, 1.5, 1.5, c)] },
-  goblinHorns: { category: 'headAcc', name: '도깨비 뿔', starter: false, prices: { purple: 70, red: 70, black: 70, brown: 70, blue: 70, green: 70 },
-    boxes: (c) => [b(-3.7, 23, -1.3, 1.7, 1.8, 1.7, c), b(-3.3, 24.6, -0.9, 1.2, 1.6, 1.2, c), b(2.0, 23, -1.3, 1.7, 1.8, 1.7, c), b(2.1, 24.6, -0.9, 1.2, 1.6, 1.2, c)] },
   flower: { category: 'headAcc', name: '꽃 장식', starter: false, prices: { pink: 40, red: 40, purple: 40, white: 40, yellow: 40, blue: 40, orange: 40 },
     boxes: (c) => [b(1.1, 23.2, -1.2, 1.3, 1.3, 1.1, c), b(3.0, 23.2, -1.2, 1.3, 1.3, 1.1, c), b(2.05, 24.3, -1.2, 1.3, 1.3, 1.1, c), b(2.05, 22.1, -1.2, 1.3, 1.3, 1.1, c), b(1.95, 23.2, -1.3, 1.5, 1.3, 1.1, '#f7d14b')] },
   tiara: { category: 'headAcc', name: '다이아몬드 티아라', starter: false, prices: { blue: 120, mint: 120, purple: 120, pink: 120, white: 125 },
