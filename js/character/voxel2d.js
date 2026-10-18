@@ -23,7 +23,8 @@ export function drawFront(canvas, equip) {
   const tx = (x) => ox + x * scale;
   const ty = (y) => oy - y * scale;
 
-  const boxes = buildBoxes(equip).slice().sort((a, b2) => (b2.z + b2.d) - (a.z + a.d));
+  // 앞면(작은 z)이 위에 오도록 뒤→앞 순서로 그린다(옷이 몸 위에 보이게).
+  const boxes = buildBoxes(equip).slice().sort((a, b2) => b2.z - a.z);
   for (const bx of boxes) {
     const x = tx(bx.x); const y = ty(bx.y + bx.h);
     const w = bx.w * scale; const hh = bx.h * scale;
@@ -59,7 +60,7 @@ export function drawItem(canvas, item, color) {
   const tx = (x) => leftM + (x - minX) * scale;
   const ty = (y) => topM + (maxY - y) * scale;
 
-  const sorted = boxes.slice().sort((a, b2) => (b2.z + b2.d) - (a.z + a.d));
+  const sorted = boxes.slice().sort((a, b2) => b2.z - a.z);
   for (const bx of sorted) {
     const x = tx(bx.x); const y = ty(bx.y + bx.h);
     const w = bx.w * scale; const hh = bx.h * scale;

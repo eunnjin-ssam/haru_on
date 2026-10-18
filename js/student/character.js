@@ -10,6 +10,12 @@ import { drawFront, drawItem } from '../character/voxel2d.js';
 
 const SECTION = { hair: '헤어스타일', face: '얼굴 표정', top: '상의', bottom: '하의', shoes: '신발', headAcc: '모자·머리 소품', faceAcc: '얼굴 소품' };
 const SECTION_ORDER = ['hair', 'face', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc'];
+// 아무것도 안 꾸민 학생의 기본 차림(우리 반 격자에서 맨몸 방지)
+const DEFAULT_LOOK = {
+  hair: { item: 'hairBasic', color: 'default' }, face: { item: 'faceSmile', color: 'default' },
+  top: { item: 'topPlain', color: 'default' }, bottom: { item: 'bottomPlain', color: 'default' },
+  shoes: { item: 'shoesBasic', color: 'default' },
+};
 const EMPTY = { hair: null, face: null, top: null, bottom: null, shoes: null, headAcc: null, faceAcc: null };
 const TITLE_FIELDS = [['reading', 'reading'], ['mission', 'missionDays'], ['role', 'roleDays']];
 
@@ -143,9 +149,11 @@ export async function renderCharacter(content, student, settings) {
         if (t.startsWith('award_')) return (p.awarded ?? [])[Number(t.split('_')[1])] ?? '';
         const [c, i] = t.split('_'); return settings.titles?.[c]?.[Number(i)]?.name ?? '';
       })();
+      // 아직 아무것도 안 꾸민 학생은 기본 차림으로 보여 준다(맨몸 방지).
+      const eq = (p.equip && Object.values(p.equip).some(Boolean)) ? p.equip : DEFAULT_LOOK;
       const cv = h('canvas', { width: 120, height: 150 });
-      queueMicrotask(() => drawFront(cv, p.equip ?? {}));
-      grid.append(h('button', { class: 'char-cell', onclick: () => openFriend(p, `${s.number}번 ${s.name}`, titleName ? { name: titleName, color: '#f1c40f' } : null) },
+      queueMicrotask(() => drawFront(cv, eq));
+      grid.append(h('button', { class: 'char-cell', onclick: () => openFriend({ ...p, equip: eq }, `${s.number}번 ${s.name}`, titleName ? { name: titleName, color: '#f1c40f' } : null) },
         cv, h('div', { class: 'nm' }, s.name), titleName ? h('div', { class: 'tt muted' }, titleName) : null));
     }
     return grid;
