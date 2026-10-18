@@ -93,13 +93,18 @@ export async function renderCare(root) {
 
   function careList() {
     const flagged = data.rows.filter((r) => r.flags.length && !r.checkedRecently);
-    if (flagged.length === 0) return h('section', { class: 'card' }, h('h2', null, '살펴볼 학생'), h('p', { class: 'muted' }, '지금은 특별히 살펴볼 학생이 없어요.'));
-    return h('section', { class: 'card' }, h('h2', null, `살펴볼 학생 (${flagged.length})`),
-      ...flagged.map((r) => h('div', { class: 'care-item' },
-        h('div', null, h('b', null, `${r.number}번 ${r.name}`), ' ', h('span', { class: 'muted' }, r.flags.join(' · '))),
-        h('div', { class: 'row' },
-          h('input', { type: 'text', value: r.memo, placeholder: '메모', style: 'flex:1', onchange: (e) => run(() => setDoc(doc(db, 'careNotes', r.sid), { memo: e.target.value }, { merge: true })) }),
-          h('button', { class: 'btn secondary small', onclick: () => run(() => setDoc(doc(db, 'careNotes', r.sid), { checkedAt: serverTimestamp() }, { merge: true }), '살펴봤어요') }, '살펴봤어요')))),
+    return h('section', { class: 'card' },
+      h('h2', null, flagged.length ? `살펴볼 학생 (${flagged.length})` : '살펴볼 학생'),
+      h('p', { class: 'muted small', style: 'margin:-2px 0 4px' }, '기분·과제·활동을 보고 살펴보면 좋을 학생을 모았어요. 이 화면은 학생에게 보이지 않아요.'),
+      flagged.length === 0
+        ? h('p', { class: 'empty-ok' }, '✅ 지금은 특별히 살펴볼 학생이 없어요.')
+        : h('div', { class: 'care-cards' }, ...flagged.map((r) => h('div', { class: 'care-alert' },
+          h('div', { class: 'ca-head' },
+            h('b', null, `${r.number}번 ${r.name}`),
+            h('div', { class: 'ca-flags' }, ...r.flags.map((f) => h('span', { class: 'ca-flag' }, f)))),
+          h('div', { class: 'row' },
+            h('input', { type: 'text', value: r.memo, placeholder: '메모', style: 'flex:1', onchange: (e) => run(() => setDoc(doc(db, 'careNotes', r.sid), { memo: e.target.value }, { merge: true })) }),
+            h('button', { class: 'btn secondary small', onclick: () => run(() => setDoc(doc(db, 'careNotes', r.sid), { checkedAt: serverTimestamp() }, { merge: true }), '살펴봤어요') }, '살펴봤어요'))))),
     );
   }
 
@@ -123,6 +128,7 @@ export async function renderCare(root) {
   function table() {
     const head = h('tr', null, h('th', null, ''), h('th', null, '번호'), h('th', null, '이름'), h('th', null, '기초미션'), h('th', null, '정답률'), h('th', null, '최근 기분'), h('th', null, '지갑'), h('th', null, '누적'));
     return h('section', { class: 'card' }, h('h2', null, '자기관리 현황'),
+      h('p', { class: 'muted small', style: 'margin:-2px 0 10px' }, '최근 2주 기초미션 참여·정답률·기분·포인트를 한눈에 봐요.'),
       h('div', { class: 'table-wrap' }, h('table', null, h('thead', null, head),
         h('tbody', null, ...data.rows.map((r) => h('tr', { class: r.flags.length ? 'flagged' : '' },
           h('td', null, h('input', { type: 'checkbox', checked: selected.has(r.sid), onchange: (e) => { if (e.target.checked) selected.add(r.sid); else selected.delete(r.sid); draw(); } })),
