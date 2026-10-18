@@ -126,11 +126,15 @@ export async function renderWritingAdmin(root) {
     const statusSel = h('select', { onchange: (e) => { statusFilter = e.target.value; draw(); } },
       ...[['all', '전체'], ['public', '공개'], ['hidden', '숨김'], ['reported', '신고됨']].map(([v, l]) => h('option', { value: v, selected: statusFilter === v }, l)));
 
+    const reportedN = posts.filter((p) => p.status === 'reported').length;
     root.replaceChildren(h('section', { class: 'card' },
-      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', null, '글마당 관리'),
+      h('div', { class: 'row', style: 'justify-content:space-between' },
+        h('div', null,
+          h('h2', null, '글마당 관리'),
+          h('p', { class: 'muted small', style: 'margin:0' }, `학생 글 ${posts.length}편${reportedN ? ` · 🚩 신고 ${reportedN}` : ''} · 신고 글이 맨 앞에 와요`)),
         h('div', { class: 'row' }, searchBox, statusSel)),
       filtered.length === 0
-        ? h('p', { class: 'muted' }, '글이 없어요.')
+        ? h('p', { class: 'muted', style: 'padding:4px 2px' }, '조건에 맞는 글이 없어요.')
         : h('div', { class: 'admin-posts' }, ...filtered.map(card)),
     ));
   }

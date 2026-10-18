@@ -121,7 +121,7 @@ export async function renderAdmin(root) {
       h('p', { class: 'muted' }, '내려받은 백업 파일로 되돌려요. 지금 데이터 위에 덮어써요(지우지는 않아요).'),
       h('button', { class: 'btn secondary', onclick: () => fileInput.click() }, '백업 파일 고르기'), fileInput),
 
-    h('section', { class: 'card' }, h('h2', null, '학년말 전체 초기화'),
+    h('section', { class: 'card danger-zone' }, h('h2', null, '⚠️ 학년말 전체 초기화'),
       h('p', { class: 'banner' }, '학생·포인트·글·과제 등 한 해 기록을 모두 지워요. 설정·문제은행·상점 틀은 남아요. 되돌릴 수 없으니 먼저 백업을 받아 주세요.'),
       h('button', { class: 'btn danger', onclick: async () => {
         if (!confirm('정말 전체 초기화할까요? 되돌릴 수 없어요.')) return;

@@ -78,14 +78,17 @@ export async function renderStoriesAdmin(root) {
     root.replaceChildren(
       h('section', { class: 'card' },
         h('div', { class: 'row', style: 'justify-content:space-between' },
-          h('h2', null, '약속마당 관리'),
+          h('div', null,
+            h('h2', null, '약속마당 관리'),
+            h('p', { class: 'muted small', style: 'margin:0' }, `이야기 ${stories.length}개 · 공감 ${threshold}개를 넘으면 회의 안건이 돼요. 단계를 바꾸거나 가릴 수 있어요.`)),
           h('div', { class: 'row' }, h('span', { class: 'muted small' }, '안건 공감 기준'), thInput,
             h('button', { class: 'btn secondary small', onclick: () => run(() => updateDoc(doc(db, 'settings', 'main'), { storyAgendaLikes: Number(thInput.value) || 5 }), '기준을 바꿨어요') }, '저장'))),
-        stories.length === 0 ? h('p', { class: 'muted' }, '아직 이야기가 없어요.')
+        stories.length === 0 ? h('p', { class: 'muted', style: 'padding:4px 2px' }, '아직 올라온 이야기가 없어요.')
           : h('div', { class: 'admin-posts' }, ...stories.map(card)),
       ),
       h('section', { class: 'card' },
         h('h2', null, '선생님만 보기 이야기함'),
+        h('p', { class: 'muted small', style: 'margin:-2px 0 6px' }, '학생이 ‘선생님만 보기’로 올린 이야기예요. 다른 학생에게는 보이지 않아요.'),
         privates.length === 0 ? h('p', { class: 'muted' }, '아직 없어요.')
           : h('div', { class: 'admin-posts' }, ...privates.map((p) => h('article', { class: 'admin-post' },
             h('b', null, p.wish),

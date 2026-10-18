@@ -170,6 +170,10 @@ table.board .taskname { vertical-align: top; }
 .price-chip .pc-name { color: var(--muted); }
 .price-input { width: 52px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 7px; font-size: 13px; text-align: center; }
 
+/* 백업·초기화: 위험 구역 */
+.danger-zone { border: 1.5px solid var(--danger); }
+.danger-zone > h2 { color: var(--danger); }
+
 /* 공동 목표 */
 .goal-bar { height: 12px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin: 10px 0 6px; }
 .goal-fill { height: 100%; background: var(--ok); border-radius: 999px; transition: width .4s; }
