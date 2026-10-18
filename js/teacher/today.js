@@ -127,29 +127,59 @@ export async function renderToday(root, { open }) {
     await load(); draw();
   }
 
-  function summary() {
+  function hero() {
+    const k = kstNow();
+    const wd = ['일', '월', '화', '수', '목', '금', '토'][k.getUTCDay()];
+    const dateStr = `${k.getUTCFullYear()}년 ${k.getUTCMonth() + 1}월 ${k.getUTCDate()}일 (${wd})`;
+    return h('section', { class: 'card t-hero' },
+      h('div', null,
+        h('div', { class: 't-hero-date' }, dateStr),
+        h('div', { class: 't-hero-sub' }, `우리 반 ${data.students.length}명 · 오늘 현황을 한눈에 봐요`)),
+      h('div', { class: 't-hero-emoji' }, '🌤️'));
+  }
+
+  function statCard(icon, label, done, total, tone) {
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    return h('div', { class: `stat-card ${tone || ''}` },
+      h('div', { class: 'stat-top' }, h('span', { class: 'stat-ico' }, icon), h('span', { class: 'stat-pct' }, `${pct}%`)),
+      h('div', { class: 'stat-num' }, h('b', null, String(done)), ` / ${total}`),
+      h('div', { class: 'stat-label' }, label),
+      h('div', { class: 'stat-bar' }, h('div', { class: 'stat-fill', style: `width:${pct}%` })));
+  }
+
+  function stats() {
     const { students, moods, mission, perDay } = data;
-    const total = students.length || 1;
+    const total = students.length;
     const moodDone = students.filter((s) => moods.has(s.sid)).length;
     const missionDone = students.filter((s) => (mission.get(s.sid)?.graded ?? 0) >= perDay).length;
     const roleHolders = students.filter((s) => data.roles.some((r) => (r.members ?? []).includes(s.sid)));
     const roleDone = roleHolders.filter((s) => roleState(s.sid).kind === 'done').length;
+    const negToday = students.filter((s) => { const m = moods.get(s.sid); return m && NEGATIVE.includes(m); }).length;
+    return h('div', { class: 'stat-grid' },
+      statCard('😊', '기분 기록', moodDone, total, ''),
+      statCard('🧮', '기초미션 완료', missionDone, total, 'ok'),
+      statCard('🧹', '1인1역 완료', roleDone, roleHolders.length, 'warn'),
+      statCard('💗', '오늘 힘든 친구', negToday, total, 'care'));
+  }
 
-    const badges = [];
+  function attention() {
+    const items = [];
     const reqCount = data.checks.filter((c) => c.status === 'requested').length;
-    if (reqCount) badges.push(['1인1역 대신 승인', reqCount, 'req']);
-    if (data.waiting) badges.push(['과제 확인 대기', data.waiting, 'wait']);
-    if (data.streak.length) badges.push([`3일째 힘든 친구 ${data.streak.map((s) => s.name).join(', ')}`, '', 'care']);
-
+    if (reqCount) items.push({ ico: '🧹', text: '1인1역 승인 대기 — 아래 표에서 승인해요', n: reqCount, tone: 'req' });
+    if (data.waiting) items.push({ ico: '📋', text: '과제 확인 대기', n: data.waiting, tone: 'wait', go: 'board' });
+    if (data.streak.length) items.push({ ico: '💗', text: `3일째 힘든 친구: ${data.streak.map((s) => s.name).join(', ')}`, n: '', tone: 'care', go: 'care' });
     return h('section', { class: 'card' },
-      h('div', { class: 'today-sum' },
-        h('span', null, `기분 ${moodDone}/${students.length}`),
-        h('span', null, `기초미션 ${missionDone}/${students.length}`),
-        h('span', null, `1인1역 ${roleDone}/${roleHolders.length}`),
-      ),
-      badges.length ? h('div', { class: 'badges' }, ...badges.map(([t, n, k]) =>
-        h('span', { class: `todo-badge ${k}` }, n === '' ? t : `${t} ${n}`))) : null,
-    );
+      h('h2', null, '오늘 살펴볼 일'),
+      items.length === 0
+        ? h('p', { class: 'empty-ok' }, '✅ 지금 바로 처리할 일은 없어요. 좋아요!')
+        : h('div', { class: 'attn-list' }, ...items.map((it) => {
+          const attrs = { class: `attn-item ${it.tone}` };
+          if (it.go) attrs.onclick = () => open(it.go);
+          return h(it.go ? 'button' : 'div', attrs,
+            h('span', { class: 'attn-ico' }, it.ico),
+            h('span', { class: 'attn-text' }, it.text),
+            it.n !== '' ? h('span', { class: 'attn-n' }, String(it.n)) : null);
+        })));
   }
 
   function row(s) {
@@ -195,10 +225,12 @@ export async function renderToday(root, { open }) {
       onlyTodo ? '모든 학생 보기' : '아직 안 한 학생만 보기');
 
     root.replaceChildren(
-      summary(),
+      hero(),
+      stats(),
+      attention(),
       h('section', { class: 'card' },
         h('div', { class: 'row', style: 'justify-content:space-between' },
-          h('h2', null, '오늘 현황'), filterBtn),
+          h('h2', null, '학생별 현황'), filterBtn),
         data.students.length === 0
           ? h('p', { class: 'muted' }, '등록된 학생이 없어요.')
           : h('div', { class: 'table-wrap' }, h('table', null,
@@ -206,7 +238,7 @@ export async function renderToday(root, { open }) {
               h('th', null, '번호'), h('th', null, '이름'), h('th', null, '기분'),
               h('th', null, '기초미션'), h('th', null, '1인1역'), h('th', null, '남은 과제'))),
             h('tbody', null, ...rows.map(row)))),
-        h('p', { class: 'muted' }, '요청중 칸을 누르면 선생님이 대신 승인해요. 글마당 열은 글마당 단계에서 추가돼요.'),
+        h('p', { class: 'muted small' }, '요청중 칸을 누르면 선생님이 대신 승인해요.'),
       ),
     );
   }
