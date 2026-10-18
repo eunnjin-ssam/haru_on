@@ -32,32 +32,34 @@ export function renderCharacter3D(container, equip, opts = {}) {
   renderer.setSize(w, hgt);
   container.replaceChildren(renderer.domElement);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
   dir.position.set(10, 20, 15); scene.add(dir);
   const dir2 = new THREE.DirectionalLight(0xffffff, 0.3);
   dir2.position.set(-10, 5, -10); scene.add(dir2);
 
-  // 바닥 그림자
-  const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(6, 32),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12 }),
-  );
-  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.05; shadow.scale.set(1, 0.6, 1);
-  scene.add(shadow);
-
   const group = new THREE.Group();
-  for (const bx of buildBoxes(equip)) {
-    const geo = new THREE.BoxGeometry(bx.w, bx.h, bx.d);
-    const mat = new THREE.MeshLambertMaterial({ color: bx.color });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(bx.x + bx.w / 2, bx.y + bx.h / 2, bx.z + bx.d / 2);
-    group.add(mesh);
-  }
+  // 얼굴(−z)이 카메라(+z)를 향하도록 처음부터 앞모습으로 돌려 둔다.
+  group.rotation.y = Math.PI;
   scene.add(group);
 
-  let sprite = null;
-  if (opts.title) { sprite = titleSprite(opts.title, opts.titleColor || '#ffffff'); group.add(sprite); }
+  // 입은 모습을 새로 그린다(회전 방향은 그대로 유지 → 색만 바꿔도 안 튄다).
+  function fill(eq, op) {
+    for (const c of [...group.children]) {
+      group.remove(c);
+      if (c.geometry) c.geometry.dispose();
+      if (c.material) { if (c.material.map) c.material.map.dispose(); c.material.dispose(); }
+    }
+    for (const bx of buildBoxes(eq)) {
+      const geo = new THREE.BoxGeometry(bx.w, bx.h, bx.d);
+      const mat = new THREE.MeshLambertMaterial({ color: bx.color });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(bx.x + bx.w / 2, bx.y + bx.h / 2, bx.z + bx.d / 2);
+      group.add(mesh);
+    }
+    if (op?.title) group.add(titleSprite(op.title, op.titleColor || '#ffffff'));
+  }
+  fill(equip, opts);
 
   // 밀어서 회전
   let dragging = false; let lastX = 0; let vel = 0;
@@ -87,6 +89,7 @@ export function renderCharacter3D(container, equip, opts = {}) {
   tick();
 
   return {
+    update(newEquip, newOpts) { fill(newEquip, newOpts ?? opts); },
     dispose() {
       cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove);

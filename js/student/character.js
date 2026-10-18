@@ -4,11 +4,12 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { CATALOG, colorHex } from '../character/catalog.js';
+import { CATALOG, colorHex, colorLabel, COLORS } from '../character/catalog.js';
 import { renderCharacter3D } from '../character/voxel3d.js';
 import { drawFront } from '../character/voxel2d.js';
 
-const CATS = [['hair', '헤어'], ['face', '얼굴'], ['top', '상의'], ['bottom', '하의'], ['shoes', '신발'], ['headAcc', '머리 소품'], ['faceAcc', '얼굴 소품']];
+const SECTION = { hair: '헤어스타일', face: '얼굴 표정', top: '상의', bottom: '하의', shoes: '신발', headAcc: '모자·머리 소품', faceAcc: '얼굴 소품' };
+const SECTION_ORDER = ['hair', 'face', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc'];
 const EMPTY = { hair: null, face: null, top: null, bottom: null, shoes: null, headAcc: null, faceAcc: null };
 const TITLE_FIELDS = [['reading', 'reading'], ['mission', 'missionDays'], ['role', 'roleDays']];
 
@@ -17,8 +18,8 @@ export async function renderCharacter(content, student, settings) {
   const currency = settings.names.currency;
   const titleColors = settings.titleColors ?? ['#fff', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f'];
   let topView = 'me';
-  let cat = 'hair';
   let view = null;
+  let selected = null; // 지금 미리보기 중인 { item, color }
   let data;
 
   async function load() {
@@ -55,7 +56,26 @@ export async function renderCharacter(content, student, settings) {
 
   const ownedId = (item, color) => (color === 'default' ? `${sid}_${item}_free` : `${sid}_${item}_${color}`);
   const owns = (item, color) => data.owned.has(ownedId(item, color));
-  const priceOf = (item, color) => (data.items.get(item)?.prices ?? CATALOG[item].prices)[color];
+  const colorsOf = (item) => data.items.get(item)?.prices ?? CATALOG[item].prices;
+  const priceOf = (item, color) => colorsOf(item)[color];
+  const dotHex = (item, c) => (c === 'default' ? (CATALOG[item].defColor ?? COLORS.default) : colorHex(c));
+  const onSaleOf = (id) => { const m = data.items.get(id); return m ? m.onSale !== false : true; };
+  const ownsAny = (id) => Object.keys(colorsOf(id)).some((c) => owns(id, c));
+  function firstColor(item) {
+    const cs = Object.keys(colorsOf(item));
+    return cs.find((c) => owns(item, c)) ?? (cs.includes('default') ? 'default' : cs[0]);
+  }
+  function defaultColorFor(item) {
+    const eq = data.equip[CATALOG[item].category];
+    return (eq && eq.item === item) ? eq.color : firstColor(item);
+  }
+  // 상점 카드 미리보기: 기본 차림(머리·얼굴·옷) 위에 이 아이템만 올려 그린다.
+  const PREVIEW_BASE = {
+    hair: { item: 'hairBasic', color: 'default' }, face: { item: 'faceSmile', color: 'default' },
+    top: { item: 'topPlain', color: 'default' }, bottom: { item: 'bottomPlain', color: 'default' },
+    shoes: { item: 'shoesBasic', color: 'default' },
+  };
+  const previewFor = (item, color) => ({ ...PREVIEW_BASE, [CATALOG[item].category]: { item, color } });
 
   async function buy(item, color) {
     const price = priceOf(item, color);
@@ -96,13 +116,6 @@ export async function renderCharacter(content, student, settings) {
     return myTitles().find((x) => x.id === t) ?? null;
   }
 
-  // ---- 3D 무대 ----
-  function stageWith(equip, worn) {
-    const stage = h('div', { class: 'char-stage' });
-    queueMicrotask(() => { if (view) view.dispose(); view = renderCharacter3D(stage, equip, worn ? { title: worn.name, titleColor: worn.color } : {}); });
-    return stage;
-  }
-
   // ---- 친구 캐릭터 3D 팝업 ----
   function openFriend(p, name, worn) {
     const box = h('div', { class: 'char-stage', style: 'height:360px' });
@@ -115,30 +128,6 @@ export async function renderCharacter(content, student, settings) {
   }
 
   // ---- 그리기 ----
-  function itemsCard() {
-    const items = Object.entries(CATALOG).filter(([, it]) => it.category === cat);
-    const equipped = data.equip[cat];
-    const catBtns = CATS.map(([c, label]) => h('button', { class: `chip${cat === c ? ' on' : ''}`, onclick: () => { cat = c; draw(); } }, label));
-    const cards = items.map(([id, it]) => {
-      const meta = data.items.get(id);
-      const onSale = meta ? meta.onSale !== false : true;
-      const colors = Object.keys(it.prices);
-      return h('div', { class: 'item-card' },
-        h('div', { class: 'ic-name' }, it.name, !onSale ? h('span', { class: 'muted small' }, ' (숨김)') : null),
-        h('div', { class: 'swatches' }, ...colors.map((color) => {
-          const have = owns(id, color);
-          const isOn = equipped && equipped.item === id && equipped.color === color;
-          return h('button', { class: `swatch${isOn ? ' on' : ''}`, title: have ? '입기' : `${priceOf(id, color)} ${currency}`, style: `background:${colorHex(color)}`, disabled: !have && !onSale, onclick: () => pick(id, color) }, have ? '✓' : '');
-        })),
-        h('div', { class: 'muted small' }, colors.map((c) => `${c} ${priceOf(id, c)}`).join(' · ')),
-      );
-    });
-    return h('div', { class: 'char-shop' },
-      h('div', { class: 'subtabs' }, ...catBtns),
-      equipped ? h('button', { class: 'btn secondary small', onclick: () => act(() => updateDoc(doc(db, 'profiles', sid), { [`equip.${cat}`]: null })) }, '이 칸 벗기') : null,
-      h('div', { class: 'item-grid' }, ...cards));
-  }
-
   function titlesCard() {
     const titles = myTitles();
     const worn = data.profile.title;
@@ -180,12 +169,107 @@ export async function renderCharacter(content, student, settings) {
       content.replaceChildren(h('div', { class: 'character' }, toggle, h('p', { class: 'muted small' }, '친구를 누르면 3D로 볼 수 있어요.'), await classGrid()));
       return;
     }
+
     const worn = wornTitle();
-    content.replaceChildren(h('div', { class: 'character' }, toggle,
-      h('div', { class: 'char-top' }, stageWith(data.equip, worn),
-        h('div', { class: 'muted small', style: 'text-align:center' }, `지갑: ${data.summary.wallet ?? 0} ${currency} · 밀어서 돌려보세요`)),
+    const wornOpts = () => (worn ? { title: worn.name, titleColor: worn.color } : {});
+    if (!selected) {
+      selected = data.equip.hair?.item
+        ? { item: data.equip.hair.item, color: data.equip.hair.color }
+        : { item: 'hairBasic', color: defaultColorFor('hairBasic') };
+    }
+
+    const stageBox = h('div', { class: 'char-stage' });
+    const fitBox = h('div', { class: 'fit-panel' });
+    const catalog = h('div', { class: 'char-catalog' });
+    const cards = new Map();
+
+    const previewEquip = () => ({ ...data.equip, [CATALOG[selected.item].category]: { item: selected.item, color: selected.color } });
+    function markSelected() { for (const [id, el] of cards) el.classList.toggle('sel', selected.item === id); }
+    function select(item, color) {
+      selected = { item, color: color ?? defaultColorFor(item) };
+      renderFit();
+      if (view) view.update(previewEquip(), wornOpts());
+      markSelected();
+    }
+    function unequip(c) { act(() => updateDoc(doc(db, 'profiles', sid), { [`equip.${c}`]: null })); }
+
+    function renderFit() {
+      const item = CATALOG[selected.item];
+      const c = item.category;
+      const isOwned = owns(selected.item, selected.color);
+      const eqNow = data.equip[c];
+      const isEquipped = eqNow && eqNow.item === selected.item && eqNow.color === selected.color;
+      const price = priceOf(selected.item, selected.color);
+      const wallet = data.summary.wallet ?? 0;
+
+      const primary = isEquipped
+        ? h('button', { class: 'btn', disabled: true }, '입고 있어요')
+        : h('button', { class: 'btn', onclick: () => pick(selected.item, selected.color) }, isOwned ? '입기' : '🛒 사기');
+      const takeOff = h('button', { class: 'btn secondary', disabled: !eqNow, onclick: () => unequip(c) }, '벗기');
+
+      const colorChips = Object.keys(colorsOf(selected.item)).map((col) => {
+        const have = owns(selected.item, col);
+        return h('button', { class: `color-chip${selected.color === col ? ' on' : ''}`, onclick: () => select(selected.item, col) },
+          h('span', { class: 'cdot', style: `background:${dotHex(selected.item, col)}` }),
+          h('span', { class: 'cname' }, col === 'default' ? '기본' : colorLabel(col)),
+          h('span', { class: 'cprice muted' }, have ? '✓' : String(priceOf(selected.item, col))));
+      });
+
+      fitBox.replaceChildren(
+        h('div', { class: 'fit-head' },
+          h('div', null, h('div', { class: 'fit-name' }, item.name), h('div', { class: 'fit-cat muted small' }, SECTION[c])),
+          h('div', { class: 'fit-price' }, isEquipped ? '입고 있어요' : (isOwned ? '가지고 있어요' : `${price} ${currency}`))),
+        h('div', { class: 'fit-actions' }, primary, takeOff),
+        h('p', { class: 'muted small' }, `지갑에 ${wallet} ${currency} 있어요. 눌러 입어 보고 마음에 들면 사기!`),
+        h('div', { class: 'fit-colors' }, ...colorChips),
+      );
+    }
+
+    function itemCard(id, it) {
+      const colors = Object.keys(colorsOf(id));
+      const prices = colors.map((col) => priceOf(id, col)).filter((n) => typeof n === 'number');
+      const minP = prices.length ? Math.min(...prices) : 0;
+      const freeStart = colors.includes('default') && priceOf(id, 'default') === 0;
+      const equipped = data.equip[it.category]?.item === id;
+      const cv = h('canvas', { width: 120, height: 150, class: 'item-canvas' });
+      queueMicrotask(() => drawFront(cv, previewFor(id, firstColor(id))));
+      const card = h('button', { class: `item-card${selected.item === id ? ' sel' : ''}`, onclick: () => select(id) },
+        equipped ? h('span', { class: 'ic-badge' }, '착용 중') : null,
+        cv,
+        h('div', { class: 'ic-name' }, it.name),
+        h('div', { class: 'ic-price muted small' }, ownsAny(id) && !freeStart ? '가진 색 있음' : (freeStart ? '무료부터' : `${minP} ${currency}~`)),
+        h('div', { class: 'swatch-dots' },
+          ...colors.slice(0, 7).map((col) => h('span', { class: 'sdot', style: `background:${dotHex(id, col)}` })),
+          colors.length > 7 ? h('span', { class: 'sdot-more muted' }, `+${colors.length - 7}`) : null));
+      cards.set(id, card);
+      return card;
+    }
+
+    const sections = SECTION_ORDER.map((c) => {
+      const items = Object.entries(CATALOG).filter(([id, it]) => it.category === c && (onSaleOf(id) || ownsAny(id)));
+      if (!items.length) return null;
+      return h('section', { class: 'cat-sec' },
+        h('h3', { class: 'cat-h' }, SECTION[c], h('span', { class: 'cat-n muted' }, ` ${items.length}`)),
+        h('div', { class: 'item-grid' }, ...items.map(([id, it]) => itemCard(id, it))));
+    }).filter(Boolean);
+    catalog.replaceChildren(...sections);
+
+    if (view) { view.dispose(); view = null; }
+    queueMicrotask(() => { view = renderCharacter3D(stageBox, previewEquip(), wornOpts()); });
+    renderFit();
+
+    content.replaceChildren(h('div', { class: 'character' },
+      h('div', { class: 'board-head' },
+        h('div', null, h('div', { class: 'bh-title' }, '꾸미기'), h('div', { class: 'bh-sub' }, '아이템을 눌러 입어 보고, 사기로 내 것을 만들어요')),
+        h('div', { class: 'wallet-chip' }, `🪙 ${data.summary.wallet ?? 0} ${currency}`)),
+      toggle,
+      h('div', { class: 'char-layout' },
+        h('div', { class: 'char-left' },
+          h('div', { class: 'char-stage-box' }, stageBox, h('div', { class: 'muted small', style: 'text-align:center;margin-top:4px' }, '밀어서 돌려보세요')),
+          fitBox),
+        catalog),
       titlesCard(),
-      itemsCard()));
+    ));
   }
 
   await load();
