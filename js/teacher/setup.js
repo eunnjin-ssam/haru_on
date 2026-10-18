@@ -1,46 +1,149 @@
-// 관리 페이지 > 기본 설정: 처음 한 번 설정 문서를 만든다. 값 바꾸기 화면은 관리 페이지 단계에서.
-import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
+// 관리: 기본 설정. 처음 한 번 저장하고, 그 뒤로는 값(이름·포인트·기준 등)을 바꾼다.
+import { doc, getDoc, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { DEFAULT_SETTINGS, DEFAULT_TEACHER_SETTINGS } from '../common/defaults.js';
 
-export async function renderSetup(root, { open }) {
-  const snap = await getDoc(doc(db, 'settings', 'main'));
+const MENU_KEYS = [['dashboard', '대시보드'], ['writing', '글마당'], ['stories', '약속마당'], ['tasks', '과제마당'], ['myweek', '나의마당'], ['character', '내 캐릭터'], ['shop', '상점']];
+const TITLE_CATS = [['reading', '독서(글마당 편수)'], ['mission', '기초미션(참여일)'], ['role', '1인1역(완료일)']];
 
-  if (snap.exists()) {
-    const s = snap.data();
+const field = (label, input) => h('label', { class: 'field' }, h('span', null, label), input);
+const numInput = (v) => h('input', { type: 'number', value: String(v ?? 0), style: 'width:110px' });
+const txtInput = (v) => h('input', { type: 'text', value: v ?? '' });
+const num = (el) => Number(el.value) || 0;
+
+export async function renderSetup(root, { open }) {
+  const [mainSnap, teacherSnap] = await Promise.all([
+    getDoc(doc(db, 'settings', 'main')),
+    getDoc(doc(db, 'settings', 'teacher')),
+  ]);
+
+  // 처음 한 번: 기본값 저장
+  if (!mainSnap.exists()) {
+    const save = h('button', { class: 'btn', onclick: async () => {
+      save.disabled = true;
+      try {
+        await setDoc(doc(db, 'settings', 'main'), DEFAULT_SETTINGS);
+        await setDoc(doc(db, 'settings', 'teacher'), DEFAULT_TEACHER_SETTINGS);
+        toast('기본 설정을 저장했어요');
+        open('roster');
+      } catch (e) { console.error(e); toast('저장하지 못했어요', 'error'); save.disabled = false; }
+    } }, '기본 설정 저장하기');
     root.replaceChildren(h('section', { class: 'card' },
-      h('h2', null, '기본 설정'),
-      h('p', null, '기본 설정이 저장되어 있어요.'),
-      h('ul', null,
-        h('li', null, `화폐 이름: ${s.names.currency}`),
-        h('li', null, `기초미션: 하루 ${s.mission.perDay}문제, 1문제 ${s.points.mission}점`),
-        h('li', null, `글마당: ${s.points.writing}점, 주간 보너스 ${s.points.bonusDays}일 ${s.points.writingBonus}점`),
-        h('li', null, `늦은 제출: 마감 후 ${s.lateDays}일까지 절반`),
-      ),
-      h('p', { class: 'muted' }, '값을 바꾸는 화면은 관리 페이지 단계에서 만들어요.'),
+      h('h2', null, '처음 설정'),
+      h('p', null, '포인트 값, 칭호 기준, 메뉴 이름 같은 기본 설정을 저장해요. 처음 한 번만 하면 돼요.'),
+      h('p', { class: 'muted' }, '기획서의 값(기초미션 1문제 1점, 글마당 2점, 주간 보너스 3일 3점, 늦은 제출 7일 등)으로 시작하고, 나중에 바꿀 수 있어요.'),
+      save,
     ));
     return;
   }
 
-  const save = h('button', { class: 'btn', onclick: async () => {
-    save.disabled = true;
-    try {
-      await setDoc(doc(db, 'settings', 'main'), DEFAULT_SETTINGS);
-      await setDoc(doc(db, 'settings', 'teacher'), DEFAULT_TEACHER_SETTINGS);
-      toast('기본 설정을 저장했어요');
-      open('roster');
-    } catch (e) {
-      console.error(e);
-      toast('저장하지 못했어요', 'error');
-      save.disabled = false;
-    }
-  } }, '기본 설정 저장하기');
+  const s = mainSnap.data();
+  const t = teacherSnap.exists() ? teacherSnap.data() : DEFAULT_TEACHER_SETTINGS;
 
-  root.replaceChildren(h('section', { class: 'card' },
-    h('h2', null, '처음 설정'),
-    h('p', null, '포인트 값, 칭호 기준, 메뉴 이름 같은 기본 설정을 저장해요. 처음 한 번만 하면 돼요.'),
-    h('p', { class: 'muted' }, '기획서의 값(기초미션 1문제 1점, 글마당 2점, 주간 보너스 3일 3점, 늦은 제출 7일 등)으로 시작하고, 나중에 바꿀 수 있어요.'),
-    save,
-  ));
+  async function save(path, data, done) {
+    try { await updateDoc(doc(db, 'settings', path), data); toast(done ?? '저장했어요'); }
+    catch (e) { console.error(e); toast('저장하지 못했어요', 'error'); }
+  }
+
+  // ----- 이름 -----
+  function namesCard() {
+    const currency = txtInput(s.names.currency);
+    const menus = MENU_KEYS.map(([k]) => txtInput(s.names.menus?.[k]));
+    const btn = h('button', { class: 'btn', onclick: () => {
+      const data = { 'names.currency': currency.value.trim() || '포인트' };
+      MENU_KEYS.forEach(([k], i) => { data[`names.menus.${k}`] = menus[i].value.trim() || k; });
+      save('main', data, '이름을 바꿨어요');
+    } }, '이름 저장');
+    return h('section', { class: 'card' }, h('h2', null, '이름'),
+      h('div', { class: 'role-form' },
+        field('화폐 이름 (예: 포인트, 별, 우리반 코인)', currency),
+        ...MENU_KEYS.map(([k, label], i) => field(`메뉴 이름: ${label}`, menus[i])),
+        h('div', { class: 'row' }, btn)));
+  }
+
+  // ----- 포인트·기간 -----
+  function pointsCard() {
+    const perDay = numInput(s.mission?.perDay ?? 5);
+    const mission = numInput(s.points.mission);
+    const writing = numInput(s.points.writing);
+    const bonus = numInput(s.points.writingBonus);
+    const bonusDays = numInput(s.points.bonusDays);
+    const lateDays = numInput(s.lateDays);
+    const agenda = numInput(s.storyAgendaLikes);
+    const btn = h('button', { class: 'btn', onclick: () => save('main', {
+      'mission.perDay': num(perDay),
+      'points.mission': num(mission), 'points.writing': num(writing),
+      'points.writingBonus': num(bonus), 'points.bonusDays': num(bonusDays),
+      lateDays: num(lateDays), storyAgendaLikes: num(agenda),
+    }, '포인트·기준을 바꿨어요') }, '포인트 저장');
+    return h('section', { class: 'card' }, h('h2', null, '포인트·기준'),
+      h('div', { class: 'role-form' },
+        field('기초미션 하루 문제 수', perDay),
+        field('기초미션 1문제 점수', mission),
+        field('글마당 점수 (하루 1회)', writing),
+        field('글마당 주간 보너스 점수', bonus),
+        field('주간 보너스 기준 일수', bonusDays),
+        field('과제 늦은 제출 기간(일) — 이후 절반', lateDays),
+        field('약속마당 회의 안건 공감 기준 수', agenda),
+        h('div', { class: 'row' }, btn)));
+  }
+
+  // ----- 칭호 기준 -----
+  function titlesCard() {
+    const rows = {};
+    const sections = TITLE_CATS.map(([cat, label]) => {
+      const arr = s.titles?.[cat] ?? [];
+      rows[cat] = arr.map((it) => ({ name: txtInput(it.name), min: numInput(it.min) }));
+      return h('div', null, h('h3', null, label),
+        h('table', null, h('thead', null, h('tr', null, h('th', null, '단계'), h('th', null, '칭호 이름'), h('th', null, '기준 수'))),
+          h('tbody', null, ...rows[cat].map((r, i) => h('tr', null,
+            h('td', null, ['초보', '중급', '고급', '마스터', '그랜드마스터'][i] ?? `${i + 1}`),
+            h('td', null, r.name), h('td', null, r.min))))));
+    });
+    const btn = h('button', { class: 'btn', onclick: () => {
+      const data = {};
+      for (const [cat] of TITLE_CATS) data[`titles.${cat}`] = rows[cat].map((r) => ({ name: r.name.value.trim(), min: num(r.min) }));
+      save('main', data, '칭호 기준을 바꿨어요');
+    } }, '칭호 기준 저장');
+    return h('section', { class: 'card' }, h('h2', null, '칭호 기준'),
+      ...sections, h('div', { class: 'row' }, btn));
+  }
+
+  // ----- 씨앗 나무 -----
+  function treeCard() {
+    const arr = s.tree ?? [];
+    const rows = arr.map((it) => ({ name: txtInput(it.name), min: numInput(it.min) }));
+    const btn = h('button', { class: 'btn', onclick: () => save('main', { tree: rows.map((r) => ({ name: r.name.value.trim(), min: num(r.min) })) }, '씨앗 나무 기준을 바꿨어요') }, '씨앗 나무 저장');
+    return h('section', { class: 'card' }, h('h2', null, '씨앗 나무 단계 (누적 포인트 기준)'),
+      h('table', null, h('thead', null, h('tr', null, h('th', null, '단계 이름'), h('th', null, '시작 누적 포인트'))),
+        h('tbody', null, ...rows.map((r) => h('tr', null, h('td', null, r.name), h('td', null, r.min))))),
+      h('div', { class: 'row' }, btn));
+  }
+
+  // ----- 살핌판 기준 -----
+  function careCard() {
+    const c = t.care ?? {};
+    const moodNeg = numInput(c.moodNegative ?? 3);
+    const tasksLeft = numInput(c.tasksLeft ?? 2);
+    const activity = numInput(Math.round((c.activityRate ?? 0.5) * 100));
+    const recheck = numInput(c.recheckDays ?? 7);
+    const btn = h('button', { class: 'btn', onclick: () => save('teacher', {
+      'care.moodNegative': num(moodNeg), 'care.tasksLeft': num(tasksLeft),
+      'care.activityRate': num(activity) / 100, 'care.recheckDays': num(recheck),
+    }, '살핌판 기준을 바꿨어요') }, '살핌판 기준 저장');
+    return h('section', { class: 'card' }, h('h2', null, '살핌판 기준'),
+      h('div', { class: 'role-form' },
+        field('최근 한 주 부정 기분 며칠 이상이면 살펴보기', moodNeg),
+        field('남은 과제 몇 개 이상이면 살펴보기', tasksLeft),
+        field('최근 2주 활동 완료율(%) 이 값 미만이면 살펴보기', activity),
+        field("'살펴봤어요' 뒤 며칠 지나면 다시 표시", recheck),
+        h('div', { class: 'row' }, btn)));
+  }
+
+  root.replaceChildren(
+    h('section', { class: 'card' }, h('h2', null, '설정'),
+      h('p', { class: 'muted' }, '이름·포인트·기준을 바꿀 수 있어요. 각 칸을 고치고 그 칸의 저장 버튼을 누르면 바로 반영돼요.')),
+    namesCard(), pointsCard(), titlesCard(), treeCard(), careCard(),
+  );
 }
