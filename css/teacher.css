@@ -103,6 +103,15 @@ table.board .taskname { vertical-align: top; }
 .req-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 2px; border-top: 1px solid var(--line); }
 .content h2 + .req-row, .req-row:first-child { border-top: 0; }
 
+/* 살핌판 */
+.care-item { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.care-item:first-of-type { border-top: 0; }
+.care-item input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.care-toolbar { border: 2px solid var(--primary); position: sticky; top: 8px; z-index: 5; }
+.care-toolbar .row { margin-top: 8px; }
+.care-toolbar input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+tr.flagged td { background: #fff7e0; }
+
 /* PIN 카드 인쇄 */
 #print-area { display: none; }
 @media print {

@@ -9,6 +9,7 @@ import { renderTasks } from './tasks.js';
 import { renderStories } from './stories.js';
 import { renderShop } from './shop.js';
 import { renderCharacter } from './character.js';
+import { renderMyWeek } from './myweek.js';
 
 export async function renderApp(root, student, onLogout) {
   const settings = await loadSettings();
@@ -21,6 +22,7 @@ export async function renderApp(root, student, onLogout) {
     ['writing', menus.writing, '📖'],
     ['tasks', menus.tasks, '📋'],
     ['stories', menus.stories, '💬'],
+    ['myweek', menus.myweek, '📅'],
     ['shop', menus.shop, '🛒'],
     ['character', menus.character, '🧑'],
   ];
@@ -59,6 +61,7 @@ export async function renderApp(root, student, onLogout) {
       else if (id === 'stories') await renderStories(content, student, settings);
       else if (id === 'shop') await renderShop(content, student, settings);
       else if (id === 'character') await renderCharacter(content, student, settings);
+      else if (id === 'myweek') await renderMyWeek(content, student, settings);
       else content.replaceChildren(h('section', { class: 'card' },
         h('h2', null, NAV.find(([n]) => n === id)[1]),
         h('p', { class: 'muted' }, '곧 만들어요.')));

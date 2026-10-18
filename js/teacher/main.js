@@ -14,12 +14,15 @@ import { renderStoriesAdmin } from './stories-admin.js';
 import { renderPointsAdmin } from './points-admin.js';
 import { renderGoalsAdmin } from './goals-admin.js';
 import { renderCharacterAdmin } from './character-admin.js';
+import { renderCare } from './care.js';
+import { renderAdmin } from './admin.js';
 
 const root = document.getElementById('app');
 
 const TABS = [
   { id: 'today', label: '오늘 현황', render: renderToday },
   { id: 'board', label: '체크판', render: renderBoard },
+  { id: 'care', label: '살핌판', render: renderCare },
   { id: 'writing', label: '글마당 관리', render: renderWritingAdmin },
   { id: 'stories', label: '약속마당 관리', render: renderStoriesAdmin },
   { id: 'points', label: '포인트 관리', render: renderPointsAdmin },
@@ -29,6 +32,7 @@ const TABS = [
   { id: 'roles', label: '1인1역', render: renderRoles },
   { id: 'mission', label: '기초미션', render: renderMission },
   { id: 'setup', label: '기본 설정', render: renderSetup },
+  { id: 'admin', label: '백업·초기화', render: renderAdmin },
 ];
 
 async function start() {

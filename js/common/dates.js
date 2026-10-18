@@ -31,3 +31,14 @@ export function weekId(now = new Date()) {
   k.setUTCDate(k.getUTCDate() - (dow - 1));
   return ymd(k);
 }
+
+// offset주 전(0=이번 주)의 { week: 월요일id, days: [월~금 날짜 5개] }
+export function weekInfo(offset = 0, now = new Date()) {
+  const k = kstNow(now);
+  const dow = k.getUTCDay() === 0 ? 7 : k.getUTCDay();
+  k.setUTCDate(k.getUTCDate() - (dow - 1) + offset * 7); // 대상 주 월요일
+  const week = ymd(k);
+  const days = [];
+  for (let i = 0; i < 5; i++) { const d = new Date(k); d.setUTCDate(k.getUTCDate() + i); days.push(ymd(d)); }
+  return { week, days };
+}

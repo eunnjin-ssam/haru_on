@@ -1,6 +1,6 @@
 // 학생 대시보드: 지갑 포인트와 오늘 남은 할 일을 가장 먼저 보여준다.
 // 3단계 범위: 기분 고르기, 기초미션, 1인1역. (과제·공동목표·쪽지는 이후 단계)
-import { doc, getDoc, getDocs, collection, query, where } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
+import { doc, getDoc, getDocs, collection, query, where, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId } from '../common/dates.js';
@@ -16,14 +16,12 @@ export async function renderDashboard(content, student, settings, { openMission 
   let data;
 
   async function load() {
-    const [summarySnap, mood, roles, attemptSnaps, studentsSnap, goalSnap] = await Promise.all([
-      getDoc(doc(db, 'summaries', sid)),
-      loadMood(sid),
-      loadRoles(sid),
-      Promise.all(Array.from({ length: perDay }, (_, i) =>
-        getDoc(doc(db, 'missionAttempts', `${sid}_${todayId()}_${i + 1}`)).catch(() => null))),
+    const [summarySnap, mood, roles, attemptSnaps, studentsSnap, goalSnap, msgSnap] = await Promise.all([
+      getDoc(doc(db, 'summaries', sid)), loadMood(sid), loadRoles(sid),
+      Promise.all(Array.from({ length: perDay }, (_, i) => getDoc(doc(db, 'missionAttempts', `${sid}_${todayId()}_${i + 1}`)).catch(() => null))),
       getDocs(collection(db, 'students')),
       getDocs(query(collection(db, 'goals'), where('status', '==', 'open'))).catch(() => null),
+      getDocs(query(collection(db, 'messages'), where('to', '==', sid))).catch(() => null),
     ]);
     data = {
       summary: summarySnap.exists() ? summarySnap.data() : { wallet: 0, total: 0 },
@@ -33,6 +31,7 @@ export async function renderDashboard(content, student, settings, { openMission 
       missionGot: attemptSnaps.filter((s) => s?.exists() && s.data().correct === true).length,
       names: new Map(studentsSnap.docs.map((d) => [d.id, d.data().name])),
       goals: goalSnap ? goalSnap.docs.map((d) => ({ id: d.id, ...d.data() })) : [],
+      messages: msgSnap ? msgSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((m) => !m.readAt).sort((a, b) => (b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0)) : [],
     };
   }
 
@@ -151,8 +150,19 @@ export async function renderDashboard(content, student, settings, { openMission 
     );
   }
 
+  function messagesCard() {
+    if (data.messages.length === 0) return null;
+    return h('section', { class: 'card messages-card' },
+      h('h2', null, '선생님 쪽지'),
+      ...data.messages.map((m) => h('div', { class: 'msg-row' },
+        h('p', null, m.body),
+        h('button', { class: 'btn small', onclick: () => act(() => updateDoc(doc(db, 'messages', m.id), { readAt: serverTimestamp() })) }, '읽었어요'))),
+    );
+  }
+
   function draw() {
     content.replaceChildren(h('div', { class: 'dash' }, ...[
+      messagesCard(),
       hero(),
       requestCard(),
       moodCard(),
