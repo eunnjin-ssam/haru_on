@@ -225,7 +225,7 @@ export async function renderWriting(content, student, settings) {
       view === 'write' ? '← 친구 글 보기' : '✍️ 글쓰기');
     const head = h('div', { class: 'board-head' },
       h('div', null,
-        h('div', { class: 'bh-title' }, view === 'write' ? '오늘의 글쓰기' : '친구들 글'),
+        h('div', { class: 'bh-title' }, view === 'write' ? '오늘의 글쓰기' : '책 읽고 글 쓰기'),
         h('div', { class: 'bh-sub' }, view === 'write' ? '하루 한 편, 올리면 포인트를 받아요' : `친구들이 쓴 글을 함께 봐요 · 전체 ${count}편`)),
       writeBtn);
     content.replaceChildren(h('div', { class: 'writing' },
