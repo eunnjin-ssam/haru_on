@@ -11,6 +11,8 @@ const field = (label, input) => h('label', { class: 'field' }, h('span', null, l
 const numInput = (v) => h('input', { type: 'number', value: String(v ?? 0), style: 'width:110px' });
 const txtInput = (v) => h('input', { type: 'text', value: v ?? '' });
 const num = (el) => Number(el.value) || 0;
+// 제목을 누르면 펼쳐지고 다시 누르면 접히는 섹션
+const fold = (title, ...body) => h('details', { class: 'setup-sec' }, h('summary', null, title), h('div', { class: 'setup-body' }, ...body));
 
 export async function renderSetup(root, { open }) {
   const [mainSnap, teacherSnap] = await Promise.all([
@@ -55,7 +57,7 @@ export async function renderSetup(root, { open }) {
       MENU_KEYS.forEach(([k], i) => { data[`names.menus.${k}`] = menus[i].value.trim() || k; });
       save('main', data, '이름을 바꿨어요');
     } }, '이름 저장');
-    return h('section', { class: 'card' }, h('h2', null, '이름'),
+    return fold('이름',
       h('div', { class: 'role-form' },
         field('화폐 이름 (예: 포인트, 별, 우리반 코인)', currency),
         ...MENU_KEYS.map(([k, label], i) => field(`메뉴 이름: ${label}`, menus[i])),
@@ -77,7 +79,7 @@ export async function renderSetup(root, { open }) {
       'points.writingBonus': num(bonus), 'points.bonusDays': num(bonusDays),
       lateDays: num(lateDays), storyAgendaLikes: num(agenda),
     }, '포인트·기준을 바꿨어요') }, '포인트 저장');
-    return h('section', { class: 'card' }, h('h2', null, '포인트·기준'),
+    return fold('포인트·기준',
       h('div', { class: 'role-form' },
         field('기초미션 하루 문제 수', perDay),
         field('기초미션 1문제 점수', mission),
@@ -106,7 +108,7 @@ export async function renderSetup(root, { open }) {
       for (const [cat] of TITLE_CATS) data[`titles.${cat}`] = rows[cat].map((r) => ({ name: r.name.value.trim(), min: num(r.min) }));
       save('main', data, '칭호 기준을 바꿨어요');
     } }, '칭호 기준 저장');
-    return h('section', { class: 'card' }, h('h2', null, '칭호 기준'),
+    return fold('칭호 기준',
       ...sections, h('div', { class: 'row' }, btn));
   }
 
@@ -115,7 +117,7 @@ export async function renderSetup(root, { open }) {
     const arr = s.tree ?? [];
     const rows = arr.map((it) => ({ name: txtInput(it.name), min: numInput(it.min) }));
     const btn = h('button', { class: 'btn', onclick: () => save('main', { tree: rows.map((r) => ({ name: r.name.value.trim(), min: num(r.min) })) }, '씨앗 나무 기준을 바꿨어요') }, '씨앗 나무 저장');
-    return h('section', { class: 'card' }, h('h2', null, '씨앗 나무 단계 (누적 포인트 기준)'),
+    return fold('씨앗 나무 단계 (누적 포인트 기준)',
       h('table', null, h('thead', null, h('tr', null, h('th', null, '단계 이름'), h('th', null, '시작 누적 포인트'))),
         h('tbody', null, ...rows.map((r) => h('tr', null, h('td', null, r.name), h('td', null, r.min))))),
       h('div', { class: 'row' }, btn));
@@ -132,7 +134,7 @@ export async function renderSetup(root, { open }) {
       'care.moodNegative': num(moodNeg), 'care.tasksLeft': num(tasksLeft),
       'care.activityRate': num(activity) / 100, 'care.recheckDays': num(recheck),
     }, '살핌판 기준을 바꿨어요') }, '살핌판 기준 저장');
-    return h('section', { class: 'card' }, h('h2', null, '살핌판 기준'),
+    return fold('살핌판 기준',
       h('div', { class: 'role-form' },
         field('최근 한 주 부정 기분 며칠 이상이면 살펴보기', moodNeg),
         field('남은 과제 몇 개 이상이면 살펴보기', tasksLeft),
