@@ -229,21 +229,32 @@ body { font-size: 17px; }
 .chip-s.redo { background: var(--danger-soft); color: var(--danger); }
 
 /* 약속마당 */
-.story-list { display: flex; flex-direction: column; gap: 12px; }
-.story-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
-.sc-head { display: flex; justify-content: space-between; align-items: center; }
+.stories-list { display: flex; flex-direction: column; gap: 18px; }
+.story-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; }
+.sc-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .sc-wish { font-size: 18px; font-weight: 700; margin: 10px 0 4px; }
-.stage { border-radius: 999px; padding: 3px 12px; font-size: 13px; font-weight: 600; background: var(--bg); color: var(--muted); }
+.stage { border-radius: 999px; padding: 4px 13px; font-size: 13px; font-weight: 700; background: var(--bg); color: var(--muted); white-space: nowrap; }
+.stage-story { background: var(--primary-soft); color: var(--primary-dark); }
 .stage-agenda { background: #fff3d6; color: #9a6b00; }
 .stage-promise { background: var(--ok-soft); color: var(--ok); }
 .stage-hold { background: var(--line); }
-.sc-actions { margin: 10px 0; }
-.comments { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-.comment { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; }
-.add-comment { display: flex; gap: 6px; }
-.add-comment input { flex: 1; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
-.promises { border: 2px solid var(--ok); }
-.promise-item { font-size: 17px; font-weight: 600; margin: 6px 0; }
+.sc-progress { margin: 10px 0 2px; }
+.sc-progress .bar { height: 12px; background: var(--primary-soft); border-radius: 999px; overflow: hidden; }
+.sc-progress .bar .fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width .4s; }
+.sc-foot { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+.sc-foot .like { border: 1.5px solid var(--primary-soft); background: var(--surface); color: var(--primary-dark); font-weight: 800; font-size: 16px; border-radius: 999px; padding: 8px 16px; }
+.sc-foot .like.on { background: var(--primary-soft); }
+.sc-foot .like:disabled { opacity: .7; }
+.comment-toggle { margin-left: auto; text-decoration: none; font-weight: 700; }
+.comments { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.comment { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; line-height: 1.5; }
+.comment-form { display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); border-radius: 12px; padding: 12px; }
+.kind-btn { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 700; color: var(--muted); }
+.kind-btn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--primary-dark); }
+.comment-input { padding: 11px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 16px; min-height: 64px; resize: vertical; width: 100%; }
+.comment-form .btn { align-self: flex-end; }
+.promises { border: 1.5px solid var(--ok); background: var(--ok-soft); }
+.promise-item { font-size: 17px; font-weight: 700; margin: 6px 0; }
 .stories .writeform .wf, .stories .card .wf { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .stories textarea { padding: 12px; border: 2px solid var(--line); border-radius: 10px; font-size: 17px; min-height: 64px; resize: vertical; width: 100%; }
 .stories .wf > span { font-weight: 600; font-size: 15px; }

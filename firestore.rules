@@ -501,9 +501,10 @@ service cloud.firestore {
         allow read: if isStudent()
           && (resource.data.status == 'public' || resource.data.author == me());
         allow create: if isStudent()
-          && exactKeys(['author', 'text', 'status', 'at'])
+          && exactKeys(['author', 'text', 'status', 'kind', 'at'])
           && request.resource.data.author == me()
           && request.resource.data.status == 'public'
+          && request.resource.data.kind in ['idea', 'opinion']
           && request.resource.data.at == request.time
           && text(request.resource.data.text, 300)
           && get(p('stories', storyId)).data.hidden == false;

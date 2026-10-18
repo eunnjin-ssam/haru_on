@@ -38,7 +38,7 @@
 | reports 🔒 | post_글id_신고자 / comment_댓글id_신고자 | kind, target, story, reporter, reason(tease/swear/etc), at |
 | stories | 자동 | mode(named/anon), author(named일 때만), wish, reason, when, what, feeling, likes, stage(story/agenda/promise/hold), hidden, at (+교사: decided, mergedInto) |
 | stories/{id}/likes | 학생 | at |
-| stories/{id}/comments | 자동 | author, text, status(public/reported/hidden), at |
+| stories/{id}/comments | 자동 | author, text, kind(idea/opinion), status(public/reported/hidden), at |
 | storyAuthors 🔒 | 이야기 id | sid, at (본인은 자기 것 읽기 가능) |
 | privateStories | 자동 | author, wish, reason, when, what, feeling, at (본인·교사만) |
 | storyNotes 🔒 | 자동 | 상담 메모 |

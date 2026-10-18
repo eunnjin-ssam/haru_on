@@ -8,12 +8,30 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 
 const REPORT_REASONS = [['tease', '놀리는 말'], ['swear', '욕설'], ['etc', '기타']];
-const STAGE = { story: '이야기', agenda: '회의 안건', promise: '우리반 약속', hold: '보류' };
+const EFF_LABEL = { story: '🌱 이야기 중', agenda: '🍲 회의 안건', promise: '✅ 우리가 정한 것', hold: '보류' };
+const KINDS = [['idea', '💡', '이렇게 해보면'], ['opinion', '💬', '내 생각은']];
+const RANK = { agenda: 0, story: 1 };
+
+function fmtDate(ts) {
+  const ms = ts?.toMillis?.();
+  if (!ms) return '';
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export async function renderStories(content, student, settings) {
   const sid = student.sid;
+  const threshold = settings.storyAgendaLikes ?? 5;
   let view = 'list';
   let data;
+
+  // 공감 수가 기준을 넘으면 화면에서 '회의 안건'으로 보여 준다(교사가 바꾼 단계도 반영).
+  function effStage(s) {
+    if (s.stage === 'promise') return 'promise';
+    if (s.stage === 'hold') return 'hold';
+    if (s.stage === 'agenda' || (s.likes ?? 0) >= threshold) return 'agenda';
+    return 'story';
+  }
 
   async function load() {
     const [storySnap, stuSnap] = await Promise.all([
@@ -126,8 +144,8 @@ export async function renderStories(content, student, settings) {
     await b.commit();
   }
 
-  async function addComment(s, text) {
-    await addDoc(collection(db, 'stories', s.id, 'comments'), { author: sid, text, status: 'public', at: serverTimestamp() });
+  async function addComment(s, text, kind) {
+    await addDoc(collection(db, 'stories', s.id, 'comments'), { author: sid, text, status: 'public', kind, at: serverTimestamp() });
   }
 
   async function reportComment(s, c, reason) {
@@ -147,40 +165,70 @@ export async function renderStories(content, student, settings) {
   function storyCard(s) {
     const liked = data.liked.has(s.id);
     const comments = data.comments.get(s.id) ?? [];
+    const eff = effStage(s);
+    const likes = s.likes ?? 0;
     const box = h('article', { class: 'story-card' });
+    let open = false; // 의견 펼침
+    let kind = 'idea'; // 쓰려는 의견 종류
+    let draft = ''; // 쓰던 내용(종류 바꿔도 유지)
 
     function fill() {
-      const commentInput = h('input', { type: 'text', maxlength: '300', placeholder: '이렇게 하면 좋을 것 같아요' });
-      const addBtn = h('button', { class: 'btn secondary small', onclick: async () => {
+      const ideaN = comments.filter((c) => (c.kind ?? 'idea') === 'idea').length;
+      const opN = comments.filter((c) => c.kind === 'opinion').length;
+
+      // 공감 진행 바 + 안내 (약속은 제외)
+      const progress = eff === 'promise' ? null : h('div', { class: 'sc-progress' },
+        h('div', { class: 'bar' }, h('div', { class: 'fill', style: `width:${Math.min(100, (likes / threshold) * 100)}%` })),
+        h('div', { class: 'muted small', style: 'margin-top:6px' },
+          eff === 'agenda' ? '다음 학급회의에서 함께 이야기해요'
+            : `${Math.max(0, threshold - likes)}명 더 공감하면 회의 안건이 돼요`));
+
+      // 의견 쓰기 폼
+      const commentInput = h('textarea', { maxlength: '300', class: 'comment-input', placeholder: kind === 'idea' ? '이렇게 하면 어떨까요?' : '내 생각을 적어 주세요', oninput: (e) => { draft = e.target.value; } });
+      commentInput.value = draft;
+      const kindBtns = KINDS.map(([k, emoji, label]) => h('button', {
+        class: `kind-btn${kind === k ? ' on' : ''}`, type: 'button', onclick: () => { kind = k; fill(); },
+      }, `${emoji} ${label}`));
+      const addBtn = h('button', { class: 'btn', onclick: async () => {
         const t = commentInput.value.trim();
-        if (!t) return;
+        if (!t) { toast('의견을 써 주세요.', 'error'); return; }
         const hits = findNames(t);
         if (hits.length && !confirm(`"${hits.join(', ')}" 친구 이름이 있어요. 그래도 올릴까요?`)) return;
-        try { await addComment(s, t); toast('댓글을 올렸어요'); await reload(); } catch (e) { console.error(e); toast('안 됐어요', 'error'); }
-      } }, '올리기');
+        try { draft = ''; await addComment(s, t, kind); toast('의견을 남겼어요'); await reload(); } catch (e) { console.error(e); toast('안 됐어요', 'error'); }
+      } }, '의견 남기기');
+
+      const hasComments = (ideaN + opN) > 0;
+      const commentToggle = h('button', { class: 'linkish comment-toggle', onclick: () => { open = !open; fill(); } },
+        hasComments ? `💡 ${ideaN} · 💬 ${opN} 의견 ${open ? '접기' : '보기'}` : (open ? '닫기' : '💬 의견 쓰기'));
+
+      const commentBox = open ? h('div', { class: 'comments' },
+        ...comments.map((c) => h('div', { class: 'comment' },
+          h('span', null, `${c.kind === 'opinion' ? '💬' : '💡'} `,
+            h('b', null, `${c.author === sid ? '나' : (data.names.get(c.author) ?? '친구')}`), `  ${c.text}`),
+          c.author === sid ? null : h('button', { class: 'linkish report', onclick: () => reportCommentMenu(s, c) }, '신고'))),
+        h('div', { class: 'comment-form' },
+          h('div', { class: 'row' }, ...kindBtns),
+          commentInput,
+          addBtn),
+      ) : null;
 
       box.replaceChildren(...[
         h('div', { class: 'sc-head' },
-          h('span', { class: `stage stage-${s.stage}` }, STAGE[s.stage] ?? s.stage),
-          h('span', { class: 'muted small' }, who(s)),
-        ),
+          h('span', { class: `stage stage-${eff}` }, EFF_LABEL[eff]),
+          h('span', { class: 'muted small' }, `${who(s)}${fmtDate(s.at) ? ` · ${fmtDate(s.at)}` : ''}`)),
         h('p', { class: 'sc-wish' }, s.wish),
         h('p', { class: 'muted' }, s.reason),
         (s.when || s.what || s.feeling) ? h('details', null, h('summary', { class: 'muted' }, '자세히'),
           s.when ? h('p', null, `언제: ${s.when}`) : null,
           s.what ? h('p', null, `무슨 일: ${s.what}`) : null,
           s.feeling ? h('p', null, `내 마음: ${s.feeling}`) : null) : null,
-        h('div', { class: 'sc-actions' },
+        progress,
+        h('div', { class: 'sc-foot' },
           h('button', { class: `like${liked ? ' on' : ''}`, disabled: (s.author === sid) || liked, onclick: async () => {
             try { await like(s); await reload(); } catch (e) { console.error(e); toast('공감은 한 번만 할 수 있어요', 'error'); }
-          } }, `♥ ${s.likes ?? 0}`),
-        ),
-        h('div', { class: 'comments' },
-          ...comments.map((c) => h('div', { class: 'comment' },
-            h('span', null, `${c.author === sid ? '나' : (data.names.get(c.author) ?? '친구')}: ${c.text}`),
-            c.author === sid ? null : h('button', { class: 'linkish report', onclick: () => reportCommentMenu(s, c) }, '신고'))),
-          h('div', { class: 'add-comment' }, commentInput, addBtn),
-        ),
+          } }, `🫶 공감 ${likes}`),
+          commentToggle),
+        commentBox,
       ].filter(Boolean));
     }
     fill();
@@ -199,11 +247,15 @@ export async function renderStories(content, student, settings) {
   }
 
   function listView() {
-    const promises = data.stories.filter((s) => s.stage === 'promise');
-    const others = data.stories.filter((s) => s.stage !== 'promise');
-    return h('div', null,
+    const promises = data.stories.filter((s) => effStage(s) === 'promise');
+    const others = data.stories.filter((s) => { const e = effStage(s); return e !== 'promise' && e !== 'hold'; })
+      .sort((a, b) => (RANK[effStage(a)] - RANK[effStage(b)])
+        || ((b.likes ?? 0) - (a.likes ?? 0))
+        || ((b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0)));
+    return h('div', { class: 'stories-list' },
       promises.length ? h('section', { class: 'card promises' },
-        h('h3', null, '우리반 약속'),
+        h('h3', null, '🤝 우리 반 약속'),
+        h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '회의에서 함께 정한 것'),
         ...promises.map((s) => h('p', { class: 'promise-item' }, `✅ ${s.decided || s.wish}`))) : null,
       others.length === 0
         ? h('p', { class: 'muted', style: 'padding:20px' }, '아직 이야기가 없어요. 우리 반 이야기를 올려 보세요!')
