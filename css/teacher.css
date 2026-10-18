@@ -151,6 +151,13 @@ table.board .taskname { vertical-align: top; }
 .sheet-box input, .sheet-box textarea { padding: 10px; border: 1px solid var(--line); border-radius: 8px; width: 100%; }
 .sheet-box textarea { min-height: 80px; }
 
+/* 아이템 가격 수정 */
+.price-editor { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.price-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.price-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px 6px 3px 11px; font-size: 12.5px; font-weight: 600; }
+.price-chip .pc-name { color: var(--muted); }
+.price-input { width: 52px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 7px; font-size: 13px; text-align: center; }
+
 /* 포인트 관리 */
 .req-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 2px; border-top: 1px solid var(--line); }
 .content h2 + .req-row, .req-row:first-child { border-top: 0; }

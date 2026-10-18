@@ -4,7 +4,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { CATALOG } from '../character/catalog.js';
+import { CATALOG, colorLabel } from '../character/catalog.js';
 
 const CAT_LABEL = { hair: '헤어', face: '얼굴', top: '상의', bottom: '하의', shoes: '신발', headAcc: '머리소품', faceAcc: '얼굴소품' };
 
@@ -35,18 +35,34 @@ export async function renderCharacterAdmin(root) {
 
   function boardUrl() { return new URL('board.html' + location.search, location.href).href; }
 
+  // 색 이름(한글) 옆에 가격 입력칸, '가격 저장'으로 items/{id}.prices 갱신
+  function priceEditor(item) {
+    const inputs = {};
+    const chips = Object.entries(item.prices ?? {}).map(([c, p]) => {
+      const inp = h('input', { type: 'number', min: '0', value: String(p), class: 'price-input' });
+      inputs[c] = inp;
+      return h('label', { class: 'price-chip' }, h('span', { class: 'pc-name' }, c === 'default' ? '기본' : colorLabel(c)), inp);
+    });
+    const save = h('button', { class: 'btn small', onclick: () => {
+      const prices = {};
+      for (const [c, inp] of Object.entries(inputs)) prices[c] = Math.max(0, Number(inp.value) || 0);
+      run(() => updateDoc(doc(db, 'items', item.id), { prices }), '가격을 저장했어요');
+    } }, '가격 저장');
+    return h('div', { class: 'price-editor' }, h('div', { class: 'price-chips' }, ...chips), save);
+  }
+
   function itemsCard() {
     return h('section', { class: 'card' },
       h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', null, '아이템 관리'),
         h('button', { class: 'btn secondary', onclick: () => run(seedItems, '기본 아이템을 넣었어요') }, '기본 아이템 넣기')),
       items.length === 0 ? h('p', { class: 'muted' }, '아이템이 없어요. ‘기본 아이템 넣기’를 눌러 주세요.')
-        : h('table', null, h('thead', null, h('tr', null, h('th', null, '이름'), h('th', null, '칸'), h('th', null, '가격'), h('th', null, '판매'), h('th', null, ''))),
+        : h('table', null, h('thead', null, h('tr', null, h('th', null, '이름'), h('th', null, '칸'), h('th', null, '색·가격 (고쳐서 저장)'), h('th', null, '판매'), h('th', null, ''))),
           h('tbody', null, ...items.map((i) => h('tr', null,
             h('td', null, i.name), h('td', null, CAT_LABEL[i.category] ?? i.category),
-            h('td', { class: 'muted small' }, Object.entries(i.prices ?? {}).map(([c, p]) => `${c} ${p}`).join(', ')),
+            h('td', null, priceEditor(i)),
             h('td', null, i.onSale !== false ? '판매중' : '숨김'),
             h('td', { class: 'actions' }, h('button', { class: 'btn secondary small', onclick: () => run(() => updateDoc(doc(db, 'items', i.id), { onSale: i.onSale === false }), '바꿨어요') }, i.onSale !== false ? '숨기기' : '판매하기')))))),
-      h('p', { class: 'muted small' }, '색·가격은 도감 기본값을 써요. 자세한 가격 수정은 다음 단계에서 열어요.'),
+      h('p', { class: 'muted small' }, '색 이름 옆 숫자를 고치고 ‘가격 저장’을 누르면 바뀌어요. ‘기본 아이템 넣기’를 다시 누르면 도감 기본값으로 되돌아가요.'),
     );
   }
 
