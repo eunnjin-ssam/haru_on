@@ -170,8 +170,8 @@ export async function renderDashboard(content, student, settings, { openMission 
 
   function draw() {
     const grid = h('div', { class: 'dash-grid' },
-      h('div', { class: 'dash-col' }, moodCard(), todoCard()),
-      h('div', { class: 'dash-col' }, ...[doneCard(), goalCard()].filter(Boolean)));
+      h('div', { class: 'dash-col' }, moodCard(), doneCard()),
+      h('div', { class: 'dash-col' }, ...[todoCard(), goalCard()].filter(Boolean)));
     content.replaceChildren(h('div', { class: 'dash' }, ...[
       messagesCard(), hero(), requestCard(), grid,
     ].filter(Boolean)));
