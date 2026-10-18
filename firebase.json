@@ -2,6 +2,25 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "firestore.rules",
+      ".gitignore",
+      ".git/**",
+      "**/.git/**",
+      ".claude/**",
+      "node_modules/**",
+      "**/node_modules/**",
+      "tests/**",
+      "tools/**",
+      "docs/**",
+      "package.json",
+      "package-lock.json"
+    ]
+  },
   "emulators": {
     "auth": { "port": 9099 },
     "firestore": { "port": 8080 },
