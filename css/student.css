@@ -230,6 +230,12 @@ body { font-size: 17px; }
 
 /* 약속마당 */
 .stories-list { display: flex; flex-direction: column; gap: 18px; }
+.card.guide { background: var(--surface-2); border: 1px solid var(--primary-soft); }
+.guide-steps { margin: 0; padding-left: 24px; display: flex; flex-direction: column; gap: 9px; font-size: 17px; line-height: 1.4; }
+.guide-steps li { padding-left: 4px; }
+.guide-steps b { color: var(--primary-dark); }
+.guide-note { margin: 14px 0 0; padding-top: 13px; border-top: 1px solid var(--line); font-size: 15px; }
+.guide-note b { color: var(--text); }
 .story-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; }
 .sc-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .sc-wish { font-size: 18px; font-weight: 700; margin: 10px 0 4px; }

@@ -246,6 +246,15 @@ export async function renderStories(content, student, settings) {
     document.body.append(dlg);
   }
 
+  function guideCard() {
+    return h('section', { class: 'card guide' },
+      h('ol', { class: 'guide-steps' },
+        h('li', null, '같이 고치고 싶은 일을 올려요.'),
+        h('li', null, '친구 ', h('b', null, `${threshold}명`), '이 공감하면 ', h('b', null, '학급회의 안건'), '이 돼요.'),
+        h('li', null, '회의에서 정한 것은 ', h('b', null, '우리 반 약속'), '이 돼요.')),
+      h('p', { class: 'guide-note muted' }, '여기는 누가 잘못했는지 가리는 곳이 아니에요. ', h('b', null, '친구 이름은 쓰지 않아요.')));
+  }
+
   function listView() {
     const promises = data.stories.filter((s) => effStage(s) === 'promise');
     const others = data.stories.filter((s) => { const e = effStage(s); return e !== 'promise' && e !== 'hold'; })
@@ -253,6 +262,7 @@ export async function renderStories(content, student, settings) {
         || ((b.likes ?? 0) - (a.likes ?? 0))
         || ((b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0)));
     return h('div', { class: 'stories-list' },
+      guideCard(),
       promises.length ? h('section', { class: 'card promises' },
         h('h3', null, '🤝 우리 반 약속'),
         h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '회의에서 함께 정한 것'),
