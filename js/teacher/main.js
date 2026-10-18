@@ -21,20 +21,28 @@ import { renderFeedbackAdmin } from './feedback-admin.js';
 const root = document.getElementById('app');
 
 const TABS = [
-  { id: 'today', label: '오늘 현황', render: renderToday },
-  { id: 'board', label: '체크판', render: renderBoard },
-  { id: 'care', label: '살핌판', render: renderCare },
-  { id: 'feedback', label: '건의함', render: renderFeedbackAdmin },
-  { id: 'writing', label: '글마당 관리', render: renderWritingAdmin },
-  { id: 'stories', label: '약속마당 관리', render: renderStoriesAdmin },
-  { id: 'points', label: '포인트 관리', render: renderPointsAdmin },
-  { id: 'goals', label: '공동 목표', render: renderGoalsAdmin },
-  { id: 'character', label: '캐릭터·칭호', render: renderCharacterAdmin },
-  { id: 'roster', label: '학생 명단', render: renderRoster },
-  { id: 'roles', label: '1인1역', render: renderRoles },
-  { id: 'mission', label: '기초미션', render: renderMission },
-  { id: 'setup', label: '기본 설정', render: renderSetup },
-  { id: 'admin', label: '백업·초기화', render: renderAdmin },
+  { id: 'today', label: '오늘 현황', icon: '📊', render: renderToday },
+  { id: 'board', label: '체크판', icon: '✅', render: renderBoard },
+  { id: 'care', label: '살핌판', icon: '💗', render: renderCare },
+  { id: 'feedback', label: '건의함', icon: '💬', render: renderFeedbackAdmin },
+  { id: 'writing', label: '글마당 관리', icon: '📖', render: renderWritingAdmin },
+  { id: 'stories', label: '약속마당 관리', icon: '🗣️', render: renderStoriesAdmin },
+  { id: 'points', label: '포인트 관리', icon: '🪙', render: renderPointsAdmin },
+  { id: 'goals', label: '공동 목표', icon: '🎯', render: renderGoalsAdmin },
+  { id: 'character', label: '캐릭터·칭호', icon: '🧑', render: renderCharacterAdmin },
+  { id: 'roster', label: '학생 명단', icon: '📋', render: renderRoster },
+  { id: 'roles', label: '1인1역', icon: '🧹', render: renderRoles },
+  { id: 'mission', label: '기초미션', icon: '🧮', render: renderMission },
+  { id: 'setup', label: '기본 설정', icon: '⚙️', render: renderSetup },
+  { id: 'admin', label: '백업·초기화', icon: '💾', render: renderAdmin },
+];
+
+// 사이드바 메뉴 묶음
+const GROUPS = [
+  { label: '학급 현황', tabs: ['today', 'board', 'care', 'feedback'] },
+  { label: '마당 관리', tabs: ['writing', 'stories'] },
+  { label: '포인트·캐릭터', tabs: ['points', 'goals', 'character'] },
+  { label: '설정·관리', tabs: ['roster', 'roles', 'mission', 'setup', 'admin'] },
 ];
 
 async function start() {
@@ -87,10 +95,12 @@ function showNotRegistered(user) {
 
 function showApp(user, firstTab) {
   const content = h('main', { class: 'content' });
-  const tabButtons = TABS.map((tab) => h('button', { class: 'tab', onclick: () => open(tab.id) }, tab.label));
+  const pageTitle = h('div', { class: 't-page-title' });
+  const tabButtons = new Map();
 
   async function open(id) {
-    TABS.forEach((tab, i) => tabButtons[i].classList.toggle('on', tab.id === id));
+    for (const [tid, btn] of tabButtons) btn.classList.toggle('on', tid === id);
+    pageTitle.textContent = TABS.find((t) => t.id === id)?.label ?? '';
     content.replaceChildren(h('p', { class: 'muted' }, '불러오는 중…'));
     try {
       await TABS.find((tab) => tab.id === id).render(content, { open });
@@ -100,15 +110,27 @@ function showApp(user, firstTab) {
     }
   }
 
-  root.replaceChildren(
-    h('header', { class: 'topbar' },
-      h('span', { class: 'title' }, '우리 반 관리'),
-      h('nav', null, tabButtons),
-      h('span', { class: 'account' }, user.email),
-      h('button', { class: 'btn secondary small', onclick: async () => { await signOutTeacher(); start(); } }, '로그아웃'),
-    ),
-    content,
-  );
+  function navButton(tab) {
+    const btn = h('button', { class: 't-nav-btn', type: 'button', onclick: () => open(tab.id) },
+      h('span', { class: 'ico' }, tab.icon), h('span', null, tab.label));
+    tabButtons.set(tab.id, btn);
+    return btn;
+  }
+
+  const nav = GROUPS.map((g) => h('div', { class: 't-group' },
+    h('div', { class: 't-group-label' }, g.label),
+    ...g.tabs.map((id) => navButton(TABS.find((t) => t.id === id)))));
+
+  root.replaceChildren(h('div', { class: 'teacher-app' },
+    h('aside', { class: 't-sidebar' },
+      h('div', { class: 't-brand' }, h('img', { class: 't-logo', src: 'img/logo.webp', alt: '하루 On' })),
+      h('nav', { class: 't-nav' }, ...nav),
+      h('div', { class: 't-account' },
+        h('div', { class: 't-email muted' }, user.email),
+        h('button', { class: 'btn secondary small', onclick: async () => { await signOutTeacher(); start(); } }, '로그아웃'))),
+    h('div', { class: 't-main' },
+      h('header', { class: 't-header' }, pageTitle),
+      content)));
   open(firstTab);
 }
 
