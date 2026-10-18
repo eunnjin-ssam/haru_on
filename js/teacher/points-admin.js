@@ -92,7 +92,8 @@ export async function renderPointsAdmin(root) {
     const buys = coupons.filter((c) => c.status === 'pending');
     const useReqs = uses.filter((u) => u.status === 'requested');
     return h('section', { class: 'card' }, h('h2', null, `쿠폰 요청 (${buys.length + useReqs.length})`),
-      buys.length === 0 && useReqs.length === 0 ? h('p', { class: 'muted' }, '처리할 요청이 없어요.') : null,
+      h('p', { class: 'muted small', style: 'margin:-2px 0 6px' }, '학생이 쿠폰을 사거나 쓰겠다고 신청하면 여기서 승인해요.'),
+      buys.length === 0 && useReqs.length === 0 ? h('p', { class: 'empty-ok' }, '✅ 지금 처리할 요청이 없어요.') : null,
       ...buys.map((c) => h('div', { class: 'req-row' },
         h('span', null, `${names.get(c.sid) ?? c.sid} · ${itemName(c.coupon)} 구매 신청 (${c.price})`),
         h('div', { class: 'row' },

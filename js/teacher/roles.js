@@ -77,8 +77,9 @@ export async function renderRoles(root) {
   function list() {
     return h('section', { class: 'card' },
       h('h2', null, `역할 (${roles.length})`),
+      h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '담당 학생이 ‘했어요’를 누르면 확인 담당 친구(또는 선생님)가 승인하고 포인트를 줘요.'),
       roles.length === 0
-        ? h('p', { class: 'muted' }, '아직 만든 역할이 없어요.')
+        ? h('p', { class: 'muted' }, '아직 만든 역할이 없어요. 아래에서 만들어 주세요.')
         : h('table', null,
           h('thead', null, h('tr', null,
             h('th', null, '역할'), h('th', null, '하는 일'), h('th', null, '담당'),
