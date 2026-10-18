@@ -169,9 +169,9 @@ export async function renderDashboard(content, student, settings, { openMission 
   }
 
   function draw() {
+    // 윗줄: 오늘 기분 | 오늘 할 일 (같은 높이) / 아랫줄: 오늘 한 일 | 우리반 공동 목표 (같은 줄에서 시작)
     const grid = h('div', { class: 'dash-grid' },
-      h('div', { class: 'dash-col' }, moodCard(), doneCard()),
-      h('div', { class: 'dash-col' }, ...[todoCard(), goalCard()].filter(Boolean)));
+      ...[moodCard(), todoCard(), doneCard(), goalCard()].filter(Boolean));
     content.replaceChildren(h('div', { class: 'dash' }, ...[
       messagesCard(), hero(), requestCard(), grid,
     ].filter(Boolean)));
