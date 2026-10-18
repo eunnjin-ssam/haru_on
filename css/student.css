@@ -109,8 +109,8 @@ body { font-size: 17px; }
 .result.no .big { color: var(--danger); }
 
 /* 앱 셸: 왼쪽 사이드바 + 본문 (가로 넓은 디벗에 맞춤) */
-#app:has(.student-app) { padding: 0; display: block; }
-.student-app { display: grid; grid-template-columns: 236px 1fr; min-height: 100dvh; }
+#app:has(.student-app) { padding: 0 !important; display: block !important; }
+.student-app { width: 100%; display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100dvh; }
 .sidebar { background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 10px; position: sticky; top: 0; height: 100dvh; }
 .brand { display: flex; align-items: center; gap: 11px; padding: 6px 10px 18px; }
 .brand-logo { font-size: 30px; line-height: 1; }
