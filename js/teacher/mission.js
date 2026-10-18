@@ -80,13 +80,18 @@ export async function renderMission(root) {
     root.replaceChildren(
       h('section', { class: 'card' },
         h('h2', null, '문제은행 가져오기'),
-        h('p', { class: 'muted' }, '지금은 샘플 문제(분수·소수의 나눗셈)로 시험해 볼 수 있어요. 실제 문제은행은 천재교과서 차례가 정해지면 넣어요.'),
+        h('p', { class: 'muted' }, '아래 버튼을 누르면 문제가 들어가요. 6학년 2학기(천재교과서, 6개 단원 156문제)를 넣고, 출제할 단원을 아래에서 체크하세요.'),
         h('div', { class: 'row' },
           h('button', { class: 'btn', onclick: async () => {
+            const res = await fetch('data/math-6-2.json');
+            const list = await res.json();
+            run(async () => { const n = await importBank(list); toast(`6학년 2학기 ${n}문제를 넣었어요`); });
+          } }, '6학년 2학기 문제은행 가져오기'),
+          h('button', { class: 'btn secondary', onclick: async () => {
             const res = await fetch('data/math-sample.json');
             const list = await res.json();
             run(async () => { const n = await importBank(list); toast(`샘플 ${n}문제를 넣었어요`); });
-          } }, '샘플 문제은행 가져오기'),
+          } }, '샘플(분수·소수) 가져오기'),
         ),
         h('div', { style: 'margin-top:14px' }, paste,
           h('div', { class: 'row', style: 'margin-top:8px' },
