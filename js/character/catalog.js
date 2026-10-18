@@ -115,7 +115,13 @@ export const CATALOG = {
   pirateHat: { category: 'headAcc', name: '해적 모자', starter: false, prices: { black: 80, navy: 80, brown: 80, red: 85 },
     boxes: (c) => [b(-5, 20.3, -3.8, 10, 1.2, 7.6, c), b(-3.4, 21.3, -3.6, 6.8, 1, 7.2, c), b(-1, 20.8, -4, 2, 1, 0.5, '#f5f5f5')] },
   headphones: { category: 'headAcc', name: '헤드폰', starter: false, prices: { mint: 60, blue: 60, red: 60, black: 60, pink: 60, purple: 60, green: 60, navy: 65 },
-    boxes: (c) => [b(-4.2, 20.3, -1, 8.4, 1.3, 2, c), b(-5.4, 15.5, -1.3, 1.5, 3, 2.6, c), b(3.9, 15.5, -1.3, 1.5, 3, 2.6, c)] },
+    boxes: (c) => [
+      b(-4.7, 21, -1, 9.4, 1.3, 2, c), // 윗 띠(머리 위를 가로질러 양쪽 컵 연결)
+      b(-5.5, 18, -1, 1.1, 3.3, 2, c), // 왼쪽 세로 연결
+      b(4.4, 18, -1, 1.1, 3.3, 2, c), // 오른쪽 세로 연결
+      b(-5.8, 15.5, -1.4, 1.6, 3.2, 2.8, c), // 왼쪽 이어컵
+      b(4.2, 15.5, -1.4, 1.6, 3.2, 2.8, c), // 오른쪽 이어컵
+    ] },
   catEars: { category: 'headAcc', name: '고양이 귀', starter: false, prices: { black: 50, brown: 50, pink: 50, white: 50, orange: 50, purple: 50, blue: 50 },
     boxes: (c) => [b(-4.0, 23, -1.8, 2.4, 2.0, 2.4, c), b(-3.5, 24.8, -1.3, 1.5, 1.5, 1.5, c), b(1.6, 23, -1.8, 2.4, 2.0, 2.4, c), b(2.0, 24.8, -1.3, 1.5, 1.5, 1.5, c)] },
   goblinHorns: { category: 'headAcc', name: '도깨비 뿔', starter: false, prices: { purple: 70, red: 70, black: 70, brown: 70, blue: 70, green: 70 },
