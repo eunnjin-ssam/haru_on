@@ -6,7 +6,7 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { CATALOG, colorHex, colorLabel, COLORS } from '../character/catalog.js';
 import { renderCharacter3D } from '../character/voxel3d.js';
-import { drawFront } from '../character/voxel2d.js';
+import { drawFront, drawItem } from '../character/voxel2d.js';
 
 const SECTION = { hair: '헤어스타일', face: '얼굴 표정', top: '상의', bottom: '하의', shoes: '신발', headAcc: '모자·머리 소품', faceAcc: '얼굴 소품' };
 const SECTION_ORDER = ['hair', 'face', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc'];
@@ -69,13 +69,6 @@ export async function renderCharacter(content, student, settings) {
     const eq = data.equip[CATALOG[item].category];
     return (eq && eq.item === item) ? eq.color : firstColor(item);
   }
-  // 상점 카드 미리보기: 기본 차림(머리·얼굴·옷) 위에 이 아이템만 올려 그린다.
-  const PREVIEW_BASE = {
-    hair: { item: 'hairBasic', color: 'default' }, face: { item: 'faceSmile', color: 'default' },
-    top: { item: 'topPlain', color: 'default' }, bottom: { item: 'bottomPlain', color: 'default' },
-    shoes: { item: 'shoesBasic', color: 'default' },
-  };
-  const previewFor = (item, color) => ({ ...PREVIEW_BASE, [CATALOG[item].category]: { item, color } });
 
   async function buy(item, color) {
     const price = priceOf(item, color);
@@ -232,7 +225,7 @@ export async function renderCharacter(content, student, settings) {
       const freeStart = colors.includes('default') && priceOf(id, 'default') === 0;
       const equipped = data.equip[it.category]?.item === id;
       const cv = h('canvas', { width: 120, height: 150, class: 'item-canvas' });
-      queueMicrotask(() => drawFront(cv, previewFor(id, firstColor(id))));
+      queueMicrotask(() => drawItem(cv, id, firstColor(id)));
       const card = h('button', { class: `item-card${selected.item === id ? ' sel' : ''}`, onclick: () => select(id) },
         equipped ? h('span', { class: 'ic-badge' }, '착용 중') : null,
         cv,
