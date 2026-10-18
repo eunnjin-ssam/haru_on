@@ -7,6 +7,9 @@ import {
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 
+// 체크판 좁은 칸용 이름: 3글자 이상이면 성을 빼고 이름만(예: 김하늘 → 하늘)
+const shortName = (name) => (name && name.length >= 3 ? name.slice(1) : (name ?? ''));
+
 // datetime-local 값 ↔ Timestamp
 function toTimestamp(v) { return v ? Timestamp.fromDate(new Date(v)) : null; }
 function toInputValue(ts) {
@@ -230,7 +233,7 @@ export async function renderBoard(root, { open }) {
     return h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
       h('thead', null, h('tr', null,
         h('th', { class: 'stick' }, '과제'),
-        ...students.map((s) => h('th', { class: 'stu' }, s.number)),
+        ...students.map((s) => h('th', { class: 'stu' }, h('div', { class: 'stu-no' }, s.number), h('div', { class: 'stu-nm' }, shortName(s.name)))),
         h('th', null, '완료'))),
       h('tbody', null, ...list.map((t) => h('tr', null,
         h('td', { class: 'stick taskname' },
@@ -256,7 +259,7 @@ export async function renderBoard(root, { open }) {
         ? h('p', { class: 'muted' }, '아직 없어요. ‘새 과제’에서 종류를 ‘선생님 확인용’으로 만들면 여기 나와요.')
         : h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
           h('thead', null, h('tr', null,
-            h('th', { class: 'stick' }, '항목'), ...students.map((s) => h('th', { class: 'stu' }, s.number)), h('th', null, '회신'))),
+            h('th', { class: 'stick' }, '항목'), ...students.map((s) => h('th', { class: 'stu' }, h('div', { class: 'stu-no' }, s.number), h('div', { class: 'stu-nm' }, shortName(s.name)))), h('th', null, '회신'))),
           h('tbody', null, ...list.map((t) => h('tr', null,
             h('td', { class: 'stick taskname' },
               h('button', { class: 'linkish', onclick: () => { editing = t.id; showForm = true; draw(); } }, t.title),

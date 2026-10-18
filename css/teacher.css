@@ -122,7 +122,9 @@ button.attn-item:hover { background: var(--surface-2); }
 /* 체크판 격자 */
 .btn.tiny { padding: 3px 8px; font-size: 12px; }
 table.board th, table.board td { text-align: center; white-space: nowrap; }
-table.board th.stu { width: 34px; padding: 8px 4px; }
+table.board th.stu { width: 40px; padding: 6px 2px; vertical-align: bottom; }
+.stu-no { font-size: 12px; color: var(--muted); font-weight: 700; }
+.stu-nm { font-size: 12px; font-weight: 700; color: var(--text); line-height: 1.1; margin-top: 1px; white-space: nowrap; }
 table.board .stick { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; min-width: 180px; box-shadow: 1px 0 0 var(--line); }
 table.board thead .stick { background: var(--bg); }
 table.board .taskname { vertical-align: top; }
