@@ -12,6 +12,7 @@ import { renderCharacter } from './character.js';
 import { renderMyWeek } from './myweek.js';
 import { openFeedback } from './feedback.js';
 import { openPinChange } from './pin.js';
+import { showNotices } from './notice-popup.js';
 
 export async function renderApp(root, student, onLogout) {
   const settings = await loadSettings();
@@ -96,4 +97,5 @@ export async function renderApp(root, student, onLogout) {
 
   build();
   open(current);
+  showNotices(student); // 새소식 팝업(게시 중이고 아직 확인 안 한 것)
 }

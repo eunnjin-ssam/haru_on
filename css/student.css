@@ -413,3 +413,11 @@ body { font-size: 17px; }
 .cele-bit { position: absolute; top: -40px; animation: cele-fall 2.6s linear forwards; }
 @keyframes cele-fall { to { transform: translateY(110vh) rotate(540deg); } }
 @keyframes cele-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* 새소식 팝업 */
+.notice-pop { position: fixed; inset: 0; z-index: 250; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.notice-box { background: var(--surface); border-radius: 20px; padding: 24px 22px; width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 50px rgba(0, 0, 0, .25); }
+.notice-box h2 { margin: 0; font-size: 22px; }
+.notice-tag { align-self: flex-start; background: var(--accent-soft); color: var(--accent); font-weight: 800; font-size: 14px; border-radius: 999px; padding: 4px 12px; }
+.notice-body { margin: 0; font-size: 17px; line-height: 1.6; white-space: pre-wrap; }
+.notice-box .btn { margin-top: 6px; }

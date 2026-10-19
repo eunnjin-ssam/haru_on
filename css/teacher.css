@@ -292,3 +292,7 @@ table.board tfoot .left-row td.has-left { color: var(--danger); }
 /* 포인트 관리: 쿠폰 순서 버튼 */
 .order-btns { white-space: nowrap; }
 .order-btns .btn { padding: 2px 7px; }
+
+/* 폼: 여러 줄·날짜 입력 */
+.role-form textarea, .role-form input[type=date] { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; }
+.role-form textarea { width: 100%; resize: vertical; }

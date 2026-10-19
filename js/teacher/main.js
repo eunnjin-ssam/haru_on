@@ -18,6 +18,7 @@ import { renderCare } from './care.js';
 import { renderAdmin } from './admin.js';
 import { renderFeedbackAdmin } from './feedback-admin.js';
 import { ensureRepeatTasks } from './repeats.js';
+import { renderNotices } from './notices.js';
 
 const root = document.getElementById('app');
 
@@ -26,6 +27,7 @@ const TABS = [
   { id: 'board', label: '체크판', icon: '✅', render: renderBoard },
   { id: 'care', label: '살핌판', icon: '💗', render: renderCare },
   { id: 'feedback', label: '건의함', icon: '💬', render: renderFeedbackAdmin },
+  { id: 'notices', label: '새소식', icon: '📢', render: renderNotices },
   { id: 'writing', label: '글마당 관리', icon: '📖', render: renderWritingAdmin },
   { id: 'stories', label: '약속마당 관리', icon: '🗣️', render: renderStoriesAdmin },
   { id: 'points', label: '포인트 관리', icon: '🪙', render: renderPointsAdmin },
@@ -40,7 +42,7 @@ const TABS = [
 
 // 사이드바 메뉴 묶음
 const GROUPS = [
-  { label: '학급 현황', tabs: ['today', 'board', 'care', 'feedback'] },
+  { label: '학급 현황', tabs: ['today', 'board', 'care', 'feedback', 'notices'] },
   { label: '마당 관리', tabs: ['writing', 'stories'] },
   { label: '포인트·캐릭터', tabs: ['points', 'goals', 'character'] },
   { label: '설정·관리', tabs: ['roster', 'roles', 'mission', 'setup', 'admin'] },
