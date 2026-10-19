@@ -4,7 +4,7 @@ import { loginStudent, LoginError } from '../common/student-session.js';
 
 const MESSAGES = {
   'no-number': '그 번호는 없어요. 번호를 다시 확인해 주세요.',
-  'wrong-pin': 'PIN이 맞지 않아요. 다시 눌러 주세요.',
+  'wrong-pin': '비밀번호가 맞지 않아요. 다시 눌러 주세요.',
   'too-many': '여러 번 틀렸어요. 30초 뒤에 다시 해 주세요.',
   'network': '연결이 안 돼요. 인터넷을 확인하고 다시 해 주세요.',
 };
@@ -100,7 +100,7 @@ export function renderLogin(root, onLoggedIn) {
       );
     }
     return h('section', { class: 'login' },
-      h('h1', null, `${number}번, PIN을 눌러요`),
+      h('h1', null, `${number}번, 비밀번호를 눌러요`),
       h('p', { class: 'guide' }, busy ? '확인하는 중…' : '선생님이 준 숫자 4개'),
       h('div', { class: 'display', 'aria-label': `${pin.length}개 입력함` },
         Array.from({ length: PIN_LENGTH }, (_, i) => h('span', { class: `dot ${i < pin.length ? 'on' : ''}` }))),

@@ -132,13 +132,13 @@ export async function renderRoster(root) {
   }
 
   function resetPin(s) {
-    if (!confirm(`${s.number}번 ${s.name}의 PIN을 새로 만들까요?\n지금 로그인된 기기에서는 모두 로그아웃돼요.`)) return;
+    if (!confirm(`${s.number}번 ${s.name}의 비밀번호를 새로 만들까요?\n지금 로그인된 기기에서는 모두 로그아웃돼요.`)) return;
     const pin = newPin();
     run(async () => {
       await setDoc(doc(db, 'studentPins', String(s.number)), { pin, sid: s.sid });
       await clearSessions(s.sid);
       showPins = true;
-    }, `새 PIN: ${pin}`);
+    }, `새 비밀번호: ${pin}`);
   }
 
   function transfer(s) {
@@ -158,7 +158,7 @@ export async function renderRoster(root) {
       alert(`${s.number}번은 지금 다른 학생이 쓰고 있어요. 먼저 번호를 정리해 주세요.`);
       return;
     }
-    if (!confirm(`${s.number}번 ${s.name}을(를) 다시 재학으로 바꿀까요? PIN은 새로 만들어요.`)) return;
+    if (!confirm(`${s.number}번 ${s.name}을(를) 다시 재학으로 바꿀까요? 비밀번호는 새로 만들어요.`)) return;
     run(async () => {
       const b = writeBatch(db);
       b.update(doc(db, 'students', s.sid), { active: true, leftAt: null });
@@ -173,7 +173,7 @@ export async function renderRoster(root) {
     const url = studentUrl();
     document.getElementById('print-area').replaceChildren(...active().map((s) => h('div', { class: 'pin-card' },
       h('div', { class: 'name' }, `${s.number}번 ${s.name}`),
-      h('div', null, '내 PIN'),
+      h('div', null, '내 비밀번호'),
       h('div', { class: 'pin' }, s.pin),
       h('div', { class: 'url' }, url),
     )));
@@ -216,7 +216,7 @@ export async function renderRoster(root) {
       ? h('p', { class: 'muted' }, '아직 등록된 학생이 없어요. 아래에서 등록해 주세요.')
       : h('table', null,
         h('thead', null, h('tr', null,
-          h('th', null, '번호'), h('th', null, '이름'), h('th', null, 'PIN'),
+          h('th', null, '번호'), h('th', null, '이름'), h('th', null, '비밀번호'),
           h('th', null, '로그인한 기기'), h('th', null, ''))),
         h('tbody', null, list.map((s) => h('tr', null,
           h('td', { class: 'num' }, s.number),
@@ -225,7 +225,7 @@ export async function renderRoster(root) {
           h('td', { class: s.login?.count >= MANY_DEVICES ? 'login-warn' : 'muted' },
             s.login ? `${s.login.count}대 · 최근 ${formatTime(s.login.last)}${s.login.count >= MANY_DEVICES ? ' ⚠️' : ''}` : '아직 안 함'),
           h('td', { class: 'actions' },
-            h('button', { class: 'btn secondary small', onclick: () => resetPin(s) }, 'PIN 재설정'),
+            h('button', { class: 'btn secondary small', onclick: () => resetPin(s) }, '비밀번호 재설정'),
             h('button', { class: 'btn secondary small', onclick: () => transfer(s) }, '전학 처리'),
           ),
         ))),
@@ -240,12 +240,12 @@ export async function renderRoster(root) {
                 try { await navigator.clipboard.writeText(studentUrl()); toast('주소를 복사했어요'); } catch { toast('복사하지 못했어요.', 'error'); }
               } }, '복사'))),
           h('div', { class: 'row' },
-            h('button', { class: 'btn secondary', disabled: list.length === 0, onclick: () => { showPins = !showPins; draw(); } }, showPins ? 'PIN 숨기기' : 'PIN 보기'),
-            h('button', { class: 'btn secondary', disabled: list.length === 0, onclick: printCards }, 'PIN 카드 인쇄'),
+            h('button', { class: 'btn secondary', disabled: list.length === 0, onclick: () => { showPins = !showPins; draw(); } }, showPins ? '비밀번호 숨기기' : '비밀번호 보기'),
+            h('button', { class: 'btn secondary', disabled: list.length === 0, onclick: printCards }, '비밀번호 카드 인쇄'),
           ),
         ),
         h('div', { style: 'margin-top:16px' }, table),
-        list.length ? h('p', { class: 'muted small' }, `이름을 누르면 고칠 수 있어요. 로그인한 기기가 ${MANY_DEVICES}대 이상이면 빨갛게 보여요 — 모르는 기기가 있으면 PIN을 재설정해 주세요.`) : null,
+        list.length ? h('p', { class: 'muted small' }, `이름을 누르면 고칠 수 있어요. 로그인한 기기가 ${MANY_DEVICES}대 이상이면 빨갛게 보여요 — 모르는 기기가 있으면 비밀번호를 재설정해 주세요.`) : null,
       ),
       h('section', { class: 'card' },
         h('h2', null, '학생 등록'),
@@ -254,7 +254,7 @@ export async function renderRoster(root) {
           textarea,
           h('div', { class: 'row', style: 'margin-top:12px' },
             h('button', { class: 'btn', onclick: () => makePreview(textarea.value) }, '미리보기'),
-            h('span', { class: 'muted' }, 'PIN은 4자리로 자동으로 만들어요.'),
+            h('span', { class: 'muted' }, '비밀번호는 4자리로 자동으로 만들어요.'),
           ),
         ),
       ),

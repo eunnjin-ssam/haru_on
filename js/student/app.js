@@ -89,7 +89,7 @@ export async function renderApp(root, student, onLogout) {
           pageTitle,
           h('div', { class: 'top-actions' },
             h('button', { class: 'pill', type: 'button', onclick: () => openFeedback(student, settings) }, '💬 건의·신고'),
-            h('button', { class: 'pill', type: 'button', onclick: () => openPinChange(student) }, '🔑 PIN 바꾸기'),
+            h('button', { class: 'pill', type: 'button', onclick: () => openPinChange(student) }, '🔑 비밀번호 바꾸기'),
             logoutButton())),
         content)));
   }
