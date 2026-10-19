@@ -52,7 +52,7 @@ td.num { width: 60px; font-weight: 700; color: var(--primary-dark); }
 td.actions { text-align: right; white-space: nowrap; }
 td.actions .btn { margin-left: 4px; }
 .pin { font-family: ui-monospace, Consolas, monospace; letter-spacing: 2px; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--bg); color: var(--muted); }
+.badge { display: inline-block; white-space: nowrap; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--bg); color: var(--muted); }
 .badge.new { background: var(--ok-soft); color: var(--ok); }
 .badge.skip { background: #fff3d6; color: #9a6b00; }
 .badge.error { background: var(--danger-soft); color: var(--danger); }
@@ -74,8 +74,26 @@ textarea.paste { width: 100%; min-height: 140px; padding: 12px; border: 1px soli
 
 /* 기초미션 단원 */
 .units { display: flex; flex-direction: column; gap: 8px; }
-.unit-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
-.unit-row .unit-name { font-weight: 600; min-width: 140px; }
+.units { gap: 6px; }
+.unit-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.unit-row:hover { background: var(--surface-2); }
+.unit-row.on { border-color: var(--primary); background: var(--primary-soft); }
+.unit-row .unit-name { font-weight: 600; min-width: 160px; }
+.mission-sum { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 2px; }
+.paste-more { margin-top: 14px; }
+.paste-more > summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+
+/* 건의함: 처리 끝난 건의는 흐리게 */
+.admin-post.done { opacity: .65; }
+.admin-post.done:hover { opacity: 1; }
+
+/* 학생 명단 */
+.url-box { display: inline-flex; align-items: center; gap: 6px; }
+.url-box code { background: var(--surface-2); padding: 2px 8px; border-radius: 6px; font-size: 13px; }
+.login-warn { color: var(--danger); font-weight: 700; }
+
+/* 아이템 관리: 숨긴 아이템 흐리게 */
+tr.item-off td { color: var(--muted); background: var(--bg); }
 
 /* 오늘 현황 대시보드 */
 .t-hero { background: linear-gradient(135deg, #ad7a4e 0%, var(--primary-dark) 100%); color: #fff; border: 0; box-shadow: 0 10px 28px rgba(125, 83, 49, .2); display: flex; justify-content: space-between; align-items: center; gap: 16px; }

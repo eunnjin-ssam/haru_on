@@ -11,6 +11,7 @@ const ORDER = { new: 0, seen: 1, planned: 2, fixed: 3 };
 
 export async function renderFeedbackAdmin(root) {
   let items = []; let names = new Map();
+  let onlyOpen = false; // 처리 안 한 건의(새 건의·확인함)만 보기
 
   async function load() {
     const [fbSnap, stuSnap] = await Promise.all([
@@ -42,7 +43,8 @@ export async function renderFeedbackAdmin(root) {
 
   function card(f) {
     const badge = h('span', { class: `badge ${f.status === 'new' ? 'new' : 'skip'}` }, STATUS_LABEL[f.status] ?? f.status);
-    return h('article', { class: `admin-post${f.status === 'new' ? ' flag' : ''}` },
+    const closed = f.status === 'fixed' || f.status === 'planned';
+    return h('article', { class: `admin-post${f.status === 'new' ? ' flag' : ''}${closed ? ' done' : ''}` },
       h('div', { class: 'ap-head' },
         h('div', null,
           h('b', null, KIND_LABEL[f.kind] ?? f.kind), ' ', badge,
@@ -59,11 +61,20 @@ export async function renderFeedbackAdmin(root) {
 
   function draw() {
     const nw = items.filter((f) => f.status === 'new').length;
+    const open = items.filter((f) => f.status === 'new' || f.status === 'seen');
+    const shown = onlyOpen ? open : items;
+    const filterBtn = h('button', { class: 'btn secondary small', disabled: items.length === 0, onclick: () => { onlyOpen = !onlyOpen; draw(); } },
+      onlyOpen ? '모두 보기' : '처리 안 한 것만 보기');
     root.replaceChildren(h('section', { class: 'card' },
-      h('h2', null, `건의함${nw ? ` (새 건의 ${nw})` : ''}`),
-      items.length === 0 ? h('p', { class: 'muted' }, '아직 들어온 건의가 없어요.')
-        : h('div', { class: 'admin-posts' }, ...items.map(card)),
-      h('p', { class: 'muted small' }, "'고쳤어요'·'반영할게요'를 누르면 학생에게 고맙다는 쪽지가 자동으로 가요."),
+      h('div', { class: 'row', style: 'justify-content:space-between' },
+        h('div', null,
+          h('h2', null, `건의함${nw ? ` (새 건의 ${nw})` : ''}`),
+          h('p', { class: 'muted small', style: 'margin:0' },
+            `학생이 보낸 앱 오류·제안이에요. 모두 ${items.length}건 · 처리 안 함 ${open.length}건. ‘고쳤어요’·‘반영할게요’를 누르면 학생에게 고맙다는 쪽지가 자동으로 가요.`)),
+        filterBtn),
+      items.length === 0 ? h('p', { class: 'muted', style: 'padding:4px 2px' }, '아직 들어온 건의가 없어요.')
+        : shown.length === 0 ? h('p', { class: 'empty-ok', style: 'margin-top:12px' }, '✅ 처리할 건의를 모두 처리했어요.')
+          : h('div', { class: 'admin-posts' }, ...shown.map(card)),
     ));
   }
 

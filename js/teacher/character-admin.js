@@ -52,17 +52,26 @@ export async function renderCharacterAdmin(root) {
   }
 
   function itemsCard() {
+    const onSale = items.filter((i) => i.onSale !== false).length;
+    const seedBtn = h('button', { class: 'btn secondary', onclick: () => {
+      if (items.length && !confirm('도감 기본값으로 다시 넣을까요?\n고친 가격이 기본 가격으로 되돌아가고, 숨긴 아이템도 다시 판매돼요.')) return;
+      run(seedItems, '기본 아이템을 넣었어요');
+    } }, items.length ? '기본값으로 되돌리기' : '기본 아이템 넣기');
     return h('section', { class: 'card' },
-      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', null, '아이템 관리'),
-        h('button', { class: 'btn secondary', onclick: () => run(seedItems, '기본 아이템을 넣었어요') }, '기본 아이템 넣기')),
-      items.length === 0 ? h('p', { class: 'muted' }, '아이템이 없어요. ‘기본 아이템 넣기’를 눌러 주세요.')
-        : h('table', null, h('thead', null, h('tr', null, h('th', null, '이름'), h('th', null, '칸'), h('th', null, '색·가격 (고쳐서 저장)'), h('th', null, '판매'), h('th', null, ''))),
-          h('tbody', null, ...items.map((i) => h('tr', null,
+      h('div', { class: 'row', style: 'justify-content:space-between' },
+        h('div', null,
+          h('h2', null, '아이템 관리'),
+          h('p', { class: 'muted small', style: 'margin:0' },
+            items.length ? `아이템 ${items.length}개 · 판매중 ${onSale}개 · 숨김 ${items.length - onSale}개. 색 이름 옆 숫자를 고치고 ‘가격 저장’을 누르면 바뀌어요.` : '학생이 캐릭터 상점에서 사는 옷과 소품이에요.')),
+        seedBtn),
+      items.length === 0 ? h('p', { class: 'muted', style: 'padding:4px 2px' }, '아이템이 없어요. ‘기본 아이템 넣기’를 눌러 주세요.')
+        : h('div', { class: 'table-wrap' }, h('table', null, h('thead', null, h('tr', null, h('th', null, '이름'), h('th', null, '칸'), h('th', null, '색·가격 (고쳐서 저장)'), h('th', null, '판매'), h('th', null, ''))),
+          h('tbody', null, ...items.map((i) => h('tr', { class: i.onSale === false ? 'item-off' : '' },
             h('td', null, i.name), h('td', null, CAT_LABEL[i.category] ?? i.category),
             h('td', null, priceEditor(i)),
-            h('td', null, i.onSale !== false ? '판매중' : '숨김'),
-            h('td', { class: 'actions' }, h('button', { class: 'btn secondary small', onclick: () => run(() => updateDoc(doc(db, 'items', i.id), { onSale: i.onSale === false }), '바꿨어요') }, i.onSale !== false ? '숨기기' : '판매하기')))))),
-      h('p', { class: 'muted small' }, '색 이름 옆 숫자를 고치고 ‘가격 저장’을 누르면 바뀌어요. ‘기본 아이템 넣기’를 다시 누르면 도감 기본값으로 되돌아가요.'),
+            h('td', null, i.onSale !== false ? h('span', { class: 'badge new' }, '판매중') : h('span', { class: 'badge' }, '숨김')),
+            h('td', { class: 'actions' }, h('button', { class: 'btn secondary small', onclick: () => run(() => updateDoc(doc(db, 'items', i.id), { onSale: i.onSale === false }), i.onSale === false ? '다시 판매해요' : '상점에서 숨겼어요') }, i.onSale !== false ? '숨기기' : '판매하기'))))))),
+      h('p', { class: 'muted small' }, '숨긴 아이템은 상점에 안 보이지만, 이미 산 학생은 계속 쓸 수 있어요.'),
     );
   }
 
@@ -78,16 +87,17 @@ export async function renderCharacterAdmin(root) {
       const awards = profiles.get(s.sid)?.awarded ?? [];
       if (awards.length === 0) return null;
       return h('div', { class: 'req-row' }, h('span', null, `${s.number}번 ${s.name}: ${awards.join(', ')}`),
-        h('div', { class: 'row' }, ...awards.map((a) => h('button', { class: 'btn secondary small', onclick: () => run(() => updateDoc(doc(db, 'profiles', s.sid), { awarded: arrayRemove(a) }), '지웠어요') }, `${a} ✕`))));
+        h('div', { class: 'row' }, ...awards.map((a) => h('button', { class: 'btn secondary small', title: '회수', onclick: () => { if (confirm(`${s.name}의 ‘${a}’ 칭호를 회수할까요?`)) run(() => updateDoc(doc(db, 'profiles', s.sid), { awarded: arrayRemove(a) }), '칭호를 회수했어요'); } }, `${a} ✕`))));
     }).filter(Boolean);
 
     return h('section', { class: 'card' }, h('h2', null, '칭호 수여 (금색 전용)'),
+      h('p', { class: 'muted small', style: 'margin:-2px 0 10px' }, '선생님이 주는 칭호는 금색으로 빛나요. 업적 칭호(독서·기초미션·1인1역)는 학생이 기준을 채우면 자동으로 받아요.'),
       h('div', { class: 'role-form' },
         h('label', { class: 'field' }, h('span', null, '학생'), sel),
         h('label', { class: 'field' }, h('span', null, '칭호 이름'), name),
         h('div', { class: 'row' }, give)),
-      list.length ? h('div', { style: 'margin-top:12px' }, h('h3', null, '수여한 칭호'), ...list) : null,
-      h('p', { class: 'muted small' }, '업적 칭호(독서·기초미션·1인1역)는 학생이 기준을 채우면 자동으로 받아요.'),
+      h('div', { style: 'margin-top:14px' }, h('h3', null, `수여한 칭호${list.length ? ` (${list.length}명)` : ''}`),
+        list.length ? h('div', null, ...list) : h('p', { class: 'muted' }, '아직 수여한 칭호가 없어요.')),
     );
   }
 

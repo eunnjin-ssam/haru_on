@@ -5,7 +5,8 @@ import {
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 
-const EMPTY_EQUIP = { hair: null, face: null, top: null, bottom: null, shoes: null, headAcc: null, faceAcc: null };
+const MANY_DEVICES = 3; // 로그인 기기가 이만큼 넘으면 PIN 유출을 의심해 빨갛게 표시
+const EMPTY_EQUIP ={ hair: null, face: null, top: null, bottom: null, shoes: null, headAcc: null, faceAcc: null };
 
 function newPin() {
   const n = crypto.getRandomValues(new Uint32Array(1))[0] % 10000;
@@ -221,7 +222,8 @@ export async function renderRoster(root) {
           h('td', { class: 'num' }, s.number),
           h('td', null, h('button', { class: 'linkish', title: '이름 고치기', onclick: () => rename(s) }, s.name)),
           h('td', { class: 'pin' }, showPins ? s.pin : '••••'),
-          h('td', { class: 'muted' }, s.login ? `${s.login.count}대 · 최근 ${formatTime(s.login.last)}` : '-'),
+          h('td', { class: s.login?.count >= MANY_DEVICES ? 'login-warn' : 'muted' },
+            s.login ? `${s.login.count}대 · 최근 ${formatTime(s.login.last)}${s.login.count >= MANY_DEVICES ? ' ⚠️' : ''}` : '아직 안 함'),
           h('td', { class: 'actions' },
             h('button', { class: 'btn secondary small', onclick: () => resetPin(s) }, 'PIN 재설정'),
             h('button', { class: 'btn secondary small', onclick: () => transfer(s) }, '전학 처리'),
@@ -232,17 +234,22 @@ export async function renderRoster(root) {
     root.replaceChildren(...[
       h('section', { class: 'card' },
         h('div', { class: 'row', style: 'justify-content:space-between' },
-          h('div', null, h('h2', null, '학생 명단'), h('p', { class: 'muted', style: 'margin:0' }, `${list.length}명 · 학생 접속 주소: ${studentUrl()}`)),
+          h('div', null, h('h2', null, `학생 명단 (${list.length}명)`),
+            h('div', { class: 'url-box muted small' }, '학생 접속 주소', h('code', null, studentUrl()),
+              h('button', { class: 'btn secondary small', onclick: async () => {
+                try { await navigator.clipboard.writeText(studentUrl()); toast('주소를 복사했어요'); } catch { toast('복사하지 못했어요.', 'error'); }
+              } }, '복사'))),
           h('div', { class: 'row' },
             h('button', { class: 'btn secondary', disabled: list.length === 0, onclick: () => { showPins = !showPins; draw(); } }, showPins ? 'PIN 숨기기' : 'PIN 보기'),
             h('button', { class: 'btn secondary', disabled: list.length === 0, onclick: printCards }, 'PIN 카드 인쇄'),
           ),
         ),
         h('div', { style: 'margin-top:16px' }, table),
-        h('p', { class: 'muted' }, '로그인한 기기에 모르는 기기가 많으면 PIN을 재설정해 주세요.'),
+        list.length ? h('p', { class: 'muted small' }, `이름을 누르면 고칠 수 있어요. 로그인한 기기가 ${MANY_DEVICES}대 이상이면 빨갛게 보여요 — 모르는 기기가 있으면 PIN을 재설정해 주세요.`) : null,
       ),
       h('section', { class: 'card' },
         h('h2', null, '학생 등록'),
+        preview ? null : h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '엑셀에서 번호·이름 두 칸을 복사해 붙여 넣고 ‘미리보기’를 눌러요. 이미 있는 번호는 건너뛰어요.'),
         preview ? previewView() : h('div', null,
           textarea,
           h('div', { class: 'row', style: 'margin-top:12px' },
