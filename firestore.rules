@@ -62,8 +62,20 @@ service cloud.firestore {
     }
 
     // PIN 명부. 문서 id = 번호('7'). 학생은 절대 읽을 수 없고, 아래 세션 규칙이 get()으로 대조한다.
+    // 학생은 자기 PIN만, 지금 PIN(prev)을 맞게 넣었을 때만 바꿀 수 있다(읽기는 여전히 불가).
     match /studentPins/{number} {
       allow read, write: if isTeacher();
+      allow update: if isStudent() && pinChangeOK(number);
+    }
+    function pinChangeOK(number) {
+      let r = request.resource.data;
+      let s = get(p('sessions', request.auth.uid)).data;
+      return s.number == number && resource.data.sid == s.sid
+        && r.keys().hasOnly(['pin', 'sid', 'prev'])
+        && r.sid == resource.data.sid
+        && r.prev == resource.data.pin
+        && r.pin is string && r.pin.matches('[0-9]{4}')
+        && r.pin != resource.data.pin;
     }
 
     match /sessions/{uid} {

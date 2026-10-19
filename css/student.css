@@ -369,3 +369,11 @@ body { font-size: 17px; }
 .fb-emoji { font-size: 30px; }
 .fb-t { font-size: 18px; font-weight: 700; }
 .sheet-box select, .sheet-box.wide select { padding: 11px; border: 1.5px solid var(--line); border-radius: 10px; width: 100%; }
+
+/* PIN 바꾸기 */
+.pin-input { font-size: 24px; letter-spacing: 10px; text-align: center; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; width: 100%; box-sizing: border-box; }
+.pin-input::placeholder { font-size: 16px; letter-spacing: 0; }
+.pin-input:focus { outline: none; border-color: var(--primary); }
+.pin-msg { color: var(--danger); font-weight: 700; min-height: 1.4em; margin: 0; }
+.pin-actions { display: flex; gap: 8px; }
+.pin-actions .btn { flex: 1; }

@@ -12,7 +12,7 @@
 | teachers 🔒 | 교사 uid | (콘솔에서 직접 추가) |
 | students | 학생ID | number, name, active |
 | numbers | 번호 `'7'` | sid (로그인 전 조회용, 한 장씩만 읽기) |
-| studentPins 🔒 | 번호 `'7'` | pin(4자리 문자열), sid |
+| studentPins 🔒 | 번호 `'7'` | pin(4자리 문자열), sid, prev(학생이 직접 바꿀 때 넣은 이전 PIN — 규칙이 지금 PIN과 대조) |
 | sessions | 익명 uid | number, sid, pin, at |
 | settings | `main` / `teacher`🔒 | `js/common/defaults.js` 참고 |
 | notices | 자동 | title, body, start, end |
@@ -95,6 +95,7 @@ summaries는 `increment()`로 바꾸고 `lastTx`에 거래 id를 넣는다. 다�
 1. 익명 로그인
 2. `numbers/{번호}`를 읽어 sid 확인
 3. `sessions/{uid}`에 {number, sid, pin, at: serverTimestamp()} 만들기. 규칙이 studentPins와 대조한다.
-4. PIN 재설정 또는 전학 시 교사가 그 학생의 sessions를 모두 지운다. 전학이면 numbers·studentPins도 지운다.
+4. 학생이 직접 PIN 바꾸기: studentPins/{번호}를 {pin: 새 PIN, prev: 지금 PIN}으로 update. 읽기는 여전히 불가.
+5. PIN 재설정 또는 전학 시 교사가 그 학생의 sessions를 모두 지운다. 전학이면 numbers·studentPins도 지운다.
 
 학생 등록 시 교사 화면이 한 batch로 만드는 것: students, numbers, studentPins, summaries(0으로), profiles.

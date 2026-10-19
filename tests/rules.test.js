@@ -55,6 +55,38 @@ describe('로그인', () => {
 });
 
 // ---------------------------------------------------------------
+describe('학생 PIN 바꾸기', () => {
+  it('지금 PIN을 맞게 넣으면 새 PIN으로 바꾸고, 새 PIN으로 로그인된다', async () => {
+    const db = await login(env, '1');
+    await assertSucceeds(updateDoc(doc(db, 'studentPins/1'), { pin: '4321', prev: '1111' }));
+    await assertSucceeds(login(env, '1', '4321'));
+    await assertFails(login(env, '1', '1111'));
+  });
+  it('지금 PIN이 틀리면 못 바꾼다', async () => {
+    const db = await login(env, '1');
+    await assertFails(updateDoc(doc(db, 'studentPins/1'), { pin: '4321', prev: '0000' }));
+    await assertFails(updateDoc(doc(db, 'studentPins/1'), { pin: '4321' }));
+  });
+  it('친구 PIN은 못 바꾼다', async () => {
+    const db = await login(env, '1');
+    await assertFails(updateDoc(doc(db, 'studentPins/2'), { pin: '4321', prev: '2222' }));
+  });
+  it('4자리 숫자가 아니거나 같은 PIN이면 거절된다', async () => {
+    const db = await login(env, '1');
+    await assertFails(updateDoc(doc(db, 'studentPins/1'), { pin: '12a4', prev: '1111' }));
+    await assertFails(updateDoc(doc(db, 'studentPins/1'), { pin: '12345', prev: '1111' }));
+    await assertFails(updateDoc(doc(db, 'studentPins/1'), { pin: '1111', prev: '1111' }));
+  });
+  it('학생ID를 바꾸거나 다른 칸을 넣을 수 없고, 바꾼 뒤에도 PIN은 못 읽는다', async () => {
+    const db = await login(env, '1');
+    await assertFails(updateDoc(doc(db, 'studentPins/1'), { pin: '4321', prev: '1111', sid: 's2' }));
+    await assertFails(updateDoc(doc(db, 'studentPins/1'), { pin: '4321', prev: '1111', x: 1 }));
+    await assertSucceeds(updateDoc(doc(db, 'studentPins/1'), { pin: '4321', prev: '1111' }));
+    await assertFails(getDoc(doc(db, 'studentPins/1')));
+  });
+});
+
+// ---------------------------------------------------------------
 describe('포인트 기본', () => {
   it('내 요약은 읽고, 친구 요약은 못 읽는다', async () => {
     const db = await login(env, '1');

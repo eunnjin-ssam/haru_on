@@ -11,6 +11,7 @@ import { renderShop } from './shop.js';
 import { renderCharacter } from './character.js';
 import { renderMyWeek } from './myweek.js';
 import { openFeedback } from './feedback.js';
+import { openPinChange } from './pin.js';
 
 export async function renderApp(root, student, onLogout) {
   const settings = await loadSettings();
@@ -88,6 +89,7 @@ export async function renderApp(root, student, onLogout) {
           pageTitle,
           h('div', { class: 'top-actions' },
             h('button', { class: 'pill', type: 'button', onclick: () => openFeedback(student, settings) }, '💬 건의·신고'),
+            h('button', { class: 'pill', type: 'button', onclick: () => openPinChange(student) }, '🔑 PIN 바꾸기'),
             logoutButton())),
         content)));
   }
