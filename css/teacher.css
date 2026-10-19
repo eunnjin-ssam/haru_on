@@ -341,3 +341,9 @@ th.sortable:hover { color: var(--primary-dark); }
 .mini-bar > div { height: 100%; background: var(--ok); }
 .mini-bar > span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
 .term-log { margin: 6px 0; padding-left: 18px; color: var(--muted); }
+
+/* 기초미션: 학년·학기 묶음, 단원 이름 바꾸기 */
+.unit-group { margin-top: 12px; }
+.unit-group-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.unit-row .unit-pick { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.unit-row .unit-rename { margin-left: auto; }
