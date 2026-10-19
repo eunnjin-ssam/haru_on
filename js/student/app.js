@@ -58,7 +58,12 @@ export async function renderApp(root, student, onLogout) {
     pageTitle.textContent = NAV.find(([n]) => n === id)?.[1] ?? '';
     content.replaceChildren(h('p', { class: 'muted', style: 'padding:24px' }, '불러오는 중…'));
     try {
-      if (id === 'dashboard') await renderDashboard(content, student, settings, { openMission });
+      if (id === 'dashboard') {
+        await renderDashboard(content, student, settings, {
+          openMission,
+          openTasks: hidden.has('tasks') ? null : () => open('tasks'),
+        });
+      }
       else if (id === 'writing') await renderWriting(content, student, settings);
       else if (id === 'tasks') await renderTasks(content, student, settings);
       else if (id === 'stories') await renderStories(content, student, settings);

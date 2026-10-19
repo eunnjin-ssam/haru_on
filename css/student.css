@@ -82,6 +82,13 @@ body { font-size: 17px; }
 .todo .state { color: var(--muted); font-size: 15px; }
 .done .got { color: var(--ok); font-weight: 800; background: var(--ok-soft); border-radius: 999px; padding: 3px 12px; }
 .done-wait .todo-ico { opacity: .55; }
+.todo.is-done .todo-l { color: var(--muted); }
+.todo.is-done .todo-ico { background: var(--ok-soft); border-color: transparent; }
+.todo-check { color: var(--ok); font-weight: 800; font-size: 15px; white-space: nowrap; }
+.todo-due { margin-left: 8px; font-size: 13px; font-weight: 700; color: var(--primary-dark); background: var(--primary-soft); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.todo-due.late { color: var(--danger); background: var(--danger-soft); }
+.mood-card.flash { animation: mood-flash 1.2s ease; }
+@keyframes mood-flash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 4px var(--primary-soft); } }
 .requests { border: 1.5px solid var(--accent); background: var(--accent-soft); }
 .empty { color: var(--muted); padding: 4px 2px; }
 
