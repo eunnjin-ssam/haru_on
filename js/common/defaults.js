@@ -72,6 +72,8 @@ export const DEFAULT_TEACHER_SETTINGS = {
     activityRate: 0.5,    // 완료율 50% 미만
     dropFrom: 0.9,        // 평소 완료율
     dropTo: 0.3,          // 이번 주 완료율
+    customRepeat: 2,      // 최근 5일 중 직접 쓴 기분 횟수
+    lateRepeat: 2,        // 최근 2주 늦은 제출·다시 해오기 횟수
     recheckDays: 7,       // '살펴봤어요' 뒤 다시 표시
   },
 };

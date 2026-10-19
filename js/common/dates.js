@@ -70,7 +70,7 @@ export function ddayLabel(dueAt) {
 export function weekInfo(offset = 0, now = new Date()) {
   const k = kstNow(now);
   const dow = k.getUTCDay() === 0 ? 7 : k.getUTCDay();
-  k.setUTCDate(k.getUTCDate() - (dow - 1) + offset * 7); // 대상 주 월요일
+  k.setUTCDate(k.getUTCDate() - (dow - 1) - offset * 7); // 대상 주 월요일 (offset주 전)
   const week = ymd(k);
   const days = [];
   for (let i = 0; i < 5; i++) { const d = new Date(k); d.setUTCDate(k.getUTCDate() + i); days.push(ymd(d)); }

@@ -1,72 +1,128 @@
-// 살핌판: 자기관리 현황 표 + 살펴볼 학생 + 쪽지/포인트(지급·지급취소·차감). 학생에게 보이지 않음.
+// 살핌판: 살펴볼 학생(마음·과제·활동·갑작스러운 변화) + 자기관리 현황 표(열 눌러 정렬, 이름 눌러 2주 상세)
+// + 쪽지/포인트(지급·지급취소·차감). 기준은 settings/teacher.care. 학생에게 보이지 않음.
 import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, writeBatch, increment, serverTimestamp,
+  collection, doc, getDoc, getDocs, setDoc, writeBatch, increment, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { weekInfo } from '../common/dates.js';
-import { MOODS } from '../student/mood.js';
+import { weekInfo, todayId } from '../common/dates.js';
+import { MOODS, moodLabel } from '../student/mood.js';
 import { isShown } from '../common/task-visible.js';
+import { DEFAULT_TEACHER_SETTINGS } from '../common/defaults.js';
 
 const NEG = ['upset', 'angry', 'tired'];
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '·');
+const WD = ['월', '화', '수', '목', '금'];
+const pct = (x) => (x == null ? '-' : `${Math.round(x * 100)}%`);
+const md = (id) => `${Number(id.slice(4, 6))}/${Number(id.slice(6, 8))}`;
 
 export async function renderCare(root) {
   let data;
   const selected = new Set();
+  let sortKey = 'number'; let sortDir = 1;
 
   async function load() {
-    const this2 = weekInfo(0); const last = weekInfo(1);
-    const recent = [...last.days, ...this2.days]; // 최근 2주 평일
-    const [stuSnap, sumSnap, moodSnap, attSnap, subSnap, taskSnap, careSnap, cfgSnap] = await Promise.all([
+    const today = todayId();
+    const weeks = [weekInfo(0), weekInfo(1), weekInfo(2), weekInfo(3)]; // 이번 주, 1~3주 전
+    const past = (days) => days.filter((d) => d <= today);
+    const recent = past([...weeks[1].days, ...weeks[0].days]); // 최근 2주 평일(오늘까지)
+    const last5 = recent.slice(-5);
+    const closed = recent.filter((d) => d < today); // 끝난 날(오늘은 아직 진행 중이라 완료율에서 뺌)
+    const [stuSnap, sumSnap, moodSnap, noteSnap, attSnap, subSnap, taskSnap, careSnap, tcfgSnap, cfgSnap, roleSnap, checkSnap, postSnap] = await Promise.all([
       getDocs(collection(db, 'students')),
       getDocs(collection(db, 'summaries')),
       getDocs(collection(db, 'moods')),
+      getDocs(collection(db, 'moodNotes')),
       getDocs(collection(db, 'missionAttempts')),
       getDocs(collection(db, 'submissions')),
       getDocs(collection(db, 'tasks')),
       getDocs(collection(db, 'careNotes')),
       getDoc(doc(db, 'settings', 'teacher')),
+      getDoc(doc(db, 'settings', 'main')),
+      getDocs(collection(db, 'roles')),
+      getDocs(collection(db, 'roleChecks')),
+      getDocs(collection(db, 'posts')),
     ]);
     const students = stuSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
     const sums = new Map(sumSnap.docs.map((d) => [d.id, d.data()]));
     const care = new Map(careSnap.docs.map((d) => [d.id, d.data()]));
-    const cfg = cfgSnap.data()?.care ?? {};
+    const cfg = { ...DEFAULT_TEACHER_SETTINGS.care, ...(tcfgSnap.data()?.care ?? {}) };
+    const main = cfgSnap.data() ?? {};
+    const perDay = main.mission?.perDay ?? 5;
+    const bonusDays = main.points?.bonusDays ?? 3;
 
-    // 기분(최근 2주, 학생별 날짜→mood)
-    const moodBy = new Map();
-    for (const d of moodSnap.docs) { const m = d.data(); if (!recent.includes(m.date)) continue; const mp = moodBy.get(m.sid) ?? {}; mp[m.date] = m.mood; moodBy.set(m.sid, mp); }
-    // 기초미션(최근 2주): 참여일·정답
-    const missBy = new Map();
-    for (const d of attSnap.docs) { const a = d.data(); if (!recent.includes(a.date)) continue; const mp = missBy.get(a.sid) ?? { days: new Set(), graded: 0, correct: 0, perDayCount: {} }; if ('correct' in a) { mp.graded += 1; if (a.correct) mp.correct += 1; mp.perDayCount[a.date] = (mp.perDayCount[a.date] ?? 0) + 1; } missBy.set(a.sid, mp); }
-    // 과제: 학생별 남은 과제
+    // 학생별 날짜 → 값
+    const by = () => new Map();
+    const moodBy = by(); const noteBy = by(); const missBy = by(); const roleBy = by(); const postBy = by();
+    const put = (m, sid, date, v) => { const o = m.get(sid) ?? {}; o[date] = v; m.set(sid, o); };
+    for (const d of moodSnap.docs) { const m = d.data(); put(moodBy, m.sid, m.date, m.mood); }
+    for (const d of noteSnap.docs) { const m = d.data(); put(noteBy, m.sid, m.date, m.text); }
+    for (const d of attSnap.docs) {
+      const a = d.data(); if (!('correct' in a)) continue;
+      const o = missBy.get(a.sid) ?? {}; const c = o[a.date] ?? { n: 0, ok: 0 }; c.n += 1; if (a.correct) c.ok += 1; o[a.date] = c; missBy.set(a.sid, o);
+    }
+    for (const d of checkSnap.docs) { const c = d.data(); if (c.status === 'approved') put(roleBy, c.sid, c.date, true); }
+    for (const d of postSnap.docs) { const p = d.data(); const date = d.id.slice(d.id.lastIndexOf('_') + 1); put(postBy, p.author, date, p.title ?? true); }
+    const roleHolders = new Set(roleSnap.docs.flatMap((d) => d.data().members ?? []));
+
     const subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
     const tasks = taskSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.kind === 'homework' && isShown(t));
+    const since2w = Date.now() - 14 * 86400000;
+
+    // 그날 할 일 완료율(기초미션 + 1인1역이 있으면 1인1역)
+    const dayRate = (sid, date) => {
+      const parts = [(missBy.get(sid)?.[date]?.n ?? 0) >= perDay ? 1 : 0];
+      if (roleHolders.has(sid)) parts.push(roleBy.get(sid)?.[date] ? 1 : 0);
+      return parts.reduce((a, b) => a + b, 0) / parts.length;
+    };
+    const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
 
     const rows = students.map((s) => {
       const mp = moodBy.get(s.sid) ?? {};
-      const moodList = recent.map((dt) => mp[dt]).filter(Boolean);
-      const recent5 = this2.days.map((dt) => mp[dt]).filter(Boolean);
-      const neg = recent5.filter((m) => NEG.includes(m) || m === 'custom').length;
-      const miss = missBy.get(s.sid) ?? { days: new Set(), graded: 0, correct: 0, perDayCount: {} };
-      const perDay = 5;
-      const partDays = Object.values(miss.perDayCount).filter((n) => n >= perDay).length;
-      const rate = miss.graded ? Math.round((miss.correct / miss.graded) * 100) : null;
+      const mi = missBy.get(s.sid) ?? {};
+      const graded = recent.reduce((n, d) => n + (mi[d]?.n ?? 0), 0);
+      const correct = recent.reduce((n, d) => n + (mi[d]?.ok ?? 0), 0);
+      const partDays = closed.filter((d) => (mi[d]?.n ?? 0) >= perDay).length;
+      const roleDays = closed.filter((d) => roleBy.get(s.sid)?.[d]).length;
+      const writeDays = (w) => w.days.filter((d) => postBy.get(s.sid)?.[d]).length;
+      // 활동률(최근 2주): 기초미션 참여일, 1인1역 완료일(맡은 역할이 있을 때), 글마당(주마다 보너스 기준 일수 대비)
+      const comps = [partDays / Math.max(1, closed.length)];
+      if (roleHolders.has(s.sid)) comps.push(roleDays / Math.max(1, closed.length));
+      // 글마당은 주 단위라, 끝난 지난 두 주로 센다
+      comps.push((Math.min(writeDays(weeks[1]), bonusDays) + Math.min(writeDays(weeks[2]), bonusDays)) / (2 * bonusDays));
+      const activity = avg(comps);
+      // 갑작스러운 변화: 지난 3주 평균 vs 이번 주(이틀 이상 지났을 때)
+      const thisDays = past(weeks[0].days).filter((d) => d < today || (mi[d]?.n ?? 0) >= perDay);
+      const before = avg([1, 2, 3].flatMap((i) => weeks[i].days.map((d) => dayRate(s.sid, d))));
+      const now = thisDays.length >= 2 ? avg(thisDays.map((d) => dayRate(s.sid, d))) : null;
+
+      const neg = last5.filter((d) => NEG.includes(mp[d])).length;
+      const customN = last5.filter((d) => mp[d] === 'custom').length;
       const remaining = tasks.filter((t) => (t.targets ?? []).includes(s.sid) && !['done', 'exempt'].includes(subs.get(`${t.id}_${s.sid}`)?.status)).length;
-      const activity = partDays / 10; // 최근 10평일 중 참여일 비율
-      const todayMood = this2.days.map((dt) => mp[dt]).reverse().find(Boolean);
+      const lateOrRedo = tasks.filter((t) => {
+        const sub = subs.get(`${t.id}_${s.sid}`);
+        if (!sub || !t.dueAt?.toMillis || t.dueAt.toMillis() < since2w) return false;
+        const late = sub.firstAt?.toMillis && sub.firstAt.toMillis() > t.dueAt.toMillis();
+        return late || sub.status === 'redo';
+      }).length;
 
       const flags = [];
-      if (neg >= (cfg.moodNegative ?? 3)) flags.push('마음이 힘들어 보여요');
-      if (remaining >= (cfg.tasksLeft ?? 2)) flags.push(`남은 과제 ${remaining}개`);
-      if (miss.graded > 0 && activity < (cfg.activityRate ?? 0.5)) flags.push('요즘 활동이 뜸해요');
+      if (neg >= cfg.moodNegative) flags.push(`최근 ${last5.length}일 중 ${neg}일 마음이 힘들어 보여요`);
+      if (customN >= cfg.customRepeat) flags.push(`기분을 직접 쓴 날이 ${customN}일`);
+      if (remaining >= cfg.tasksLeft) flags.push(`남은 과제 ${remaining}개`);
+      if (lateOrRedo >= cfg.lateRepeat) flags.push(`최근 2주 늦은 제출·다시 해오기 ${lateOrRedo}번`);
+      if (activity != null && activity < cfg.activityRate) flags.push(`최근 2주 활동률 ${pct(activity)}`);
+      if (before != null && now != null && before >= cfg.dropFrom && now <= cfg.dropTo) flags.push(`갑자기 줄었어요 (평소 ${pct(before)} → 이번 주 ${pct(now)})`);
 
       const cn = care.get(s.sid);
-      const checkedRecently = cn?.checkedAt?.toMillis && (Date.now() - cn.checkedAt.toMillis()) < (cfg.recheckDays ?? 7) * 86400000;
-
-      return { ...s, summary: sums.get(s.sid) ?? {}, partDays, rate, remaining, recentMoods: this2.days.map((dt) => mp[dt]), todayMood, flags, memo: cn?.memo ?? '', checkedRecently };
+      const checkedRecently = cn?.checkedAt?.toMillis && (Date.now() - cn.checkedAt.toMillis()) < cfg.recheckDays * 86400000;
+      return {
+        ...s, summary: sums.get(s.sid) ?? {}, partDays, days: closed.length,
+        rate: graded ? correct / graded : null, activity, remaining,
+        recentMoods: weeks[0].days.map((dt) => mp[dt]), flags, memo: cn?.memo ?? '', checkedRecently,
+      };
     });
-    data = { rows };
+    data = { rows, recent, perDay, moodBy, noteBy, missBy, roleBy, postBy, roleHolders, tasks, subs };
   }
 
   async function run(task, done) {
@@ -92,19 +148,53 @@ export async function renderCare(root) {
     await b.commit();
   }
 
+  const saveMemo = (sid, memo) => run(() => setDoc(doc(db, 'careNotes', sid), { memo }, { merge: true }), '메모를 저장했어요');
+
+  // 이름 → 최근 2주 상세(날짜별 기분·기초미션·1인1역·글마당) + 남은 과제 + 메모
+  function openDetail(r) {
+    const d = data;
+    const cells = d.recent.map((date) => {
+      const mood = d.moodBy.get(r.sid)?.[date];
+      const note = d.noteBy.get(r.sid)?.[date];
+      const mi = d.missBy.get(r.sid)?.[date];
+      const dow = WD[(new Date(Date.UTC(+date.slice(0, 4), +date.slice(4, 6) - 1, +date.slice(6, 8))).getUTCDay() + 6) % 7];
+      return h('tr', { class: NEG.includes(mood) ? 'row-neg' : '' },
+        h('td', null, `${md(date)} (${dow})`),
+        h('td', null, mood ? `${moodEmoji(mood)} ${mood === 'custom' ? `“${note ?? ''}”` : moodLabel(mood)}` : h('span', { class: 'muted' }, '-')),
+        h('td', null, mi ? `${mi.ok}/${mi.n}${mi.n >= d.perDay ? '' : ' (덜 풂)'}` : h('span', { class: 'muted' }, '-')),
+        d.roleHolders.has(r.sid) ? h('td', null, d.roleBy.get(r.sid)?.[date] ? '✓' : h('span', { class: 'muted' }, '-')) : null,
+        h('td', null, d.postBy.get(r.sid)?.[date] ? '✓' : h('span', { class: 'muted' }, '-')));
+    });
+    const left = d.tasks.filter((t) => (t.targets ?? []).includes(r.sid) && !['done', 'exempt'].includes(d.subs.get(`${t.id}_${r.sid}`)?.status));
+    const memo = h('input', { type: 'text', value: r.memo, placeholder: '메모 (선생님만 봐요)', style: 'flex:1' });
+    const dlg = h('div', { class: 'sheet' }, h('div', { class: 'sheet-box wide care-detail' },
+      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h3', { style: 'margin:0' }, `${r.number}번 ${r.name} · 최근 2주`),
+        h('button', { class: 'btn secondary small', onclick: () => dlg.remove() }, '닫기')),
+      r.flags.length ? h('div', { class: 'ca-flags' }, ...r.flags.map((f) => h('span', { class: 'ca-flag' }, f))) : h('p', { class: 'empty-ok' }, '✅ 특별히 살펴볼 점은 없어요.'),
+      h('p', { class: 'muted small', style: 'margin:0' }, `기초미션 참여 ${r.partDays}/${r.days}일 · 정답률 ${pct(r.rate)} · 활동률 ${pct(r.activity)} · 남은 과제 ${r.remaining}개`),
+      h('div', { class: 'table-wrap' }, h('table', null,
+        h('thead', null, h('tr', null, h('th', null, '날짜'), h('th', null, '기분'), h('th', null, '기초미션'),
+          d.roleHolders.has(r.sid) ? h('th', null, '1인1역') : null, h('th', null, '글마당'))),
+        h('tbody', null, ...cells))),
+      left.length ? h('p', { class: 'muted small', style: 'margin:0' }, `남은 과제: ${left.map((t) => t.title).join(', ')}`) : null,
+      h('div', { class: 'row' }, memo, h('button', { class: 'btn small', onclick: () => { dlg.remove(); saveMemo(r.sid, memo.value); } }, '메모 저장'))));
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.remove(); });
+    document.body.append(dlg);
+  }
+
   function careList() {
     const flagged = data.rows.filter((r) => r.flags.length && !r.checkedRecently);
     return h('section', { class: 'card' },
       h('h2', null, flagged.length ? `살펴볼 학생 (${flagged.length})` : '살펴볼 학생'),
-      h('p', { class: 'muted small', style: 'margin:-2px 0 4px' }, '기분·과제·활동을 보고 살펴보면 좋을 학생을 모았어요. 이 화면은 학생에게 보이지 않아요.'),
+      h('p', { class: 'muted small', style: 'margin:-2px 0 4px' }, '기분·과제·활동·갑작스러운 변화를 보고 살펴보면 좋을 학생을 모았어요. 기준은 기본 설정에서 바꿔요. 이 화면은 학생에게 보이지 않아요.'),
       flagged.length === 0
         ? h('p', { class: 'empty-ok' }, '✅ 지금은 특별히 살펴볼 학생이 없어요.')
         : h('div', { class: 'care-cards' }, ...flagged.map((r) => h('div', { class: 'care-alert' },
           h('div', { class: 'ca-head' },
-            h('b', null, `${r.number}번 ${r.name}`),
+            h('button', { class: 'linkish', title: '2주 상세 보기', onclick: () => openDetail(r) }, h('b', null, `${r.number}번 ${r.name}`)),
             h('div', { class: 'ca-flags' }, ...r.flags.map((f) => h('span', { class: 'ca-flag' }, f)))),
           h('div', { class: 'row' },
-            h('input', { type: 'text', value: r.memo, placeholder: '메모', style: 'flex:1', onchange: (e) => run(() => setDoc(doc(db, 'careNotes', r.sid), { memo: e.target.value }, { merge: true })) }),
+            h('input', { type: 'text', value: r.memo, placeholder: '메모', style: 'flex:1', onchange: (e) => saveMemo(r.sid, e.target.value) }),
             h('button', { class: 'btn secondary small', onclick: () => run(() => setDoc(doc(db, 'careNotes', r.sid), { checkedAt: serverTimestamp() }, { merge: true }), '살펴봤어요') }, '살펴봤어요'))))),
     );
   }
@@ -126,15 +216,34 @@ export async function renderCare(root) {
     );
   }
 
+  // 열 제목 눌러 정렬(한 번 더 누르면 반대로)
+  const COLS = [
+    ['number', '번호', (r) => r.number], ['name', '이름', (r) => r.name],
+    ['partDays', '기초미션', (r) => r.partDays], ['rate', '정답률', (r) => r.rate ?? -1],
+    ['activity', '활동률', (r) => r.activity ?? -1], ['mood', '이번 주 기분', null],
+    ['wallet', '지갑', (r) => r.summary.wallet ?? 0], ['total', '누적', (r) => r.summary.total ?? 0],
+  ];
+  function sortedRows() {
+    const get = COLS.find((c) => c[0] === sortKey)?.[2] ?? ((r) => r.number);
+    return data.rows.slice().sort((a, b) => {
+      const x = get(a); const y = get(b);
+      return (typeof x === 'string' ? x.localeCompare(y, 'ko') : x - y) * sortDir || a.number - b.number;
+    });
+  }
+
   function table() {
-    const head = h('tr', null, h('th', null, ''), h('th', null, '번호'), h('th', null, '이름'), h('th', null, '기초미션'), h('th', null, '정답률'), h('th', null, '최근 기분'), h('th', null, '지갑'), h('th', null, '누적'));
+    const head = h('tr', null, h('th', null, ''), ...COLS.map(([key, label, get]) => (get
+      ? h('th', { class: 'sortable', onclick: () => { if (sortKey === key) sortDir = -sortDir; else { sortKey = key; sortDir = key === 'number' || key === 'name' ? 1 : -1; } draw(); } },
+        label, sortKey === key ? (sortDir > 0 ? ' ▲' : ' ▼') : '')
+      : h('th', null, label))));
     return h('section', { class: 'card' }, h('h2', null, '자기관리 현황'),
-      h('p', { class: 'muted small', style: 'margin:-2px 0 10px' }, '최근 2주 기초미션 참여·정답률·기분·포인트를 한눈에 봐요.'),
+      h('p', { class: 'muted small', style: 'margin:-2px 0 10px' }, '최근 2주 기초미션 참여·정답률·활동률(기초미션·1인1역·글마당)·기분·포인트예요. 열 제목을 누르면 정렬, 이름을 누르면 2주 상세를 봐요.'),
       h('div', { class: 'table-wrap' }, h('table', null, h('thead', null, head),
-        h('tbody', null, ...data.rows.map((r) => h('tr', { class: r.flags.length ? 'flagged' : '' },
+        h('tbody', null, ...sortedRows().map((r) => h('tr', { class: r.flags.length ? 'flagged' : '' },
           h('td', null, h('input', { type: 'checkbox', checked: selected.has(r.sid), onchange: (e) => { if (e.target.checked) selected.add(r.sid); else selected.delete(r.sid); draw(); } })),
-          h('td', { class: 'num' }, r.number), h('td', null, r.name),
-          h('td', null, `${r.partDays}/10일`), h('td', null, r.rate == null ? '-' : `${r.rate}%`),
+          h('td', { class: 'num' }, r.number),
+          h('td', null, h('button', { class: 'linkish', title: '2주 상세 보기', onclick: () => openDetail(r) }, r.name)),
+          h('td', null, `${r.partDays}/${r.days}일`), h('td', null, pct(r.rate)), h('td', null, pct(r.activity)),
           h('td', null, r.recentMoods.map((m) => (m ? moodEmoji(m) : '·')).join(' ')),
           h('td', { class: 'num' }, r.summary.wallet ?? 0), h('td', { class: 'num' }, r.summary.total ?? 0))))),
       ),

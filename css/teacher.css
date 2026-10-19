@@ -316,3 +316,8 @@ table.board tfoot .left-row td.has-left { color: var(--danger); }
 .meet-input { font-size: 22px; padding: 14px 16px; border: 2px solid var(--line); border-radius: 14px; resize: vertical; font-family: inherit; }
 .meet-decide .btn, .meet-nav .btn { font-size: 18px; padding: 12px 20px; }
 .meet-nav { display: flex; justify-content: space-between; margin-top: 6px; }
+
+/* 살핌판: 정렬 가능한 열, 상세 창 */
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--primary-dark); }
+.sheet-box.care-detail { max-width: 760px; }
