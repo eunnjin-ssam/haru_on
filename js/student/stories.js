@@ -6,6 +6,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
+import { todayId } from '../common/dates.js';
 
 const REPORT_REASONS = [['tease', '놀리는 말'], ['swear', '욕설'], ['etc', '기타']];
 const EFF_LABEL = { story: '🌱 이야기 중', agenda: '🍲 회의 안건', promise: '✅ 우리가 정한 것', hold: '보류' };
@@ -266,7 +267,9 @@ export async function renderStories(content, student, settings) {
       promises.length ? h('section', { class: 'card promises' },
         h('h3', null, '🤝 우리 반 약속'),
         h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '회의에서 함께 정한 것'),
-        ...promises.map((s) => h('p', { class: 'promise-item' }, `✅ ${s.decided || s.wish}`))) : null,
+        ...promises.map((s) => h('p', { class: 'promise-item' }, `✅ ${s.decided || s.wish}`,
+          // 선생님이 정한 점검일이 되면: 잘 지켜지고 있는지 함께 돌아보기
+          s.reviewAt && s.reviewAt <= todayId() ? h('span', { class: 'promise-review' }, '🔎 잘 지켜지고 있나요?') : null))) : null,
       others.length === 0
         ? h('p', { class: 'muted', style: 'padding:20px' }, '아직 이야기가 없어요. 우리 반 이야기를 올려 보세요!')
         : h('div', { class: 'feed-grid' }, ...others.map(storyCard)),

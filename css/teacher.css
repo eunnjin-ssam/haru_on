@@ -296,3 +296,23 @@ table.board tfoot .left-row td.has-left { color: var(--danger); }
 /* 폼: 여러 줄·날짜 입력 */
 .role-form textarea, .role-form input[type=date] { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; }
 .role-form textarea { width: 100%; resize: vertical; }
+
+/* 약속마당: 점검할 약속 */
+.review-card { border: 1.5px solid var(--accent); }
+
+/* 약속마당: 회의 화면(스마트보드용 크게 보기) */
+.meet { position: fixed; inset: 0; z-index: 300; background: var(--bg); overflow: auto; display: flex; justify-content: center; padding: 28px 32px; }
+.meet-box { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 18px; }
+.meet-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.meet-count { font-size: 20px; font-weight: 800; color: var(--primary-dark); }
+.meet-wish { font-size: clamp(32px, 4.4vw, 56px); line-height: 1.25; margin: 10px 0 0; letter-spacing: -.02em; }
+.meet-reason { font-size: clamp(20px, 2.2vw, 28px); line-height: 1.5; margin: 0; color: var(--text); }
+.meet-more { font-size: 20px; color: var(--muted); margin: 0; }
+.meet-ideas { background: var(--surface); border-radius: 16px; padding: 16px 22px; }
+.meet-ideas h3 { margin: 0 0 8px; font-size: 22px; }
+.meet-ideas p { font-size: 22px; margin: 6px 0; }
+.meet-done { font-size: 24px; font-weight: 800; color: var(--ok); margin: 0; }
+.meet-decide { display: flex; flex-direction: column; gap: 10px; }
+.meet-input { font-size: 22px; padding: 14px 16px; border: 2px solid var(--line); border-radius: 14px; resize: vertical; font-family: inherit; }
+.meet-decide .btn, .meet-nav .btn { font-size: 18px; padding: 12px 20px; }
+.meet-nav { display: flex; justify-content: space-between; margin-top: 6px; }

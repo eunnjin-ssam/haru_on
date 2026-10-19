@@ -36,13 +36,13 @@
 | writingWeeks | 학생_주 | sid, week, days: [날짜] |
 | drafts | 학생 | readDate, title, summary, thoughts, at |
 | reports 🔒 | post_글id_신고자 / comment_댓글id_신고자 | kind, target, story, reporter, reason(tease/swear/etc), at |
-| stories | 자동 | mode(named/anon), author(named일 때만), wish, reason, when, what, feeling, likes, stage(story/agenda/promise/hold), hidden, at (+교사: decided, mergedInto) |
+| stories | 자동 | mode(named/anon), author(named일 때만), wish, reason, when, what, feeling, likes, stage(story/agenda/promise/hold), hidden, at (+교사: decided, mergedInto, confirmedAt·reviewAt(약속 확정일·점검일 'YYYYMMDD')) |
 | stories/{id}/likes | 학생 | at |
 | stories/{id}/comments | 자동 | author, text, kind(idea/opinion), status(public/reported/hidden), at |
 | storyAuthors 🔒 | 이야기 id | sid, at (본인은 자기 것 읽기 가능) |
-| privateStories | 자동 | author, wish, reason, when, what, feeling, at (본인·교사만) |
-| storyNotes 🔒 | 자동 | 상담 메모 |
-| promises | 자동 | text, story, confirmedAt, reviewAt, status |
+| privateStories | 자동 | author, wish, reason, when, what, feeling, at, (+교사: seenAt = 선생님이 본 때) (본인·교사만) |
+| storyNotes 🔒 | privateStories id | memo, at (상담 메모) |
+| promises | (안 씀) | 약속은 stories의 stage=promise·decided·confirmedAt·reviewAt로 관리한다 |
 | tasks | 자동 / 반복은 `규칙id_날짜` | kind(homework/check), title, desc, subject, dueAt, submitType(check/text), points, targets: [학생], notify, repeatWeekly, (반복이면) repeat, showAt(이때부터 학생에게 보임) |
 | taskRepeats 🔒 | 자동 | 반복 규칙: kind, title, desc, subject, submitType, points, targets, notify, mode(daily/days), days[1=월…7=일], dueTime('HH:MM'), leadDays, startDate, endDate, skip[날짜], active, createdAt. 선생님 화면을 열 때 오늘부터 2주치 tasks를 미리 만든다 |
 | submissions | 과제_학생 | task, sid, status(submitted/done/redo/exempt), text, firstAt, lastAt (+교사: comment) |
