@@ -242,3 +242,7 @@ tr.flagged td { background: #fff7e0; }
   .pin-card .pin { font-size: 22pt; font-weight: 700; margin: 2mm 0; }
   .pin-card .url { font-size: 9pt; color: #555; word-break: break-all; }
 }
+
+/* 쿠폰 추가: 문장형 횟수 입력 */
+.count-pick { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.role-form .say { margin: 2px 0 0; color: var(--primary-dark); font-weight: 600; font-size: 14px; }

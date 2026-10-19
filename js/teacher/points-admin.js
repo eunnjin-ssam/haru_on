@@ -6,7 +6,11 @@ import {
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 
-const PERIODS = [['none', '없음'], ['week', '주'], ['month', '월']];
+// 한 학생이 살 수 있는 횟수: 고르는 칸 → (buyPeriod, buyLimit). 'year'는 buyPeriod 'none' + 횟수(학년 끝까지 통틀어).
+const BUY_MODES = [['unlimited', '제한 없음'], ['day', '하루에'], ['week', '일주일에'], ['month', '한 달에'], ['year', '1년 동안 통틀어']];
+const buyModeOf = (i) => (!i.buyLimit ? 'unlimited' : (i.buyPeriod === 'none' || !i.buyPeriod ? 'year' : i.buyPeriod));
+const buyText = (i) => (!i.buyLimit ? '제한 없음' : `${BUY_MODES.find(([v]) => v === buyModeOf(i))?.[1] ?? ''} ${i.buyLimit}번`);
+const useText = (i) => (i.dailyUse ? `하루에 ${i.dailyUse}번` : '제한 없음');
 
 export async function renderPointsAdmin(root) {
   let items = []; let coupons = []; let uses = []; let ideas = []; let names = new Map();
@@ -134,19 +138,50 @@ export async function renderPointsAdmin(root) {
     const ideaInfo = prefill?._ideaId ? prefill : null;
     const inp = (key, type = 'text', style = '') => h('input', { type, value: String(f[key] ?? ''), style, oninput: (e) => { f[key] = e.target.value; } });
     const name = inp('name'); const desc = inp('desc'); const price = inp('price', 'number', 'width:90px');
-    const buyLimit = inp('buyLimit', 'number', 'width:90px'); const dailyUse = inp('dailyUse', 'number', 'width:90px');
     const instant = h('input', { type: 'checkbox', checked: f.instant, onchange: (e) => { f.instant = e.target.checked; } });
     const onSale = h('input', { type: 'checkbox', checked: f.onSale, onchange: (e) => { f.onSale = e.target.checked; } });
-    const period = h('select', { onchange: (e) => { f.buyPeriod = e.target.value; } }, ...PERIODS.map(([v, l]) => h('option', { value: v, selected: f.buyPeriod === v }, l)));
+
+    // 한 학생이 살 수 있는 횟수: [제한 없음/하루에/일주일에/한 달에/1년 동안 통틀어] [n]번
+    let buyMode = buyModeOf(f);
+    const buyN = h('input', { type: 'number', min: '1', value: String(f.buyLimit || 1), style: 'width:70px' });
+    const buySel = h('select', null, ...BUY_MODES.map(([v, l]) => h('option', { value: v, selected: buyMode === v }, l)));
+    const buyCount = h('span', { class: 'count-pick' }, buyN, '번');
+    // 반 전체가 하루에 쓸 수 있는 횟수: [제한 없음/하루에] [n]번
+    let useMode = f.dailyUse ? 'day' : 'unlimited';
+    const useN = h('input', { type: 'number', min: '1', value: String(f.dailyUse || 1), style: 'width:70px' });
+    const useSel = h('select', null, h('option', { value: 'unlimited', selected: useMode === 'unlimited' }, '제한 없음'), h('option', { value: 'day', selected: useMode === 'day' }, '하루에'));
+    const useCount = h('span', { class: 'count-pick' }, useN, '번');
+    const buySay = h('p', { class: 'say' }); const useSay = h('p', { class: 'say' });
+    const n = (el) => Math.max(1, Math.floor(Number(el.value) || 1));
+    function sync() {
+      buyMode = buySel.value; useMode = useSel.value;
+      buyCount.style.display = buyMode === 'unlimited' ? 'none' : '';
+      useCount.style.display = useMode === 'unlimited' ? 'none' : '';
+      buySay.textContent = buyMode === 'unlimited'
+        ? '→ 한 학생이 몇 번이든 살 수 있어요.'
+        : `→ 한 학생이 ${BUY_MODES.find(([v]) => v === buyMode)[1]} ${n(buyN)}번까지 살 수 있어요.`;
+      useSay.textContent = useMode === 'unlimited'
+        ? '→ 언제든 쓸 수 있어요.'
+        : `→ 우리 반 전체에서 하루에 ${n(useN)}명(번)까지만 쓸 수 있어요. 다 차면 다음 날 써요.`;
+      f.buyLimit = buyMode === 'unlimited' ? 0 : n(buyN);
+      f.buyPeriod = (buyMode === 'unlimited' || buyMode === 'year') ? 'none' : buyMode;
+      f.dailyUse = useMode === 'unlimited' ? 0 : n(useN);
+    }
+    for (const el of [buySel, buyN, useSel, useN]) el.addEventListener('input', sync);
+    sync();
+
     return h('section', { class: 'card' }, h('h3', null, editing ? '쿠폰 고치기' : '쿠폰 추가'),
       h('div', { class: 'role-form' },
         h('label', { class: 'field' }, h('span', null, '이름'), name),
         h('label', { class: 'field' }, h('span', null, '설명'), desc),
         h('label', { class: 'field' }, h('span', null, '가격'), price),
-        h('label', { class: 'pick' }, instant, '바로 구매(선생님 승인 없이 지급)'),
-        h('label', { class: 'field' }, h('span', null, '구매 한도 (0=무제한)'), buyLimit),
-        h('label', { class: 'field' }, h('span', null, '한도 기간'), period),
-        h('label', { class: 'field' }, h('span', null, '하루 사용 한도(반 전체, 0=무제한)'), dailyUse),
+        h('label', { class: 'pick' }, instant, '바로 받기 (선생님 승인 없이 사자마자 쿠폰이 생겨요)'),
+        h('div', { class: 'field' }, h('span', null, '한 학생이 살 수 있는 횟수'),
+          h('div', { class: 'row' }, buySel, buyCount), buySay,
+          h('p', { class: 'muted small', style: 'margin:0' }, '예) 하루에 1번만 사게 하려면 ‘하루에’ + 1번')),
+        h('div', { class: 'field' }, h('span', null, '반 전체가 하루에 쓸 수 있는 횟수'),
+          h('div', { class: 'row' }, useSel, useCount), useSay,
+          h('p', { class: 'muted small', style: 'margin:0' }, '예) 자유자리권을 하루에 2명만 쓰게 하려면 ‘하루에’ + 2번')),
         h('label', { class: 'pick' }, onSale, '판매 중'),
         h('div', { class: 'row' },
           h('button', { class: 'btn', onclick: async () => {
@@ -164,11 +199,12 @@ export async function renderPointsAdmin(root) {
         showForm ? null : h('button', { class: 'btn', onclick: () => { editing = null; prefill = null; showForm = true; draw(); } }, '+ 쿠폰 추가')),
       items.length === 0 ? h('p', { class: 'muted' }, '쿠폰이 없어요.')
         : h('table', null, h('thead', null, h('tr', null,
-          h('th', null, '이름'), h('th', null, '가격'), h('th', null, '구매'), h('th', null, '하루 사용'), h('th', null, '판매'), h('th', null, ''))),
+          h('th', null, '이름'), h('th', null, '가격'), h('th', null, '살 때'), h('th', null, '한 학생이 살 수 있는 횟수'), h('th', null, '반 전체 사용 횟수'), h('th', null, '판매'), h('th', null, ''))),
         h('tbody', null, ...items.map((i) => h('tr', null,
           h('td', null, i.name), h('td', { class: 'num' }, i.price),
-          h('td', null, `${i.instant ? '즉시' : '승인'}${i.buyLimit ? ` · ${PERIODS.find((p) => p[0] === i.buyPeriod)?.[1] ?? ''} ${i.buyLimit}` : ''}`),
-          h('td', null, i.dailyUse ? `하루 ${i.dailyUse}` : '무제한'),
+          h('td', null, i.instant ? '바로 받음' : '선생님 승인'),
+          h('td', null, buyText(i)),
+          h('td', null, useText(i)),
           h('td', null, i.onSale ? '판매중' : '숨김'),
           h('td', { class: 'actions' },
             h('button', { class: 'btn secondary small', onclick: () => { editing = i.id; prefill = null; showForm = true; draw(); } }, '고치기'),

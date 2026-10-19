@@ -633,9 +633,11 @@ service cloud.firestore {
       allow update: if isStudent() && couponUseRequestOK(id);
       allow read, write: if isTeacher();
     }
+    // 구매 횟수를 세는 기간: day=하루, week=주, month=달, none=1년 전체
     function periodKey(item) {
-      return item.buyPeriod == 'week' ? weekId()
-        : (item.buyPeriod == 'month' ? monthId() : 'all');
+      return item.buyPeriod == 'day' ? 'd' + today()
+        : (item.buyPeriod == 'week' ? weekId()
+        : (item.buyPeriod == 'month' ? monthId() : 'all'));
     }
     function couponBuyOK(id) {
       let r = request.resource.data;

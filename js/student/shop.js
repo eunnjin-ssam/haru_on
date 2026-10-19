@@ -12,7 +12,9 @@ const STATUS_LABEL = { pending: '구매 승인 대기', useRequested: '사용 �
 export async function renderShop(content, student, settings) {
   const sid = student.sid;
   const currency = settings.names.currency;
-  const periodKey = (item) => (item.buyPeriod === 'week' ? weekId() : (item.buyPeriod === 'month' ? monthId() : 'all'));
+  // 보안 규칙의 periodKey와 같아야 한다
+  const periodKey = (item) => (item.buyPeriod === 'day' ? `d${todayId()}`
+    : (item.buyPeriod === 'week' ? weekId() : (item.buyPeriod === 'month' ? monthId() : 'all')));
   let data;
 
   async function load() {
@@ -53,7 +55,7 @@ export async function renderShop(content, student, settings) {
     const period = periodKey(item);
     const owned = data.coupons.filter((c) => c.coupon === item.id && c.period === period);
     const limit = item.buyLimit === 0 ? 999 : item.buyLimit;
-    if (owned.length >= limit) { toast('이번 기간 구매 한도를 다 썼어요.', 'error'); return; }
+    if (owned.length >= limit) { toast('이 쿠폰은 지금은 더 살 수 없어요.', 'error'); return; }
     if ((data.summary.wallet ?? 0) < item.price) { toast('포인트가 모자라요.', 'error'); return; }
     if (!confirm(`'${item.name}'을(를) ${item.price}${currency}에 살까요?`)) return;
     const n = owned.length + 1;
@@ -131,10 +133,10 @@ export async function renderShop(content, student, settings) {
     const ownedCount = data.coupons.filter((c) => c.coupon === item.id && c.period === period).length;
     const limit = item.buyLimit === 0 ? null : item.buyLimit;
     const full = limit != null && ownedCount >= limit;
-    const periodName = item.buyPeriod === 'week' ? '주' : (item.buyPeriod === 'month' ? '월' : '');
+    const periodName = { day: '하루에', week: '일주일에', month: '한 달에' }[item.buyPeriod] ?? '모두';
     return h('div', { class: 'shop-item' },
       h('div', null, h('div', { class: 'si-name' }, item.name),
-        h('div', { class: 'muted small' }, `${item.desc || ''}${limit ? ` · ${periodName} ${limit}장${full ? ' (다 씀)' : ''}` : ''}`)),
+        h('div', { class: 'muted small' }, [item.desc, limit ? `${periodName} ${limit}장까지${full ? ' (다 샀어요)' : ''}` : ''].filter(Boolean).join(' · '))),
       h('button', { class: 'btn small', disabled: full, onclick: () => buy(item) }, `${item.price} ${currency}`),
     );
   }

@@ -454,6 +454,20 @@ describe('상점', () => {
     await assertFails(buy(db, 3));
     await assertFails(buy(db, 1));
   });
+  it('하루 1번 쿠폰은 오늘 1장만 살 수 있고, 기간 표시는 오늘 날짜여야 한다', async () => {
+    await setDoc(doc(teacher(env), 'shopItems/c3'), { name: '하루권', price: 2, instant: true, buyLimit: 1, buyPeriod: 'day', dailyUse: 0, onSale: true });
+    const db = await login(env, '1');
+    const buyDay = (n, period = `d${T()}`) => {
+      const id = `s1_c3_${period}_${n}`;
+      const b = writeBatch(db);
+      b.set(doc(db, `coupons/${id}`), { sid: 's1', coupon: 'c3', period, n, status: 'owned', price: 2, use: null, at: serverTimestamp() });
+      addTx(b, db, `buy_${id}`, tx('s1', 'buy', -2, 0, id));
+      return b.commit();
+    };
+    await assertFails(buyDay(1, 'd20000101'));
+    await assertSucceeds(buyDay(1));
+    await assertFails(buyDay(2));
+  });
   it('가격을 깎아서 살 수 없다', async () => {
     const db = await login(env, '1');
     const b = writeBatch(db);
