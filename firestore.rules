@@ -353,7 +353,10 @@ service cloud.firestore {
     }
     function roleRequestOK(id) {
       let r = request.resource.data;
-      return exactKeys(['sid', 'role', 'date', 'status', 'by', 'at'])
+      // reqAt(요청 시각)은 확인 담당 처리 속도를 재려고 둔다(없어도 됨)
+      return r.keys().hasAll(['sid', 'role', 'date', 'status', 'by', 'at'])
+        && r.keys().hasOnly(['sid', 'role', 'date', 'status', 'by', 'at', 'reqAt'])
+        && (!('reqAt' in r) || r.reqAt == request.time)
         && r.sid == me() && r.by == me() && r.date == today()
         && r.at == request.time && r.status == 'requested'
         && safeId(r.role) && id == today() + '_' + r.role + '_' + me()
@@ -363,7 +366,8 @@ service cloud.firestore {
     function roleReRequestOK() {
       return resource.data.sid == me() && resource.data.status == 'redo'
         && resource.data.date == today()
-        && onlyChanged(['status', 'by', 'at'])
+        && onlyChanged(['status', 'by', 'at', 'reqAt'])
+        && (!('reqAt' in request.resource.data) || request.resource.data.reqAt == request.time)
         && request.resource.data.status == 'requested'
         && request.resource.data.by == me()
         && request.resource.data.at == request.time;

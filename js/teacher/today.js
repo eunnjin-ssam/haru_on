@@ -10,6 +10,7 @@ import { MOODS, moodLabel } from '../student/mood.js';
 import { isShown } from '../common/task-visible.js';
 import { loadSettings } from '../common/settings.js';
 import { renderMyWeek } from '../student/myweek.js';
+import { loadTerms, currentTerm, nextTerm, daysLeft } from './role-terms.js';
 
 const NEGATIVE = ['upset', 'angry', 'tired'];
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '');
@@ -83,13 +84,23 @@ export async function renderToday(root, { open }) {
     });
 
     // 처리할 일: 신고(글·댓글), 쿠폰 요청(구매·사용), 새 선생님만 보기 이야기
-    const [repPosts, storiesSnap, buyReq, useReq, privSnap] = await Promise.all([
+    const [repPosts, storiesSnap, buyReq, useReq, privSnap, terms, attSnap, wishSnap] = await Promise.all([
       getDocs(query(collection(db, 'posts'), where('status', '==', 'reported'))).catch(() => null),
       getDocs(collection(db, 'stories')).catch(() => null),
       getDocs(query(collection(db, 'coupons'), where('status', '==', 'pending'))).catch(() => null),
       getDocs(query(collection(db, 'couponUses'), where('status', '==', 'requested'))).catch(() => null),
       getDocs(collection(db, 'privateStories')).catch(() => null),
+      loadTerms().catch(() => []),
+      getDoc(doc(db, 'attendance', today)).catch(() => null),
+      getDocs(collection(db, 'roleWishes')).catch(() => null),
     ]);
+    // 1인1역 교체: 희망 받는 중 / 확정 남음 / 끝나기 3일 전인데 다음 기간 없음
+    const cur = currentTerm(terms); const next = nextTerm(terms);
+    let roleTerm = null;
+    if (next?.status === 'wish') roleTerm = { text: `1인1역 희망 받는 중 (${(wishSnap?.docs ?? []).filter((d) => d.data().term === next.id).length}/${students.length}명)`, tone: 'wait' };
+    else if (next?.status === 'assigned') roleTerm = { text: '1인1역 새 배정 확정이 남았어요', tone: 'wait' };
+    else if (!next && cur && daysLeft(cur) <= 3) roleTerm = { text: `1인1역이 ${daysLeft(cur) < 0 ? '끝났어요' : `${daysLeft(cur)}일 뒤 끝나요`} — 희망 받기를 열까요?`, tone: 'req' };
+    const absent = new Set(attSnap?.exists() ? attSnap.data().absent ?? [] : []);
     const repComments = await Promise.all((storiesSnap?.docs ?? []).map((d) =>
       getDocs(query(collection(db, 'stories', d.id, 'comments'), where('status', '==', 'reported'))).then((x) => x.size).catch(() => 0)));
     const todo = {
@@ -100,7 +111,7 @@ export async function renderToday(root, { open }) {
       reviews: (storiesSnap?.docs ?? []).filter((d) => d.data().stage === 'promise' && d.data().reviewAt && d.data().reviewAt <= today).length,
     };
 
-    data = { today, perDay, settings, students, moods, notes, mission, roles, checks, tasks, subs, waiting, streak, todo };
+    data = { today, perDay, settings, students, moods, notes, mission, roles, checks, tasks, subs, waiting, streak, todo, roleTerm, absent };
   }
 
   function roleState(sid) {
@@ -195,6 +206,7 @@ export async function renderToday(root, { open }) {
     if (t.reportedComments) items.push({ ico: '🚩', text: '신고된 약속마당 댓글', n: t.reportedComments, tone: 'care', go: 'stories' });
     if (t.coupons) items.push({ ico: '🎟️', text: '쿠폰 요청 (구매·사용)', n: t.coupons, tone: 'wait', go: 'points' });
     if (t.privates) items.push({ ico: '🔒', text: '새 ‘선생님만 보기’ 이야기', n: t.privates, tone: 'req', go: 'stories' });
+    if (data.roleTerm) items.push({ ico: '🧹', text: data.roleTerm.text, n: '', tone: data.roleTerm.tone, go: 'roles' });
     if (t.reviews) items.push({ ico: '🔎', text: '점검할 우리반 약속', n: t.reviews, tone: 'wait', go: 'stories' });
     if (data.streak.length) items.push({ ico: '💗', text: `3일째 힘든 친구: ${data.streak.map((s) => s.name).join(', ')}`, n: '', tone: 'care', go: 'care' });
     return h('section', { class: 'card' },
@@ -233,7 +245,8 @@ export async function renderToday(root, { open }) {
 
     return h('tr', { class: negative ? 'row-neg' : '' },
       h('td', { class: 'num' }, s.number),
-      h('td', null, h('button', { class: 'linkish', title: '이 학생의 나의마당 보기', onclick: () => openMyWeek(s) }, s.name)),
+      h('td', null, h('button', { class: 'linkish', title: '이 학생의 나의마당 보기', onclick: () => openMyWeek(s) }, s.name),
+        data.absent.has(s.sid) ? h('span', { class: 'badge skip', style: 'margin-left:6px' }, '결석') : null),
       moodCell,
       h('td', null, m ? `${m.correct}/${data.perDay}` : h('span', { class: 'muted' }, '-')),
       roleCell,

@@ -32,10 +32,10 @@ export async function loadRoles(sid) {
 export async function requestRole(sid, roleId, redo) {
   const id = `${todayId()}_${roleId}_${sid}`;
   if (redo) {
-    await updateDoc(doc(db, 'roleChecks', id), { status: 'requested', by: sid, at: serverTimestamp() });
+    await updateDoc(doc(db, 'roleChecks', id), { status: 'requested', by: sid, at: serverTimestamp(), reqAt: serverTimestamp() });
   } else {
     await setDoc(doc(db, 'roleChecks', id), {
-      sid, role: roleId, date: todayId(), status: 'requested', by: sid, at: serverTimestamp(),
+      sid, role: roleId, date: todayId(), status: 'requested', by: sid, at: serverTimestamp(), reqAt: serverTimestamp(),
     });
   }
 }

@@ -28,7 +28,7 @@ export async function renderCare(root) {
     const recent = past([...weeks[1].days, ...weeks[0].days]); // 최근 2주 평일(오늘까지)
     const last5 = recent.slice(-5);
     const closed = recent.filter((d) => d < today); // 끝난 날(오늘은 아직 진행 중이라 완료율에서 뺌)
-    const [stuSnap, sumSnap, moodSnap, noteSnap, attSnap, subSnap, taskSnap, careSnap, tcfgSnap, cfgSnap, roleSnap, checkSnap, postSnap] = await Promise.all([
+    const [stuSnap, sumSnap, moodSnap, noteSnap, attSnap, subSnap, taskSnap, careSnap, tcfgSnap, cfgSnap, roleSnap, checkSnap, postSnap, absSnap] = await Promise.all([
       getDocs(collection(db, 'students')),
       getDocs(collection(db, 'summaries')),
       getDocs(collection(db, 'moods')),
@@ -42,6 +42,7 @@ export async function renderCare(root) {
       getDocs(collection(db, 'roles')),
       getDocs(collection(db, 'roleChecks')),
       getDocs(collection(db, 'posts')),
+      getDocs(collection(db, 'attendance')),
     ]);
     const students = stuSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
     const sums = new Map(sumSnap.docs.map((d) => [d.id, d.data()]));
@@ -63,6 +64,9 @@ export async function renderCare(root) {
     }
     for (const d of checkSnap.docs) { const c = d.data(); if (c.status === 'approved') put(roleBy, c.sid, c.date, true); }
     for (const d of postSnap.docs) { const p = d.data(); const date = d.id.slice(d.id.lastIndexOf('_') + 1); put(postBy, p.author, date, p.title ?? true); }
+    // 결석한 날은 완료율 계산에서 뺀다(attendance/{날짜}.absent)
+    const absentOn = new Map(absSnap.docs.map((d) => [d.id, new Set(d.data().absent ?? [])]));
+    const present = (sid, days) => days.filter((d) => !absentOn.get(d)?.has(sid));
     const roleHolders = new Set(roleSnap.docs.flatMap((d) => d.data().members ?? []));
 
     const subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
@@ -82,18 +86,19 @@ export async function renderCare(root) {
       const mi = missBy.get(s.sid) ?? {};
       const graded = recent.reduce((n, d) => n + (mi[d]?.n ?? 0), 0);
       const correct = recent.reduce((n, d) => n + (mi[d]?.ok ?? 0), 0);
-      const partDays = closed.filter((d) => (mi[d]?.n ?? 0) >= perDay).length;
-      const roleDays = closed.filter((d) => roleBy.get(s.sid)?.[d]).length;
+      const myClosed = present(s.sid, closed);
+      const partDays = myClosed.filter((d) => (mi[d]?.n ?? 0) >= perDay).length;
+      const roleDays = myClosed.filter((d) => roleBy.get(s.sid)?.[d]).length;
       const writeDays = (w) => w.days.filter((d) => postBy.get(s.sid)?.[d]).length;
       // 활동률(최근 2주): 기초미션 참여일, 1인1역 완료일(맡은 역할이 있을 때), 글마당(주마다 보너스 기준 일수 대비)
-      const comps = [partDays / Math.max(1, closed.length)];
-      if (roleHolders.has(s.sid)) comps.push(roleDays / Math.max(1, closed.length));
+      const comps = [partDays / Math.max(1, myClosed.length)];
+      if (roleHolders.has(s.sid)) comps.push(roleDays / Math.max(1, myClosed.length));
       // 글마당은 주 단위라, 끝난 지난 두 주로 센다
       comps.push((Math.min(writeDays(weeks[1]), bonusDays) + Math.min(writeDays(weeks[2]), bonusDays)) / (2 * bonusDays));
       const activity = avg(comps);
       // 갑작스러운 변화: 지난 3주 평균 vs 이번 주(이틀 이상 지났을 때)
-      const thisDays = past(weeks[0].days).filter((d) => d < today || (mi[d]?.n ?? 0) >= perDay);
-      const before = avg([1, 2, 3].flatMap((i) => weeks[i].days.map((d) => dayRate(s.sid, d))));
+      const thisDays = present(s.sid, past(weeks[0].days)).filter((d) => d < today || (mi[d]?.n ?? 0) >= perDay);
+      const before = avg([1, 2, 3].flatMap((i) => present(s.sid, weeks[i].days).map((d) => dayRate(s.sid, d))));
       const now = thisDays.length >= 2 ? avg(thisDays.map((d) => dayRate(s.sid, d))) : null;
 
       const neg = last5.filter((d) => NEG.includes(mp[d])).length;
@@ -117,7 +122,7 @@ export async function renderCare(root) {
       const cn = care.get(s.sid);
       const checkedRecently = cn?.checkedAt?.toMillis && (Date.now() - cn.checkedAt.toMillis()) < cfg.recheckDays * 86400000;
       return {
-        ...s, summary: sums.get(s.sid) ?? {}, partDays, days: closed.length,
+        ...s, summary: sums.get(s.sid) ?? {}, partDays, days: myClosed.length,
         rate: graded ? correct / graded : null, activity, remaining,
         recentMoods: weeks[0].days.map((dt) => mp[dt]), flags, memo: cn?.memo ?? '', checkedRecently,
       };

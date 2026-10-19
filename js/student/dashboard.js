@@ -11,6 +11,7 @@ import { isShown } from '../common/task-visible.js';
 import { lookOf } from '../character/catalog.js';
 import { drawFront } from '../character/voxel2d.js';
 import { celebrateGoal } from './celebrate.js';
+import { loadWish, wishCard } from './role-wish.js';
 
 export async function renderDashboard(content, student, settings, { openMission, openTasks }) {
   const sid = student.sid;
@@ -29,6 +30,7 @@ export async function renderDashboard(content, student, settings, { openMission,
       getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))).catch(() => null),
       getDoc(doc(db, 'profiles', sid)).catch(() => null),
     ]);
+    const wish = await loadWish(sid).catch(() => null);
     // 아직 안 낸 과제(제출 전이거나 '다시 해오기'), 마감 빠른 순
     const subs = new Map((subSnap?.docs ?? []).map((d) => [d.id, d.data().status]));
     const allTasks = (taskSnap?.docs ?? []).map((d) => ({ id: d.id, ...d.data() })).filter((t) => isShown(t));
@@ -48,6 +50,7 @@ export async function renderDashboard(content, student, settings, { openMission,
       names: new Map(studentsSnap.docs.map((d) => [d.id, d.data().name])),
       tasks,
       checks,
+      wish,
       equip: profSnap?.exists() ? profSnap.data().equip : null,
       goals: goalSnap ?goalSnap.docs.map((d) => ({ id: d.id, ...d.data() })) : [],
       messages: msgSnap ? msgSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((m) => !m.readAt).sort((a, b) => (b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0)) : [],
@@ -247,7 +250,7 @@ export async function renderDashboard(content, student, settings, { openMission,
     const grid = h('div', { class: 'dash-grid' },
       ...[moodCard(), todoCard(), doneCard(), goalCard()].filter(Boolean));
     content.replaceChildren(h('div', { class: 'dash' }, ...[
-      messagesCard(), hero(), requestCard(), checksCard(), grid,
+      messagesCard(), hero(), requestCard(), checksCard(), wishCard(sid, data.wish), grid,
     ].filter(Boolean)));
   }
 

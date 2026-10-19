@@ -250,6 +250,20 @@ describe('1인1역', () => {
     const s = (await getDoc(doc(teacher(env), 'summaries/s1'))).data();
     if (s.wallet !== 24 || s.roleDays !== 1) throw new Error(JSON.stringify(s));
   });
+  it('요청 시각(reqAt)을 함께 쓸 수 있고, 승인해도 남는다', async () => {
+    const db1 = await login(env, '1');
+    await assertSucceeds(setDoc(doc(db1, `roleChecks/${rid()}`),
+      { sid: 's1', role: 'r1', date: T(), status: 'requested', by: 's1', at: serverTimestamp(), reqAt: serverTimestamp() }));
+    const db2 = await login(env, '2');
+    await assertSucceeds(approve(db2, 's2'));
+    const c = (await getDoc(doc(teacher(env), `roleChecks/${rid()}`))).data();
+    if (!c.reqAt || c.status !== 'approved') throw new Error(JSON.stringify(c));
+  });
+  it('요청 시각을 꾸며 쓸 수 없다', async () => {
+    const db1 = await login(env, '1');
+    await assertFails(setDoc(doc(db1, `roleChecks/${rid()}`),
+      { sid: 's1', role: 'r1', date: T(), status: 'requested', by: 's1', at: serverTimestamp(), reqAt: new Date(2020, 0, 1) }));
+  });
   it('담당이 아닌 학생은 요청할 수 없다', async () => {
     const db3 = await login(env, '3');
     await assertFails(setDoc(doc(db3, `roleChecks/${T()}_r1_s3`),

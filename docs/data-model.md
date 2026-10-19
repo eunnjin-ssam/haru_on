@@ -23,13 +23,13 @@
 | summaries | 학생 | wallet, total, lastTx, reading, missionDays, roleDays |
 | moods | 학생_날짜 | sid, date, mood(excited/good/okay/upset/angry/tired/custom), at |
 | moodNotes | 학생_날짜 | sid, date, text, at (본인·교사만) |
-| attendance 🔒 | 날짜 | absent: [학생] |
+| attendance 🔒 | 날짜 | absent: [학생] (1인1역 오늘 탭에서 표시, 1인1역 완료율·살핌판 계산에서 그날을 뺌) |
 | missionKeys 🔒 | 문제 id | unit, answers: [정답 문자열] |
 | missionQuestions | 문제 id | grade, term, topic, unit, difficulty(basic/normal/challenge), type(choice/number), question, choices: [보기] (정답 없음, 학생 읽기 가능) |
 | missionAttempts | 학생_날짜_1~5 | sid, date, n, qid, answer, at, correct(채점 후) |
 | roles | 자동 | name, desc, members: [학생], checker, points |
-| roleChecks | 날짜_역할_학생 | sid, role, date, status(requested/approved/redo), by, at |
-| roleTerms | 자동 | start, end, wishOpen, assignments |
+| roleChecks | 날짜_역할_학생 | sid, role, date, status(requested/approved/redo), by, at, reqAt(요청 시각, 확인 담당 처리 속도용) |
+| roleTerms | 자동 | start, end('YYYYMMDD'), wishOpen, status(wish/assigned/confirmed/applied), plan{학생:역할}, ranks{학생:0~3지망}, checkers{역할:학생}, prev(적용 전 역할 기록), appliedAt. 시작일에 선생님 화면을 열면 확정 기간을 roles에 반영 |
 | roleWishes | 기간_학생 | sid, term, picks: [역할 1~3개], at |
 | posts | 학생_날짜 | author, readDate, title, summary, thoughts, status(public/reported/hidden/deleted), likes, editedByTeacher, at |
 | posts/{id}/likes | 학생 | at |
