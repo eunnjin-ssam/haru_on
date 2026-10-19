@@ -16,10 +16,10 @@ export function drawFront(canvas, equip) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width; const H = canvas.height;
   ctx.clearRect(0, 0, W, H);
-  // 월드 x[-6,6] y[0,23] → 캔버스
-  const scale = Math.min(W / 13, H / 25);
+  // 월드 x[-6.5,6.5] y[0,27] → 캔버스 (머리 위 소품·고양이 귀까지 들어오게)
+  const scale = Math.min(W / 13.5, H / 28);
   const ox = W / 2;
-  const oy = H - (H - 23 * scale) / 2;
+  const oy = H - (H - 27 * scale) / 2;
   const tx = (x) => ox + x * scale;
   const ty = (y) => oy - y * scale;
 
