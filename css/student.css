@@ -136,10 +136,16 @@ body { font-size: 17px; }
 
 /* 앱 셸: 왼쪽 사이드바 + 본문 (가로 넓은 디벗에 맞춤) */
 #app:has(.student-app) { padding: 0 !important; display: block !important; }
-.student-app { width: 100%; display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100dvh; }
+.student-app { width: 100%; display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 100dvh; }
 .sidebar { background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 10px; position: sticky; top: 0; height: 100dvh; }
-.brand { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 6px 16px; }
-.brand-img { width: 100%; max-width: 182px; height: auto; display: block; }
+.brand { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 0 16px; }
+.brand-img { width: 100%; max-width: 273px; height: auto; display: block; } /* 로고 1.5배 (182→273) */
+/* 좁은 화면(태블릿 세로 등)에선 사이드바·로고를 예전 크기로 */
+@media (max-width: 1000px) {
+  .student-app { grid-template-columns: 236px minmax(0, 1fr); }
+  .brand { padding: 8px 6px 16px; }
+  .brand-img { max-width: 182px; }
+}
 .brand-sub { font-size: 14px; font-weight: 700; color: var(--text); }
 .side-nav { display: flex; flex-direction: column; gap: 4px; }
 .nav-btn { display: flex; align-items: center; gap: 13px; border: 0; background: none; border-radius: 13px; padding: 12px 14px; color: var(--muted); font-size: 17px; font-weight: 700; text-align: left; transition: background .12s, color .12s; }

@@ -12,10 +12,10 @@ body { font-size: 15px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
 /* 앱 틀: 왼쪽 사이드바 + 본문 */
-.teacher-app { display: grid; grid-template-columns: 226px minmax(0, 1fr); min-height: 100dvh; }
+.teacher-app { display: grid; grid-template-columns: 262px minmax(0, 1fr); min-height: 100dvh; }
 .t-sidebar { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; position: sticky; top: 0; height: 100dvh; padding: 14px 12px; }
 .t-brand { padding: 6px 8px 12px; }
-.t-logo { width: 100%; max-width: 148px; height: auto; display: block; }
+.t-logo { width: 100%; max-width: 222px; height: auto; display: block; } /* 로고 1.5배 (148→222) */
 .t-nav { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
 .t-group { display: flex; flex-direction: column; gap: 2px; }
 .t-group-label { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .03em; padding: 4px 10px 2px; }
