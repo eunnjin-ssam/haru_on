@@ -48,6 +48,30 @@ export async function renderSetup(root, { open }) {
     catch (e) { console.error(e); toast('저장하지 못했어요', 'error'); }
   }
 
+  // ----- 학생 메뉴 켜기/끄기 (대시보드는 첫 화면이라 항상 켬) -----
+  function menusCard() {
+    const hidden = new Set(s.hiddenMenus ?? []);
+    const keys = MENU_KEYS.filter(([k]) => k !== 'dashboard');
+    const boxes = keys.map(([k, label]) => {
+      const cb = h('input', { type: 'checkbox', checked: !hidden.has(k) });
+      const state = h('span', { class: 'mt-state' });
+      const row = h('label', { class: 'menu-toggle' },
+        h('span', { class: 'mt-name' }, s.names.menus?.[k] || label), state, cb, h('span', { class: 'switch' }));
+      const sync = () => { row.classList.toggle('off', !cb.checked); state.textContent = cb.checked ? '보임' : '숨김'; };
+      cb.addEventListener('change', sync);
+      sync();
+      return { k, cb, row };
+    });
+    const btn = h('button', { class: 'btn', onclick: () => {
+      const hiddenMenus = boxes.filter((b) => !b.cb.checked).map((b) => b.k);
+      save('main', { hiddenMenus }, hiddenMenus.length ? `메뉴 ${hiddenMenus.length}개를 숨겼어요` : '모든 메뉴를 보여 줘요');
+    } }, '메뉴 저장');
+    return fold('학생 메뉴 보이기/숨기기',
+      h('p', { class: 'muted small', style: 'margin:0 0 10px' }, '지금 쓰지 않는 메뉴를 끄면 학생 화면에서 사라져요. 기록은 지워지지 않고, 다시 켜면 그대로 보여요. 학생이 앱을 새로 열면 바뀐 메뉴가 보여요. (대시보드는 첫 화면이라 항상 보여요)'),
+      h('div', { class: 'menu-toggles' }, ...boxes.map((b) => b.row)),
+      h('div', { class: 'row', style: 'margin-top:12px' }, btn));
+  }
+
   // ----- 이름 -----
   function namesCard() {
     const currency = txtInput(s.names.currency);
@@ -145,7 +169,7 @@ export async function renderSetup(root, { open }) {
 
   root.replaceChildren(
     h('section', { class: 'card' }, h('h2', null, '설정'),
-      h('p', { class: 'muted' }, '이름·포인트·기준을 바꿀 수 있어요. 각 칸을 고치고 그 칸의 저장 버튼을 누르면 바로 반영돼요.')),
-    namesCard(), pointsCard(), titlesCard(), treeCard(), careCard(),
+      h('p', { class: 'muted' }, '학생 메뉴·이름·포인트·기준을 바꿀 수 있어요. 각 칸을 고치고 그 칸의 저장 버튼을 누르면 바로 반영돼요.')),
+    menusCard(), namesCard(), pointsCard(), titlesCard(), treeCard(), careCard(),
   );
 }

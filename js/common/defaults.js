@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS = {
       shop: '상점',
     },
   },
+  hiddenMenus: [],     // 학생에게 숨긴 메뉴 키 (기본 설정에서 켜고 끔, 대시보드는 항상 보임)
   points: {
     mission: 1,        // 기초미션 1문제 정답
     writing: 2,        // 글마당 (하루 1회)

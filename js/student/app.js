@@ -18,6 +18,8 @@ export async function renderApp(root, student, onLogout) {
   const content = h('main', { class: 'screen' });
   let current = 'dashboard';
 
+  // 선생님이 기본 설정에서 끈 메뉴는 빼고 보여 준다(대시보드는 항상 보임)
+  const hidden = new Set(settings.hiddenMenus ?? []);
   const NAV = [
     ['dashboard', menus.dashboard, '🏠'],
     ['writing', menus.writing, '📖'],
@@ -26,7 +28,7 @@ export async function renderApp(root, student, onLogout) {
     ['myweek', menus.myweek, '📅'],
     ['character', menus.character, '🧑'],
     ['shop', menus.shop, '🛍️'],
-  ];
+  ].filter(([id]) => id === 'dashboard' || !hidden.has(id));
   const navButtons = NAV.map(([id, label, icon]) => h('button', {
     class: 'nav-btn', type: 'button', onclick: () => open(id),
   }, h('span', { class: 'ico' }, icon), h('span', { class: 'lbl' }, label)));
