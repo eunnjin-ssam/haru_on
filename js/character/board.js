@@ -70,7 +70,7 @@ async function start() {
     g.position.set((col - (cols - 1) / 2) * SP, 0, (row - (rows - 1) / 2) * -SP);
     g.add((() => { const l = label(s.name, '#ffffff', 14); l.position.set(0, -3, 0); return l; })());
     const tn = titleName(p, settings.titles);
-    if (tn) { const l = label(tn, '#ffd54a', 12); l.position.set(0, 24, 0); g.add(l); }
+    if (tn) { const l = label(tn, '#ffd54a', 12); l.position.set(0, 30, 0); g.add(l); }
     world.add(g);
   });
   scene.add(world);
