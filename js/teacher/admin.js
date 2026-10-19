@@ -11,7 +11,7 @@ const COLLECTIONS = [
   'points', 'summaries', 'moods', 'moodNotes', 'attendance', 'missionKeys', 'missionQuestions',
   'missionAttempts', 'roles', 'roleChecks', 'roleTerms', 'roleWishes', 'posts', 'writingWeeks',
   'drafts', 'reports', 'stories', 'storyAuthors', 'privateStories', 'storyNotes', 'promises',
-  'tasks', 'submissions', 'shopItems', 'coupons', 'couponUses', 'couponIdeas', 'goals',
+  'tasks', 'taskRepeats', 'submissions', 'shopItems', 'coupons', 'couponUses', 'couponIdeas', 'goals',
   'items', 'ownedItems', 'profiles', 'careNotes',
 ];
 // 하위 컬렉션 (부모 → 이름들)

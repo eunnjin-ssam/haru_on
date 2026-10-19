@@ -594,6 +594,11 @@ service cloud.firestore {
       allow read, write: if isTeacher();
     }
 
+    // 반복 과제 규칙(매일·요일). 선생님 화면이 이 규칙으로 tasks/{규칙id}_{날짜}를 미리 만든다. 교사 전용.
+    match /taskRepeats/{id} {
+      allow read, write: if isTeacher();
+    }
+
     // id = 과제_학생. 처음 제출 시각(firstAt)은 서버 시간으로 한 번만 정해진다.
     match /submissions/{id} {
       allow read: if isStudent() && resource.data.sid == me();

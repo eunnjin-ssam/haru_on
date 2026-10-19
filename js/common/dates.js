@@ -32,6 +32,40 @@ export function weekId(now = new Date()) {
   return ymd(k);
 }
 
+// ---- 날짜 id('YYYYMMDD') 계산 (반복 과제용) ----
+const parseId = (id) => [Number(id.slice(0, 4)), Number(id.slice(4, 6)), Number(id.slice(6, 8))];
+// id에서 n일 뒤(음수면 앞)의 id
+export function addDaysId(id, n) {
+  const [y, m, d] = parseId(id);
+  return ymd(new Date(Date.UTC(y, m - 1, d + n)));
+}
+// 요일: 월=1 … 일=7
+export function dowOfId(id) {
+  const [y, m, d] = parseId(id);
+  const w = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return w === 0 ? 7 : w;
+}
+// 한국 시간 그 날짜 hh:mm 의 실제 Date
+export function kstDate(id, hhmm = '00:00') {
+  const [y, m, d] = parseId(id);
+  const [hh, mm] = hhmm.split(':').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, hh - 9, mm));
+}
+
+// 두 날짜 id 사이의 날 수 (b - a)
+export function daysBetweenIds(a, b) {
+  const [y1, m1, d1] = parseId(a); const [y2, m2, d2] = parseId(b);
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
+}
+// 마감 표시: 달력 날짜(한국 시간)로 센다. 오늘 마감 → D-day, 지났으면 'D+n 지남'
+export function ddayLabel(dueAt) {
+  if (!dueAt?.toMillis) return '';
+  const ms = dueAt.toMillis();
+  const diff = daysBetweenIds(todayId(), todayId(new Date(ms)));
+  if (ms < Date.now()) return diff === 0 ? '오늘 마감 지남' : `D+${-diff} 지남`;
+  return diff === 0 ? 'D-day' : `D-${diff}`;
+}
+
 // offset주 전(0=이번 주)의 { week: 월요일id, days: [월~금 날짜 5개] }
 export function weekInfo(offset = 0, now = new Date()) {
   const k = kstNow(now);

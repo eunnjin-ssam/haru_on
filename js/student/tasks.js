@@ -5,13 +5,9 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
+import { ddayLabel as dday } from '../common/dates.js';
+import { isShown } from '../common/task-visible.js';
 
-function dday(dueAt) {
-  if (!dueAt?.toMillis) return '';
-  const diff = Math.ceil((dueAt.toMillis() - Date.now()) / 86400000);
-  if (diff === 0) return 'D-day';
-  return diff > 0 ? `D-${diff}` : `D+${-diff} 지남`;
-}
 const isLate = (dueAt) => dueAt?.toMillis && dueAt.toMillis() < Date.now();
 
 export async function renderTasks(content, student, settings) {
@@ -27,7 +23,7 @@ export async function renderTasks(content, student, settings) {
     ]);
     const subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
     const tasks = taskSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      .filter((t) => t.kind === 'homework')
+      .filter((t) => t.kind === 'homework' && isShown(t))
       .map((t) => ({ ...t, sub: subs.get(`${t.id}_${sid}`) }))
       .sort((a, b) => (a.dueAt?.toMillis?.() ?? Infinity) - (b.dueAt?.toMillis?.() ?? Infinity));
     data = { tasks };

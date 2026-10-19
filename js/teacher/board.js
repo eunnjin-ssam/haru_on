@@ -2,10 +2,19 @@
 // 선생님 확인용(가정통신문 회신 등)은 아래 구역에 따로, 포인트 없음.
 import {
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  writeBatch, increment, serverTimestamp, Timestamp,
+  writeBatch, increment, serverTimestamp, Timestamp, arrayUnion,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
+import { todayId } from '../common/dates.js';
+import { isShown } from '../common/task-visible.js';
+import { ensureRepeatTasks, ruleText, whenText, AHEAD } from './repeats.js';
+
+const DOW = [[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [7, '일']];
+const OLD_DAYS = 7; // 모두 끝나고 마감이 이만큼 지난 과제는 접어 둔다
+// 'YYYYMMDD' ↔ <input type=date> 값
+const idToInput = (id) => (id ? `${id.slice(0, 4)}-${id.slice(4, 6)}-${id.slice(6, 8)}` : '');
+const inputToId = (v) => (v ? v.replaceAll('-', '') : '');
 
 // 체크판 좁은 칸용 이름: 3글자 이상이면 성을 빼고 이름만(예: 김하늘 → 하늘)
 const shortName = (name) => (name && name.length >= 3 ? name.slice(1) : (name ?? ''));
@@ -29,19 +38,25 @@ export async function renderBoard(root, { open }) {
   let tasks = [];
   let subs = new Map();
   let currency = '포인트';
+  let repeats = [];
   let editing = null; // 수정 중 task id
   let showForm = false;
   let prefill = null;
+  let showOld = false; // 접어 둔 지난 과제 펼치기
 
   async function load() {
-    const [sSnap, tSnap, subSnap, cfgSnap] = await Promise.all([
+    const [sSnap, tSnap, subSnap, cfgSnap, rSnap] = await Promise.all([
       getDocs(collection(db, 'students')),
       getDocs(collection(db, 'tasks')),
       getDocs(collection(db, 'submissions')),
       getDoc(doc(db, 'settings', 'main')),
+      getDocs(collection(db, 'taskRepeats')),
     ]);
     students = sSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
-    tasks = tSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    // 반복 과제 중 아직 학생에게 안 보이는 미래 것은 체크판에서도 뺀다. 마감 순.
+    tasks = tSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => isShown(t))
+      .sort((a, b) => (a.dueAt?.toMillis?.() ?? Infinity) - (b.dueAt?.toMillis?.() ?? Infinity));
+    repeats = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
     currency = cfgSnap.data()?.names?.currency ?? '포인트';
   }
@@ -121,18 +136,42 @@ export async function renderBoard(root, { open }) {
       points: form.kind === 'homework' ? Number(form.points) || 0 : 0,
       targets: form.targets, notify: form.notify, repeatWeekly: false,
     };
-    if (editing) await updateDoc(doc(db, 'tasks', editing), data);
-    else await addDoc(collection(db, 'tasks'), data);
+    if (editing) { await updateDoc(doc(db, 'tasks', editing), data); return; }
+    if (form.repeatMode === 'none') { await addDoc(collection(db, 'tasks'), data); return; }
+    // 반복: 규칙을 저장하고 2주치를 바로 만든다
+    const { dueAt, repeatWeekly, ...rest } = data;
+    await addDoc(collection(db, 'taskRepeats'), {
+      ...rest, mode: form.repeatMode, days: form.repeatMode === 'daily' ? [1, 2, 3, 4, 5] : form.days,
+      dueTime: form.dueTime || '23:59', leadDays: Math.max(0, Math.floor(Number(form.leadDays) || 0)),
+      startDate: form.startDate || todayId(), endDate: form.endDate || null,
+      skip: [], active: true, createdAt: serverTimestamp(),
+    });
+    await ensureRepeatTasks();
   }
 
   async function deleteTask(t) {
-    if (!confirm(`'${t.title}' 과제를 지울까요? (학생들의 제출 기록도 함께 지워요)`)) return;
+    const note = t.repeat ? '\n반복 과제 중 이 날짜 것만 지우고, 다시 만들어지지 않아요.' : '';
+    if (!confirm(`'${t.title}' 과제를 지울까요? (학생들의 제출 기록도 함께 지워요)${note}`)) return;
     await run(async () => {
       const b = writeBatch(db);
       for (const s of students) { const id = `${t.id}_${s.sid}`; if (subs.has(id)) b.delete(doc(db, 'submissions', id)); }
       b.delete(doc(db, 'tasks', t.id));
+      // 반복 과제 하루치를 지우면 그 날짜를 건너뛰기에 넣어 다시 만들지 않게 한다
+      if (t.repeat) b.update(doc(db, 'taskRepeats', t.repeat), { skip: arrayUnion(t.id.split('_').pop()) });
       await b.commit();
     }, '지웠어요');
+  }
+
+  // 반복 그만하기: 규칙을 끄고, 아직 학생에게 안 보인 미리 만든 과제는 지운다(이미 보인 것·제출 기록은 남김)
+  async function stopRepeat(r) {
+    if (!confirm(`'${r.title}' 반복을 그만할까요?\n이미 학생에게 보인 과제와 제출 기록은 그대로 남아요.`)) return;
+    await run(async () => {
+      const all = await getDocs(collection(db, 'tasks'));
+      const b = writeBatch(db);
+      for (const d of all.docs) if (d.data().repeat === r.id && !isShown(d.data())) b.delete(d.ref);
+      b.update(doc(db, 'taskRepeats', r.id), { active: false, endDate: todayId() });
+      await b.commit();
+    }, '반복을 그만했어요');
   }
 
   // ---- 과제 만들기 폼 ----
@@ -143,7 +182,27 @@ export async function renderBoard(root, { open }) {
       dueAt: toInputValue(cur?.dueAt), submitType: cur?.submitType ?? 'check',
       points: cur?.points ?? 5, targetAll: cur ? (cur.targets?.length === students.length) : true,
       targets: cur?.targets ?? students.map((s) => s.sid), notify: cur?.notify ?? false,
+      // 반복 (새로 만들 때만)
+      repeatMode: 'none', days: [], dueTime: '23:59', leadDays: 0, startDate: todayId(), endDate: '',
     };
+    const isRepeatInstance = !!(editing && cur?.repeat);
+
+    const repeatSel = h('select', { onchange: (e) => { f.repeatMode = e.target.value; drawForm(); } },
+      h('option', { value: 'none' }, '반복 안 함 (한 번만)'),
+      h('option', { value: 'daily' }, '매일 (월~금)'),
+      h('option', { value: 'days' }, '요일 고르기 (예: 매주 금요일)'));
+    const dayBoxes = DOW.map(([n, label]) => {
+      const cb = h('input', { type: 'checkbox', onchange: (e) => {
+        f.days = e.target.checked ? [...new Set([...f.days, n])] : f.days.filter((x) => x !== n);
+        updateSay();
+      } });
+      return { n, cb, el: h('label', { class: 'pick' }, cb, label) };
+    });
+    const dueTime = h('input', { type: 'time', value: f.dueTime, oninput: (e) => { f.dueTime = e.target.value; updateSay(); } });
+    const leadDays = h('input', { type: 'number', min: '0', max: '6', value: '0', style: 'width:70px', oninput: (e) => { f.leadDays = e.target.value; updateSay(); } });
+    const startDate = h('input', { type: 'date', value: idToInput(f.startDate), oninput: (e) => { f.startDate = inputToId(e.target.value); } });
+    const endDate = h('input', { type: 'date', value: '', oninput: (e) => { f.endDate = inputToId(e.target.value); } });
+    const repeatSay = h('p', { class: 'say' });
 
     const kindSel = h('select', { onchange: (e) => { f.kind = e.target.value; drawForm(); } },
       h('option', { value: 'homework', selected: f.kind === 'homework' }, '학생 과제 (포인트)'),
@@ -169,13 +228,37 @@ export async function renderBoard(root, { open }) {
     const notify = h('input', { type: 'checkbox', checked: f.notify, onchange: (e) => { f.notify = e.target.checked; } });
 
     const container = h('div');
+    function updateSay() {
+      if (f.repeatMode === 'none') return;
+      const r = { mode: f.repeatMode, days: f.days, dueTime: f.dueTime || '23:59', leadDays: Number(f.leadDays) || 0 };
+      repeatSay.textContent = f.repeatMode === 'days' && f.days.length === 0
+        ? '→ 요일을 하나 이상 골라 주세요.'
+        : `→ ${whenText(r)}, 그날 ${r.dueTime}까지 하는 과제가 생겨요. 학생에게는 ${r.leadDays ? `${r.leadDays}일 전부터` : '그날 아침부터'} 보여요.`;
+    }
+    function repeatFields() {
+      if (editing) {
+        return isRepeatInstance
+          ? h('p', { class: 'muted small' }, '🔁 반복 과제 중 이 날짜 것만 고쳐요. 반복 규칙은 아래 ‘반복 과제’에서 그만할 수 있어요.')
+          : null;
+      }
+      const repeating = f.repeatMode !== 'none';
+      updateSay();
+      return h('div', { class: 'field repeat-box' }, h('span', null, '반복'), repeatSel,
+        f.repeatMode === 'days' ? h('div', { class: 'picks' }, ...dayBoxes.map((d) => { d.cb.checked = f.days.includes(d.n); return d.el; })) : null,
+        repeating ? h('div', { class: 'row' }, h('span', { class: 'muted' }, '마감 시각: 그날'), dueTime) : null,
+        repeating ? h('div', { class: 'row' }, h('span', { class: 'muted' }, '학생에게 보이기: 마감'), leadDays, h('span', { class: 'muted' }, '일 전부터 (0 = 그날 아침부터)')) : null,
+        repeating ? h('div', { class: 'row' }, h('span', { class: 'muted' }, '시작'), startDate, h('span', { class: 'muted' }, '끝 (비우면 계속)'), endDate) : null,
+        repeating ? repeatSay : null);
+    }
     function drawForm() {
+      const repeating = !editing && f.repeatMode !== 'none';
       container.replaceChildren(h('div', { class: 'role-form' },
         h('label', { class: 'field' }, h('span', null, '종류'), kindSel),
         h('label', { class: 'field' }, h('span', null, '제목'), title),
         h('label', { class: 'field' }, h('span', null, '설명'), desc),
         h('label', { class: 'field' }, h('span', null, '과목'), subject),
-        h('label', { class: 'field' }, h('span', null, '마감'), due),
+        repeatFields(),
+        repeating ? null : h('label', { class: 'field' }, h('span', null, '마감'), due),
         f.kind === 'homework' ? h('label', { class: 'field' }, h('span', null, '제출 방식'), submitType) : null,
         f.kind === 'homework' ? h('label', { class: 'field' }, h('span', null, `포인트 (늦으면 자동 절반)`), points) : null,
         h('div', { class: 'field' }, h('span', null, '대상'),
@@ -187,7 +270,9 @@ export async function renderBoard(root, { open }) {
             if (!f.title.trim()) { toast('제목을 써 주세요.', 'error'); return; }
             const targets = memberBoxes.filter((m) => m.cb.checked).map((m) => m.sid);
             if (targets.length === 0) { toast('대상을 1명 이상 골라 주세요.', 'error'); return; }
-            const msg = editing ? '고쳤어요' : '과제를 만들었어요';
+            if (repeating && f.repeatMode === 'days' && f.days.length === 0) { toast('반복할 요일을 골라 주세요.', 'error'); return; }
+            if (repeating && f.endDate && f.endDate < f.startDate) { toast('끝 날짜가 시작보다 빨라요.', 'error'); return; }
+            const msg = editing ? '고쳤어요' : (repeating ? '반복 과제를 만들었어요' : '과제를 만들었어요');
             try { await saveTask({ ...f, title: f.title.trim(), targets }); toast(msg); }
             catch (e) { console.error(e); toast('안 됐어요. 다시 해 주세요.', 'error'); }
             editing = null; showForm = false; prefill = null;
@@ -227,17 +312,27 @@ export async function renderBoard(root, { open }) {
     return `${done}/${targets.length}`;
   }
 
+  // 모두 끝났고 마감이 OLD_DAYS일보다 지난 과제
+  function isOld(t) {
+    if (!t.dueAt?.toMillis || t.dueAt.toMillis() > Date.now() - OLD_DAYS * 86400000) return false;
+    return students.filter((s) => isTarget(t, s.sid)).every((s) => ['done', 'exempt'].includes(subOf(t.id, s.sid)?.status));
+  }
+
   function homeworkGrid() {
-    const list = tasks.filter((t) => t.kind === 'homework');
-    if (list.length === 0) return h('p', { class: 'muted' }, '아직 과제가 없어요. 아래 ‘새 과제’로 만들어 주세요.');
-    return h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
+    const all = tasks.filter((t) => t.kind === 'homework');
+    if (all.length === 0) return h('p', { class: 'muted' }, '아직 과제가 없어요. 아래 ‘새 과제’로 만들어 주세요.');
+    const oldN = all.filter(isOld).length;
+    const list = showOld ? all : all.filter((t) => !isOld(t));
+    const foldBtn = oldN ? h('button', { class: 'btn secondary small', style: 'margin-top:8px', onclick: () => { showOld = !showOld; draw(); } },
+      showOld ? '끝난 지난 과제 접기' : `끝난 지난 과제 ${oldN}개 보기`) : null;
+    return h('div', null, h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
       h('thead', null, h('tr', null,
         h('th', { class: 'stick' }, '과제'),
         ...students.map((s) => h('th', { class: 'stu' }, h('div', { class: 'stu-no' }, s.number), h('div', { class: 'stu-nm' }, shortName(s.name)))),
         h('th', null, '완료'))),
       h('tbody', null, ...list.map((t) => h('tr', null,
         h('td', { class: 'stick taskname' },
-          h('button', { class: 'linkish', onclick: () => { editing = t.id; showForm = true; draw(); } }, t.title),
+          h('button', { class: 'linkish', onclick: () => { editing = t.id; showForm = true; draw(); } }, `${t.repeat ? '🔁 ' : ''}${t.title}`),
           h('div', { class: 'muted small' }, `${t.subject ? t.subject + ' · ' : ''}${dueLabel(t.dueAt)} · ${t.points}${currency}`),
           h('div', { class: 'row', style: 'margin-top:4px' },
             h('button', { class: 'btn secondary tiny', onclick: () => run(() => completeAll(t), '모두 완료했어요') }, '모두 완료'),
@@ -247,11 +342,25 @@ export async function renderBoard(root, { open }) {
         ...students.map((s) => cell(t, s)),
         h('td', { class: 'num' }, doneCount(t)),
       ))),
-    ));
+    )), foldBtn);
+  }
+
+  // 반복 규칙 목록: 켜진 것만, 그만하기
+  function repeatList() {
+    const on = repeats.filter((r) => r.active);
+    if (on.length === 0) return null;
+    return h('section', { class: 'card' },
+      h('h2', null, `🔁 반복 과제 (${on.length})`),
+      h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, `선생님 화면을 열 때마다 앞으로 ${AHEAD}일치 과제를 미리 만들어 둬요. 학생에게는 정한 날부터 보여요.`),
+      ...on.map((r) => h('div', { class: 'req-row' },
+        h('div', null,
+          h('b', null, r.title), ' ', h('span', { class: 'badge' }, r.kind === 'check' ? '확인용' : `${r.points}${currency}`),
+          h('div', { class: 'muted small' }, `${ruleText(r)} · ${r.targets?.length === students.length ? '전체' : `${r.targets?.length ?? 0}명`}${r.endDate ? ` · ${idToInput(r.endDate)}까지` : ''}`)),
+        h('button', { class: 'btn secondary small', onclick: () => stopRepeat(r) }, '그만하기'))));
   }
 
   function checkGrid() {
-    const list = tasks.filter((t) => t.kind === 'check');
+    const list = tasks.filter((t) => t.kind === 'check' && (showOld || !isOld(t)));
     return h('section', { class: 'card' },
       h('h2', null, '선생님 확인용 (회신 등)'),
       h('p', { class: 'muted' }, '포인트 없이 회신만 표시해요. 과제마당에는 보이지 않아요.'),
@@ -262,7 +371,7 @@ export async function renderBoard(root, { open }) {
             h('th', { class: 'stick' }, '항목'), ...students.map((s) => h('th', { class: 'stu' }, h('div', { class: 'stu-no' }, s.number), h('div', { class: 'stu-nm' }, shortName(s.name)))), h('th', null, '회신'))),
           h('tbody', null, ...list.map((t) => h('tr', null,
             h('td', { class: 'stick taskname' },
-              h('button', { class: 'linkish', onclick: () => { editing = t.id; showForm = true; draw(); } }, t.title),
+              h('button', { class: 'linkish', onclick: () => { editing = t.id; showForm = true; draw(); } }, `${t.repeat ? '🔁 ' : ''}${t.title}`),
               h('div', { class: 'muted small' }, dueLabel(t.dueAt)),
               h('button', { class: 'btn danger tiny', style: 'margin-top:4px', onclick: () => deleteTask(t) }, '삭제')),
             ...students.map((s) => {
@@ -287,6 +396,7 @@ export async function renderBoard(root, { open }) {
         h('p', { class: 'muted' }, '빈칸을 누르면 바로 완료 + 포인트예요. 파란 점(●)은 학생이 제출한 것 — 누르면 완료, ↺는 다시 해오기.'),
       ),
       showForm ? taskForm() : null,
+      repeatList(),
       checkGrid(),
     ].filter(Boolean));
   }

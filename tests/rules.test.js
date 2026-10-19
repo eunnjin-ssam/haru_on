@@ -612,6 +612,14 @@ describe('알림·건의함·교사 전용', () => {
       await assertFails(getDoc(doc(db, path)));
     }
   });
+  it('반복 과제 규칙은 교사만 읽고 쓴다', async () => {
+    const t = teacher(env);
+    await assertSucceeds(setDoc(doc(t, 'taskRepeats/r1'), { title: '일기', mode: 'daily', targets: ['s1'], active: true }));
+    const db = await login(env, '1');
+    await assertFails(getDoc(doc(db, 'taskRepeats/r1')));
+    await assertFails(setDoc(doc(db, 'taskRepeats/r2'), { title: '몰래', mode: 'daily', targets: ['s1'], active: true }));
+    await assertFails(setDoc(doc(db, 'tasks/r1_20261020'), { kind: 'homework', title: '몰래', targets: ['s1'] }));
+  });
   it('교사는 학생 데이터를 읽고 쓸 수 있다', async () => {
     const t = teacher(env);
     await assertSucceeds(getDoc(doc(t, 'studentPins/1')));

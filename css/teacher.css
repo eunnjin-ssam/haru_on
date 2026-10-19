@@ -246,3 +246,7 @@ tr.flagged td { background: #fff7e0; }
 /* 쿠폰 추가: 문장형 횟수 입력 */
 .count-pick { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .role-form .say { margin: 2px 0 0; color: var(--primary-dark); font-weight: 600; font-size: 14px; }
+
+/* 체크판: 반복 설정 */
+.repeat-box { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; gap: 8px; }
+.repeat-box .row input[type=date], .repeat-box .row input[type=time], .repeat-box .row input[type=number] { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }

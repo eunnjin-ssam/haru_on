@@ -17,6 +17,7 @@ import { renderCharacterAdmin } from './character-admin.js';
 import { renderCare } from './care.js';
 import { renderAdmin } from './admin.js';
 import { renderFeedbackAdmin } from './feedback-admin.js';
+import { ensureRepeatTasks } from './repeats.js';
 
 const root = document.getElementById('app');
 
@@ -131,7 +132,8 @@ function showApp(user, firstTab) {
     h('div', { class: 't-main' },
       h('header', { class: 't-header' }, pageTitle),
       content)));
-  open(firstTab);
+  // 반복 과제를 앞으로 2주치 채워 두고 첫 화면을 연다(실패해도 화면은 연다)
+  ensureRepeatTasks().catch((e) => console.error(e)).finally(() => open(firstTab));
 }
 
 start();

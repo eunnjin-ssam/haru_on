@@ -6,6 +6,7 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { weekInfo } from '../common/dates.js';
 import { MOODS } from '../student/mood.js';
+import { isShown } from '../common/task-visible.js';
 
 const NEG = ['upset', 'angry', 'tired'];
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '·');
@@ -40,7 +41,7 @@ export async function renderCare(root) {
     for (const d of attSnap.docs) { const a = d.data(); if (!recent.includes(a.date)) continue; const mp = missBy.get(a.sid) ?? { days: new Set(), graded: 0, correct: 0, perDayCount: {} }; if ('correct' in a) { mp.graded += 1; if (a.correct) mp.correct += 1; mp.perDayCount[a.date] = (mp.perDayCount[a.date] ?? 0) + 1; } missBy.set(a.sid, mp); }
     // 과제: 학생별 남은 과제
     const subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
-    const tasks = taskSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.kind === 'homework');
+    const tasks = taskSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.kind === 'homework' && isShown(t));
 
     const rows = students.map((s) => {
       const mp = moodBy.get(s.sid) ?? {};

@@ -4,17 +4,11 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { todayId } from '../common/dates.js';
+import { todayId, ddayLabel as dday } from '../common/dates.js';
 import { loadMood, renderMood, moodLabel } from './mood.js';
 import { loadRoles, requestRole, approveRole, redoRole } from './roles.js';
+import { isShown } from '../common/task-visible.js';
 
-// 과제 마감 표시 (과제마당과 같은 방식)
-function dday(dueAt) {
-  if (!dueAt?.toMillis) return '';
-  const diff = Math.ceil((dueAt.toMillis() - Date.now()) / 86400000);
-  if (diff === 0) return 'D-day';
-  return diff > 0 ? `D-${diff}` : `D+${-diff} 지남`;
-}
 
 export async function renderDashboard(content, student, settings, { openMission, openTasks }) {
   const sid = student.sid;
@@ -35,7 +29,7 @@ export async function renderDashboard(content, student, settings, { openMission,
     // 아직 안 낸 과제(제출 전이거나 '다시 해오기'), 마감 빠른 순
     const subs = new Map((subSnap?.docs ?? []).map((d) => [d.id, d.data().status]));
     const tasks = (taskSnap?.docs ?? []).map((d) => ({ id: d.id, ...d.data() }))
-      .filter((t) => t.kind === 'homework')
+      .filter((t) => t.kind === 'homework' && isShown(t))
       .map((t) => ({ ...t, status: subs.get(`${t.id}_${sid}`) }))
       .filter((t) => !t.status || t.status === 'redo')
       .sort((a, b) => (a.dueAt?.toMillis?.() ?? Infinity) - (b.dueAt?.toMillis?.() ?? Infinity));

@@ -7,6 +7,7 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId, kstNow } from '../common/dates.js';
 import { MOODS, moodLabel } from '../student/mood.js';
+import { isShown } from '../common/task-visible.js';
 
 const NEGATIVE = ['upset', 'angry', 'tired'];
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '');
@@ -61,7 +62,7 @@ export async function renderToday(root, { open }) {
     const checks = checksSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     // 과제: 학생별 남은 과제(늦음 포함), 확인 대기 수
-    const tasks = tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.kind === 'homework');
+    const tasks = tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.kind === 'homework' && isShown(t));
     const subs = new Map(subsSnap.docs.map((d) => [d.id, d.data()]));
     let waiting = 0;
     for (const s of subsSnap.docs) if (s.data().status === 'submitted') waiting += 1;

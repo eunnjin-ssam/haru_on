@@ -6,6 +6,7 @@ import { db } from '../common/firebase.js';
 import { h } from '../common/ui.js';
 import { weekInfo } from '../common/dates.js';
 import { MOODS } from './mood.js';
+import { isShown } from '../common/task-visible.js';
 
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '');
 const WD = ['월', '화', '수', '목', '금'];
@@ -28,7 +29,7 @@ export async function renderMyWeek(content, student, settings) {
       getDocs(query(collection(db, 'posts'), where('author', '==', sid))),
     ]);
     base = {
-      tasks: taskSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.kind === 'homework'),
+      tasks: taskSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.kind === 'homework' && isShown(t)),
       subs: new Map(subSnap.docs.map((d) => [d.id, d.data()])),
       points: ptSnap.docs.map((d) => d.data()),
       attempts: attSnap.docs.map((d) => d.data()),
