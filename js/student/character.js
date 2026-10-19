@@ -25,7 +25,8 @@ export async function renderCharacter(content, student, settings) {
   const titleColors = settings.titleColors ?? ['#fff', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f'];
   let topView = 'me';
   let view = null;
-  let selected = null; // 지금 미리보기 중인 { item, color }
+  let selected = null; // 오른쪽 패널에서 고른 { item, color }
+  let trying = {};     // 칸(category)별로 입어 보는 중인 { item, color } — 여러 칸을 함께 입어 볼 수 있다
   let data;
 
   async function load() {
@@ -184,15 +185,37 @@ export async function renderCharacter(content, student, settings) {
     const catalog = h('div', { class: 'char-catalog' });
     const cards = new Map();
 
-    const previewEquip = () => ({ ...data.equip, [CATALOG[selected.item].category]: { item: selected.item, color: selected.color } });
-    function markSelected() { for (const [id, el] of cards) el.classList.toggle('sel', selected.item === id); }
-    function select(item, color) {
-      selected = { item, color: color ?? defaultColorFor(item) };
+    // 입고 있는 것 위에, 칸마다 입어 보는 중인 것을 겹쳐 보여 준다
+    const previewEquip = () => ({ ...data.equip, ...trying });
+    // 입고 있는 것과 다른 '입어 보는 중' 칸들
+    const tryingDiff = () => Object.entries(trying).filter(([c, t]) => {
+      const eq = data.equip[c];
+      return !eq || eq.item !== t.item || eq.color !== t.color;
+    });
+    const tryBar = h('div', { class: 'try-bar' });
+    function renderTryBar() {
+      const diff = tryingDiff();
+      if (!diff.length) { tryBar.replaceChildren(); return; }
+      tryBar.replaceChildren(
+        h('span', { class: 'muted small' }, `입어 보는 중: ${diff.map(([, t]) => CATALOG[t.item].name).join(', ')} · ‘입기’나 ‘사기’를 눌러야 내 캐릭터가 바뀌어요`),
+        h('button', { class: 'btn secondary small', onclick: () => { trying = {}; refreshPreview(); } }, '되돌리기'));
+    }
+    function refreshPreview() {
       renderFit();
+      renderTryBar();
       if (view) view.update(previewEquip(), wornOpts());
       markSelected();
     }
-    function unequip(c) { act(() => updateDoc(doc(db, 'profiles', sid), { [`equip.${c}`]: null })); }
+    function markSelected() { for (const [id, el] of cards) el.classList.toggle('sel', selected.item === id); }
+    function select(item, color) {
+      selected = { item, color: color ?? defaultColorFor(item) };
+      trying[CATALOG[item].category] = { ...selected };
+      refreshPreview();
+    }
+    function unequip(c) {
+      delete trying[c];
+      act(() => updateDoc(doc(db, 'profiles', sid), { [`equip.${c}`]: null }));
+    }
 
     function renderFit() {
       const item = CATALOG[selected.item];
@@ -258,6 +281,7 @@ export async function renderCharacter(content, student, settings) {
     if (view) { view.dispose(); view = null; }
     queueMicrotask(() => { view = renderCharacter3D(stageBox, previewEquip(), wornOpts()); });
     renderFit();
+    renderTryBar();
 
     content.replaceChildren(h('div', { class: 'character' },
       h('div', { class: 'board-head' },
@@ -267,6 +291,7 @@ export async function renderCharacter(content, student, settings) {
       h('div', { class: 'char-layout' },
         h('div', { class: 'char-left' },
           h('div', { class: 'char-stage-box' }, stageBox, h('div', { class: 'muted small', style: 'text-align:center;margin-top:4px' }, '밀어서 돌려보세요')),
+          tryBar,
           fitBox),
         catalog),
       titlesCard(),

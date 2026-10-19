@@ -383,3 +383,8 @@ body { font-size: 17px; }
 .pin-msg { color: var(--danger); font-weight: 700; min-height: 1.4em; margin: 0; }
 .pin-actions { display: flex; gap: 8px; }
 .pin-actions .btn { flex: 1; }
+
+/* 내 캐릭터: 입어 보는 중 안내 */
+.try-bar:empty { display: none; }
+.try-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--primary-soft); border-radius: 12px; padding: 10px 12px; margin: 10px 0; }
+.try-bar .btn { flex: 0 0 auto; }
