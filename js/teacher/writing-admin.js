@@ -105,7 +105,7 @@ export async function renderWritingAdmin(root) {
     return h('article', { class: `admin-post${p.status === 'reported' ? ' flag' : ''}` },
       h('div', { class: 'ap-head' },
         h('div', null, h('b', null, p.title), ' ', badge,
-          h('div', { class: 'muted small' }, `${names.get(p.author) ?? p.author} · ${p.readDate ?? ''} · ♥ ${p.likes ?? 0}${p.editedByTeacher ? ' · 선생님이 고침' : ''}`)),
+          h('div', { class: 'muted small' }, `${names.get(p.author) ?? p.author} · ${ymdLabel(postedId(p))} 올림${p.readDate ? ` (읽은 날 ${p.readDate})` : ''} · ♥ ${p.likes ?? 0}${p.editedByTeacher ? ' · 선생님이 고침' : ''}`)),
       ),
       h('p', { class: 'ap-body' }, p.summary),
       p.thoughts ? h('p', { class: 'ap-body muted' }, `느낌: ${p.thoughts}`) : null,
@@ -113,30 +113,61 @@ export async function renderWritingAdmin(root) {
     );
   }
 
-  function draw() {
-    const filtered = posts.filter((p) => {
-      if (statusFilter !== 'all' && p.status !== statusFilter) return false;
-      if (search) {
-        const hay = `${p.title ?? ''} ${names.get(p.author) ?? ''}`.toLowerCase();
-        if (!hay.includes(search.toLowerCase())) return false;
-      }
-      return true;
-    });
-    const searchBox = h('input', { type: 'text', placeholder: '책 제목·학생 이름 검색', value: search, oninput: (e) => { search = e.target.value; draw(); } });
-    const statusSel = h('select', { onchange: (e) => { statusFilter = e.target.value; draw(); } },
-      ...[['all', '전체'], ['public', '공개'], ['hidden', '숨김'], ['reported', '신고됨']].map(([v, l]) => h('option', { value: v, selected: statusFilter === v }, l)));
+  // 올린 날짜 'YYYYMMDD' (문서 id = 학생_날짜)
+  const postedId = (p) => p.id.slice(p.id.lastIndexOf('_') + 1);
+  const ymdLabel = (id) => `${Number(id.slice(4, 6))}/${Number(id.slice(6, 8))}`;
+  // 필터 상태(여러 개 함께 적용)
+  let month = ''; let from = ''; let to = ''; let who = '';
 
-    const reportedN = posts.filter((p) => p.status === 'reported').length;
-    root.replaceChildren(h('section', { class: 'card' },
-      h('div', { class: 'row', style: 'justify-content:space-between' },
-        h('div', null,
-          h('h2', null, '글마당 관리'),
-          h('p', { class: 'muted small', style: 'margin:0' }, `학생 글 ${posts.length}편${reportedN ? ` · 🚩 신고 ${reportedN}` : ''} · 신고 글이 맨 앞에 와요`)),
-        h('div', { class: 'row' }, searchBox, statusSel)),
-      filtered.length === 0
+  function draw() {
+    const listBox = h('div');
+    const countLine = h('p', { class: 'muted small', style: 'margin:0' });
+
+    function renderList() {
+      const filtered = posts.filter((p) => {
+        const d = postedId(p);
+        if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+        if (month && d.slice(0, 6) !== month) return false;
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        if (who && p.author !== who) return false;
+        if (search) {
+          const hay = `${p.title ?? ''} ${names.get(p.author) ?? ''}`.toLowerCase();
+          if (!hay.includes(search.toLowerCase())) return false;
+        }
+        return true;
+      });
+      const reportedN = posts.filter((p) => p.status === 'reported').length;
+      countLine.textContent = `학생 글 ${posts.length}편${filtered.length !== posts.length ? ` 중 ${filtered.length}편` : ''}${reportedN ? ` · 🚩 신고 ${reportedN}` : ''} · 신고 글이 맨 앞에 와요`;
+      listBox.replaceChildren(filtered.length === 0
         ? h('p', { class: 'muted', style: 'padding:4px 2px' }, '조건에 맞는 글이 없어요.')
-        : h('div', { class: 'admin-posts' }, ...filtered.map(card)),
+        : h('div', { class: 'admin-posts' }, ...filtered.map(card)));
+    }
+
+    const months = [...new Set(posts.map((p) => postedId(p).slice(0, 6)))].sort().reverse();
+    const students = [...names.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ko', { numeric: true }));
+    const dateIn = (v, set) => h('input', { type: 'date', value: v ? `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}` : '', onchange: (e) => { set(e.target.value.replaceAll('-', '')); renderList(); } });
+
+    const searchBox = h('input', { type: 'text', placeholder: '책 제목·학생 이름 검색', value: search, oninput: (e) => { search = e.target.value; renderList(); } });
+    const statusSel = h('select', { onchange: (e) => { statusFilter = e.target.value; renderList(); } },
+      ...[['all', '모든 상태'], ['public', '공개'], ['hidden', '숨김'], ['reported', '신고됨']].map(([v, l]) => h('option', { value: v, selected: statusFilter === v }, l)));
+    const monthSel = h('select', { onchange: (e) => { month = e.target.value; renderList(); } },
+      h('option', { value: '' }, '모든 달'), ...months.map((m) => h('option', { value: m, selected: month === m }, `${m.slice(0, 4)}년 ${Number(m.slice(4))}월`)));
+    const whoSel = h('select', { onchange: (e) => { who = e.target.value; renderList(); } },
+      h('option', { value: '' }, '모든 학생'), ...students.map(([sid, nm]) => h('option', { value: sid, selected: who === sid }, nm)));
+    const reset = h('button', { class: 'btn secondary small', onclick: () => {
+      search = ''; statusFilter = 'all'; month = ''; from = ''; to = ''; who = ''; draw();
+    } }, '필터 지우기');
+
+    root.replaceChildren(h('section', { class: 'card' },
+      h('div', null, h('h2', null, '글마당 관리'), countLine),
+      h('div', { class: 'filter-row' },
+        searchBox, statusSel, monthSel, whoSel,
+        h('span', { class: 'muted small' }, '올린 날'), dateIn(from, (v) => { from = v; }), h('span', { class: 'muted' }, '~'), dateIn(to, (v) => { to = v; }),
+        reset),
+      listBox,
     ));
+    renderList();
   }
 
   await load();

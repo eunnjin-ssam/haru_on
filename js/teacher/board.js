@@ -342,7 +342,17 @@ export async function renderBoard(root, { open }) {
         ...students.map((s) => cell(t, s)),
         h('td', { class: 'num' }, doneCount(t)),
       ))),
+      leftRow(all, '남은 과제', (st) => !['done', 'exempt'].includes(st)),
     )), foldBtn);
+  }
+
+  // 맨 아래 줄: 학생별로 아직 안 끝난 개수(접어 둔 것 포함 전체 기준)
+  function leftRow(list, label, notDone) {
+    const counts = students.map((s) => list.filter((t) => isTarget(t, s.sid) && notDone(subOf(t.id, s.sid)?.status)).length);
+    return h('tfoot', null, h('tr', { class: 'left-row' },
+      h('th', { class: 'stick' }, label),
+      ...counts.map((n) => h('td', { class: `num${n ? ' has-left' : ''}` }, n ? String(n) : '·')),
+      h('td', { class: 'num' }, String(counts.reduce((a, b) => a + b, 0)))));
   }
 
   // 반복 규칙 목록: 켜진 것만, 그만하기
@@ -382,6 +392,7 @@ export async function renderBoard(root, { open }) {
             }),
             h('td', { class: 'num' }, doneCount(t)),
           ))),
+          leftRow(tasks.filter((t) => t.kind === 'check'), '미회신', (st) => st !== 'done'),
         )),
     );
   }

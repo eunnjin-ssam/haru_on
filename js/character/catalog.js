@@ -137,6 +137,15 @@ export const CATALOG = {
 
 // 착용 상태(equip) → 그릴 블록 전체 목록.
 // 기본(무료) 아이템은 color가 'default'인데, 아이템마다 defColor가 있으면 그 예쁜 기본색을 쓴다.
+// 아무것도 안 꾸민 학생의 기본 차림(우리 반 격자·대시보드에서 맨몸 방지)
+export const DEFAULT_LOOK = {
+  hair: { item: 'hairBasic', color: 'default' }, face: { item: 'faceSmile', color: 'default' },
+  top: { item: 'topPlain', color: 'default' }, bottom: { item: 'bottomPlain', color: 'default' },
+  shoes: { item: 'shoesBasic', color: 'default' },
+};
+// 입은 게 하나도 없으면 기본 차림으로
+export const lookOf = (equip) => (equip && Object.values(equip).some(Boolean) ? equip : DEFAULT_LOOK);
+
 export function buildBoxes(equip) {
   const boxes = [...BODY];
   const order = ['bottom', 'top', 'shoes', 'hair', 'headAcc', 'face', 'faceAcc'];

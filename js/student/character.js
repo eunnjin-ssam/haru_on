@@ -4,18 +4,12 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { CATALOG, colorHex, colorLabel, COLORS } from '../character/catalog.js';
+import { CATALOG, colorHex, colorLabel, COLORS, DEFAULT_LOOK } from '../character/catalog.js';
 import { renderCharacter3D } from '../character/voxel3d.js';
 import { drawFront, drawItem } from '../character/voxel2d.js';
 
 const SECTION = { hair: '헤어스타일', face: '얼굴 표정', top: '상의', bottom: '하의', shoes: '신발', headAcc: '모자·머리 소품', faceAcc: '얼굴 소품' };
 const SECTION_ORDER = ['hair', 'face', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc'];
-// 아무것도 안 꾸민 학생의 기본 차림(우리 반 격자에서 맨몸 방지)
-const DEFAULT_LOOK = {
-  hair: { item: 'hairBasic', color: 'default' }, face: { item: 'faceSmile', color: 'default' },
-  top: { item: 'topPlain', color: 'default' }, bottom: { item: 'bottomPlain', color: 'default' },
-  shoes: { item: 'shoesBasic', color: 'default' },
-};
 const EMPTY = { hair: null, face: null, top: null, bottom: null, shoes: null, headAcc: null, faceAcc: null };
 const TITLE_FIELDS = [['reading', 'reading'], ['mission', 'missionDays'], ['role', 'roleDays']];
 

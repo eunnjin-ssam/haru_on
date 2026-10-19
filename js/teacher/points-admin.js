@@ -5,6 +5,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
+import { isExemptCoupon } from '../common/coupons.js';
 
 // 한 학생이 살 수 있는 횟수: 고르는 칸 → (buyPeriod, buyLimit). 'year'는 buyPeriod 'none' + 횟수(학년 끝까지 통틀어).
 const BUY_MODES = [['unlimited', '제한 없음'], ['day', '하루에'], ['week', '일주일에'], ['month', '한 달에'], ['year', '1년 동안 통틀어']];
@@ -13,22 +14,24 @@ const buyText = (i) => (!i.buyLimit ? '제한 없음' : `${BUY_MODES.find(([v]) 
 const useText = (i) => (i.dailyUse ? `하루에 ${i.dailyUse}번` : '제한 없음');
 
 export async function renderPointsAdmin(root) {
-  let items = []; let coupons = []; let uses = []; let ideas = []; let names = new Map();
+  let items = []; let coupons = []; let uses = []; let ideas = []; let names = new Map(); let taskTitles = new Map();
   let editing = null; let showForm = false; let prefill = null;
 
   async function load() {
-    const [itemSnap, cSnap, uSnap, iSnap, sSnap] = await Promise.all([
+    const [itemSnap, cSnap, uSnap, iSnap, sSnap, tSnap] = await Promise.all([
       getDocs(collection(db, 'shopItems')),
       getDocs(collection(db, 'coupons')),
       getDocs(collection(db, 'couponUses')),
       getDocs(collection(db, 'couponIdeas')),
       getDocs(collection(db, 'students')),
+      getDocs(collection(db, 'tasks')),
     ]);
     items = itemSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     coupons = cSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     uses = uSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     ideas = iSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     names = new Map(sSnap.docs.map((d) => [d.id, `${d.data().number}번 ${d.data().name}`]));
+    taskTitles = new Map(tSnap.docs.map((d) => [d.id, d.data().title]));
   }
 
   async function run(task, done) {
@@ -54,6 +57,10 @@ export async function renderPointsAdmin(root) {
     const b = writeBatch(db);
     b.update(doc(db, 'couponUses', u.id), { status: 'used' });
     b.update(doc(db, 'coupons', u.coupon), { status: 'used' });
+    // 과제 면제권: 고른 과제를 '면제'로 (포인트 없음)
+    if (u.task) {
+      b.set(doc(db, 'submissions', `${u.task}_${u.sid}`), { task: u.task, sid: u.sid, status: 'exempt', comment: '과제 면제권', lastAt: serverTimestamp() }, { merge: true });
+    }
     await b.commit();
   }
   async function declineUse(u) {
@@ -75,11 +82,22 @@ export async function renderPointsAdmin(root) {
     await b.commit();
   }
 
+  // 쿠폰 순서: 지금 보이는 순서대로 0,1,2…를 다시 매기고 두 칸을 맞바꾼다(학생 상점도 이 순서)
+  async function moveItem(idx, dir) {
+    const list = items.slice();
+    const j = idx + dir;
+    if (j < 0 || j >= list.length) return;
+    [list[idx], list[j]] = [list[j], list[idx]];
+    const b = writeBatch(db);
+    list.forEach((it, n) => { if (it.order !== n) b.update(doc(db, 'shopItems', it.id), { order: n }); });
+    await b.commit();
+  }
+
   async function saveItem(f, ideaInfo) {
     const data = {
       name: f.name, desc: f.desc, price: Number(f.price) || 0, instant: f.instant,
       buyLimit: Number(f.buyLimit) || 0, buyPeriod: f.buyPeriod, dailyUse: Number(f.dailyUse) || 0,
-      onSale: f.onSale, order: f.order ?? items.length,
+      onSale: f.onSale, order: f.order ?? items.length, exempt: !!f.exempt,
     };
     const b = writeBatch(db);
     if (editing) b.update(doc(db, 'shopItems', editing), data);
@@ -104,7 +122,7 @@ export async function renderPointsAdmin(root) {
           h('button', { class: 'btn small', onclick: () => run(() => approveBuy(c), '승인했어요') }, '승인'),
           h('button', { class: 'btn danger small', onclick: () => run(() => rejectBuy(c), '거절하고 환불했어요') }, '거절·환불')))),
       ...useReqs.map((u) => h('div', { class: 'req-row' },
-        h('span', null, `${names.get(u.sid) ?? u.sid} · ${itemName(u.type)} 사용 요청`),
+        h('span', null, `${names.get(u.sid) ?? u.sid} · ${itemName(u.type)} 사용 요청${u.task ? ` → 과제 ‘${taskTitles.get(u.task) ?? '(지운 과제)'}’ 면제` : ''}`),
         h('div', { class: 'row' },
           h('button', { class: 'btn small', onclick: () => run(() => completeUse(u), '사용 완료했어요') }, '사용 완료'),
           h('button', { class: 'btn secondary small', onclick: () => run(() => declineUse(u), '다음에로 돌렸어요') }, '다음에')))),
@@ -133,13 +151,14 @@ export async function renderPointsAdmin(root) {
     const f = {
       name: cur?.name ?? '', desc: cur?.desc ?? '', price: cur?.price ?? 10, instant: cur?.instant ?? false,
       buyLimit: cur?.buyLimit ?? 0, buyPeriod: cur?.buyPeriod ?? 'none', dailyUse: cur?.dailyUse ?? 0,
-      onSale: cur?.onSale ?? true, order: cur?.order,
+      onSale: cur?.onSale ?? true, order: cur?.order, exempt: cur ? isExemptCoupon(cur) : false,
     };
     const ideaInfo = prefill?._ideaId ? prefill : null;
     const inp = (key, type = 'text', style = '') => h('input', { type, value: String(f[key] ?? ''), style, oninput: (e) => { f[key] = e.target.value; } });
     const name = inp('name'); const desc = inp('desc'); const price = inp('price', 'number', 'width:90px');
     const instant = h('input', { type: 'checkbox', checked: f.instant, onchange: (e) => { f.instant = e.target.checked; } });
     const onSale = h('input', { type: 'checkbox', checked: f.onSale, onchange: (e) => { f.onSale = e.target.checked; } });
+    const exempt = h('input', { type: 'checkbox', checked: f.exempt, onchange: (e) => { f.exempt = e.target.checked; } });
 
     // 한 학생이 살 수 있는 횟수: [제한 없음/하루에/일주일에/한 달에/1년 동안 통틀어] [n]번
     let buyMode = buyModeOf(f);
@@ -182,6 +201,7 @@ export async function renderPointsAdmin(root) {
         h('div', { class: 'field' }, h('span', null, '반 전체가 하루에 쓸 수 있는 횟수'),
           h('div', { class: 'row' }, useSel, useCount), useSay,
           h('p', { class: 'muted small', style: 'margin:0' }, '예) 자유자리권을 하루에 2명만 쓰게 하려면 ‘하루에’ + 2번')),
+        h('label', { class: 'pick' }, exempt, '과제 면제권 (쓸 때 학생이 과제를 고르고, ‘사용 완료’하면 그 과제가 ‘면제’돼요)'),
         h('label', { class: 'pick' }, onSale, '판매 중'),
         h('div', { class: 'row' },
           h('button', { class: 'btn', onclick: async () => {
@@ -199,9 +219,12 @@ export async function renderPointsAdmin(root) {
         showForm ? null : h('button', { class: 'btn', onclick: () => { editing = null; prefill = null; showForm = true; draw(); } }, '+ 쿠폰 추가')),
       items.length === 0 ? h('p', { class: 'muted' }, '쿠폰이 없어요.')
         : h('table', null, h('thead', null, h('tr', null,
-          h('th', null, '이름'), h('th', null, '가격'), h('th', null, '살 때'), h('th', null, '한 학생이 살 수 있는 횟수'), h('th', null, '반 전체 사용 횟수'), h('th', null, '판매'), h('th', null, ''))),
-        h('tbody', null, ...items.map((i) => h('tr', null,
-          h('td', null, i.name), h('td', { class: 'num' }, i.price),
+          h('th', null, '순서'), h('th', null, '이름'), h('th', null, '가격'), h('th', null, '살 때'), h('th', null, '한 학생이 살 수 있는 횟수'), h('th', null, '반 전체 사용 횟수'), h('th', null, '판매'), h('th', null, ''))),
+        h('tbody', null, ...items.map((i, idx) => h('tr', null,
+          h('td', { class: 'order-btns' },
+            h('button', { class: 'btn secondary tiny', title: '위로', disabled: idx === 0, onclick: () => run(() => moveItem(idx, -1)) }, '▲'),
+            h('button', { class: 'btn secondary tiny', title: '아래로', disabled: idx === items.length - 1, onclick: () => run(() => moveItem(idx, 1)) }, '▼')),
+          h('td', null, i.name, isExemptCoupon(i) ? h('span', { class: 'badge', style: 'margin-left:6px' }, '면제권') : null), h('td', { class: 'num' }, i.price),
           h('td', null, i.instant ? '바로 받음' : '선생님 승인'),
           h('td', null, buyText(i)),
           h('td', null, useText(i)),

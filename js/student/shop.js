@@ -6,6 +6,9 @@ import {
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId, weekId, monthId } from '../common/dates.js';
+import { celebrateGoal } from './celebrate.js';
+import { isExemptCoupon } from '../common/coupons.js';
+import { isShown } from '../common/task-visible.js';
 
 const STATUS_LABEL = { pending: '구매 승인 대기', useRequested: '사용 승인 대기' };
 
@@ -46,6 +49,7 @@ export async function renderShop(content, student, settings) {
     b.set(donorRef, { total: increment(amount) });
     b.update(doc(db, 'summaries', sid), { wallet: increment(-amount), lastTx: donateId });
     await b.commit();
+    return newRaised >= goal.target; // 이번에 달성했는지
   }
 
   async function reload() { await load(); draw(); }
@@ -73,24 +77,51 @@ export async function renderShop(content, student, settings) {
   }
 
   // ---- 쿠폰 쓰기 ----
-  async function useOne(coupon, item, useId, n) {
+  async function useOne(coupon, item, useId, n, task = null) {
     const b = writeBatch(db);
     b.set(doc(db, 'couponUses', useId), {
-      sid, coupon: coupon.id, type: item.id, date: todayId(), n, task: null, status: 'requested', at: serverTimestamp(),
+      sid, coupon: coupon.id, type: item.id, date: todayId(), n, task, status: 'requested', at: serverTimestamp(),
     });
     b.update(doc(db, 'coupons', coupon.id), { status: 'useRequested', use: useId });
     await b.commit();
   }
 
+  // 과제 면제권: 면제받을 과제(아직 안 낸 것)를 고른다. 취소하면 null
+  async function pickTask() {
+    const [tSnap, sSnap] = await Promise.all([
+      getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))),
+      getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))),
+    ]);
+    const subs = new Map(sSnap.docs.map((d) => [d.id, d.data().status]));
+    const list = tSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .filter((t) => t.kind === 'homework' && isShown(t))
+      .filter((t) => { const st = subs.get(`${t.id}_${sid}`); return !st || st === 'redo'; })
+      .sort((a, b) => (a.dueAt?.toMillis?.() ?? Infinity) - (b.dueAt?.toMillis?.() ?? Infinity));
+    if (!list.length) { toast('면제받을 과제가 없어요.', 'error'); return null; }
+    return new Promise((resolve) => {
+      const close = (v) => { dlg.remove(); resolve(v); };
+      const dlg = h('div', { class: 'sheet' }, h('div', { class: 'sheet-box' },
+        h('h3', null, '어떤 과제를 면제받을까요?'),
+        h('p', { class: 'muted small', style: 'margin:0' }, '선생님이 확인하면 그 과제가 면제돼요. (포인트는 없어요)'),
+        ...list.map((t) => h('button', { class: 'fb-choice', onclick: () => close(t.id) },
+          h('span', { class: 'fb-emoji' }, '📋'),
+          h('div', null, h('div', { class: 'fb-t' }, t.title), h('div', { class: 'muted small' }, t.subject || '')))),
+        h('button', { class: 'link', onclick: () => close(null) }, '닫기')));
+      document.body.append(dlg);
+    });
+  }
+
   async function use(coupon) {
     const item = data.items.find((i) => i.id === coupon.coupon) ?? { dailyUse: 0, name: coupon.coupon };
+    let task = null;
+    if (isExemptCoupon(item)) { task = await pickTask(); if (!task) return; }
     try {
       if (item.dailyUse === 0) {
-        await useOne(coupon, item, `u_${coupon.id}`, 0);
+        await useOne(coupon, item, `u_${coupon.id}`, 0, task);
       } else {
         let done = false;
         for (let n = 1; n <= item.dailyUse; n++) {
-          try { await useOne(coupon, item, `${item.id}_${todayId()}_${n}`, n); done = true; break; }
+          try { await useOne(coupon, item, `${item.id}_${todayId()}_${n}`, n, task); done = true; break; }
           catch (e) { if (e.code !== 'permission-denied') throw e; }
         }
         if (!done) { toast('오늘 사용 한도가 찼어요. 내일 써주세요.', 'error'); return; }
@@ -178,7 +209,11 @@ export async function renderShop(content, student, settings) {
       if (amount > wallet) { toast('지갑 포인트가 모자라요.', 'error'); return; }
       if (amount > remaining) { toast('남은 포인트보다 많이 보탤 수 없어요.', 'error'); return; }
       if (!confirm(`'${goal.title}'에 ${amount} ${currency}을 보탤까요?`)) return;
-      try { await donate(goal, amount); toast(`${amount} ${currency}을 보탰어요! 고마워요 💚`); await reload(); }
+      try {
+        const reached = await donate(goal, amount);
+        if (reached) celebrateGoal(goal); else toast(`${amount} ${currency}을 보탰어요! 고마워요 💚`);
+        await reload();
+      }
       catch (e) { console.error(e); toast('보태지 못했어요. 다시 해 주세요.', 'error'); }
     };
     const custom = h('input', { type: 'number', min: '1', placeholder: '직접', style: 'width:90px' });

@@ -8,7 +8,9 @@ import { todayId, ddayLabel as dday } from '../common/dates.js';
 import { loadMood, renderMood, moodLabel } from './mood.js';
 import { loadRoles, requestRole, approveRole, redoRole } from './roles.js';
 import { isShown } from '../common/task-visible.js';
-
+import { lookOf } from '../character/catalog.js';
+import { drawFront } from '../character/voxel2d.js';
+import { celebrateGoal } from './celebrate.js';
 
 export async function renderDashboard(content, student, settings, { openMission, openTasks }) {
   const sid = student.sid;
@@ -17,19 +19,23 @@ export async function renderDashboard(content, student, settings, { openMission,
   let data;
 
   async function load() {
-    const [summarySnap, mood, roles, attemptSnaps, studentsSnap, goalSnap, msgSnap, taskSnap, subSnap] = await Promise.all([
+    const [summarySnap, mood, roles, attemptSnaps, studentsSnap, goalSnap, msgSnap, taskSnap, subSnap, profSnap] = await Promise.all([
       getDoc(doc(db, 'summaries', sid)), loadMood(sid), loadRoles(sid),
       Promise.all(Array.from({ length: perDay }, (_, i) => getDoc(doc(db, 'missionAttempts', `${sid}_${todayId()}_${i + 1}`)).catch(() => null))),
       getDocs(collection(db, 'students')),
-      getDocs(query(collection(db, 'goals'), where('status', '==', 'open'))).catch(() => null),
+      getDocs(query(collection(db, 'goals'), where('status', 'in', ['open', 'done']))).catch(() => null),
       getDocs(query(collection(db, 'messages'), where('to', '==', sid))).catch(() => null),
       getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))).catch(() => null),
       getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))).catch(() => null),
+      getDoc(doc(db, 'profiles', sid)).catch(() => null),
     ]);
     // 아직 안 낸 과제(제출 전이거나 '다시 해오기'), 마감 빠른 순
     const subs = new Map((subSnap?.docs ?? []).map((d) => [d.id, d.data().status]));
-    const tasks = (taskSnap?.docs ?? []).map((d) => ({ id: d.id, ...d.data() }))
-      .filter((t) => t.kind === 'homework' && isShown(t))
+    const allTasks = (taskSnap?.docs ?? []).map((d) => ({ id: d.id, ...d.data() })).filter((t) => isShown(t));
+    // 선생님 확인용(가정통신문 회신 등) 중 '대시보드에 알림'을 켠 것: 아직 회신 안 한 학생에게만
+    const checks = allTasks.filter((t) => t.kind === 'check' && t.notify && subs.get(`${t.id}_${sid}`) !== 'done');
+    const tasks = allTasks
+      .filter((t) => t.kind === 'homework')
       .map((t) => ({ ...t, status: subs.get(`${t.id}_${sid}`) }))
       .filter((t) => !t.status || t.status === 'redo')
       .sort((a, b) => (a.dueAt?.toMillis?.() ?? Infinity) - (b.dueAt?.toMillis?.() ?? Infinity));
@@ -41,6 +47,8 @@ export async function renderDashboard(content, student, settings, { openMission,
       missionGot: attemptSnaps.filter((s) => s?.exists() && s.data().correct === true).length,
       names: new Map(studentsSnap.docs.map((d) => [d.id, d.data().name])),
       tasks,
+      checks,
+      equip: profSnap?.exists() ? profSnap.data().equip : null,
       goals: goalSnap ?goalSnap.docs.map((d) => ({ id: d.id, ...d.data() })) : [],
       messages: msgSnap ? msgSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((m) => !m.readAt).sort((a, b) => (b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0)) : [],
     };
@@ -63,6 +71,7 @@ export async function renderDashboard(content, student, settings, { openMission,
     b.set(donorRef, { total: increment(amount) });
     b.update(doc(db, 'summaries', sid), { wallet: increment(-amount), lastTx: donateId });
     await b.commit();
+    return newRaised >= goal.target; // 이번에 달성했는지
   }
 
   function todos() {
@@ -81,7 +90,7 @@ export async function renderDashboard(content, student, settings, { openMission,
     const done = total - remaining;
     return h('section', { class: 'card hero' },
       h('div', { class: 'hero-top' },
-        h('div', { class: 'avatar' }, '🙂'),
+        avatar(),
         h('div', { class: 'hero-id' },
           h('div', { class: 'name' }, `${student.number}번 ${student.name}`),
           h('div', { class: 'wallet-pill' }, `🪙 ${data.summary.wallet} ${currency}`)),
@@ -165,9 +174,38 @@ export async function renderDashboard(content, student, settings, { openMission,
     return h('section', { class: 'card' }, h('h2', null, '오늘 한 일'), ...rows);
   }
 
+  // 머리줄 왼쪽: 내 캐릭터 정면 그림(작게)
+  function avatar() {
+    const cv = h('canvas', { width: 116, height: 116, class: 'avatar-cv' });
+    queueMicrotask(() => drawFront(cv, lookOf(data.equip)));
+    return h('div', { class: 'avatar' }, cv);
+  }
+
+  // 선생님 확인용 알림(가정통신문 회신 등): 아직 회신 안 했을 때만
+  function checksCard() {
+    if (!data.checks.length) return null;
+    return h('section', { class: 'card checks-card' },
+      h('h2', null, '📬 선생님께 내야 할 것'),
+      ...data.checks.map((t) => h('div', { class: 'todo' },
+        h('span', { class: 'todo-l' }, h('span', { class: 'todo-ico' }, '📄'),
+          h('span', null, t.title, t.dueAt ? h('span', { class: 'todo-due' }, dday(t.dueAt)) : null)),
+        h('span', { class: 'state' }, '내면 선생님이 확인해요'))));
+  }
+
+  // 달성한 목표: 축하 카드(보태기 닫힘)
+  function goalDoneCard(goal) {
+    return h('section', { class: 'card goal goal-done' },
+      h('h2', null, '🎉 우리반 공동 목표 달성!'),
+      h('div', { class: 'goal-title' }, goal.title),
+      h('div', { class: 'bar' }, h('div', { class: 'fill', style: 'width:100%' })),
+      h('div', { class: 'muted small', style: 'margin-top:6px' }, `${goal.target} ${currency} 모두 모았어요 · ${goal.donors ?? 0}명이 보탰어요`),
+      goal.reward ? h('p', { class: 'goal-reward' }, `🎁 보상: ${goal.reward}`) : null);
+  }
+
   function goalCard() {
-    const goal = (data.goals ?? [])[0];
-    if (!goal) return null;
+    const done = (data.goals ?? []).find((g) => g.status === 'done');
+    const goal = (data.goals ?? []).find((g) => g.status === 'open');
+    if (!goal) return done ? goalDoneCard(done) : null;
     const remaining = goal.target - goal.raised;
     const pct = goal.target ? Math.min(100, (goal.raised / goal.target) * 100) : 0;
     const wallet = data.summary.wallet ?? 0;
@@ -176,7 +214,10 @@ export async function renderDashboard(content, student, settings, { openMission,
       if (amount > wallet) { toast('지갑 포인트가 모자라요.', 'error'); return; }
       if (amount > remaining) { toast('남은 포인트보다 많이 보탤 수 없어요.', 'error'); return; }
       if (!confirm(`'${goal.title}'에 ${amount} ${currency}을 보탤까요?`)) return;
-      act(async () => { await donate(goal, amount); toast(`${amount} ${currency}을 보탰어요! 💚`); });
+      act(async () => {
+        const reached = await donate(goal, amount);
+        if (reached) celebrateGoal(goal); else toast(`${amount} ${currency}을 보탰어요! 💚`);
+      });
     };
     const custom = h('input', { type: 'number', min: '1', placeholder: '직접', class: 'goal-custom' });
     return h('section', { class: 'card goal' },
@@ -206,7 +247,7 @@ export async function renderDashboard(content, student, settings, { openMission,
     const grid = h('div', { class: 'dash-grid' },
       ...[moodCard(), todoCard(), doneCard(), goalCard()].filter(Boolean));
     content.replaceChildren(h('div', { class: 'dash' }, ...[
-      messagesCard(), hero(), requestCard(), grid,
+      messagesCard(), hero(), requestCard(), checksCard(), grid,
     ].filter(Boolean)));
   }
 

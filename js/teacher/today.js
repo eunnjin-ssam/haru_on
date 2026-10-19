@@ -5,9 +5,11 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { todayId, kstNow } from '../common/dates.js';
+import { todayId, kstNow, ddayLabel } from '../common/dates.js';
 import { MOODS, moodLabel } from '../student/mood.js';
 import { isShown } from '../common/task-visible.js';
+import { loadSettings } from '../common/settings.js';
+import { renderMyWeek } from '../student/myweek.js';
 
 const NEGATIVE = ['upset', 'angry', 'tired'];
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '');
@@ -96,17 +98,19 @@ export async function renderToday(root, { open }) {
 
   function taskState(sid) {
     const mine = data.tasks.filter((t) => (t.targets ?? []).includes(sid));
-    let left = 0; let late = 0;
+    let left = 0; let late = 0; const list = [];
     const now = Date.now();
     for (const t of mine) {
       const sub = data.subs.get(`${t.id}_${sid}`);
       const finished = sub && ['done', 'exempt'].includes(sub.status);
       if (!finished) {
         left += 1;
-        if (t.dueAt?.toMillis && t.dueAt.toMillis() < now) late += 1;
+        const isLate = !!(t.dueAt?.toMillis && t.dueAt.toMillis() < now);
+        if (isLate) late += 1;
+        list.push({ t, sub, isLate });
       }
     }
-    return { left, late };
+    return { left, late, list };
   }
 
   async function approveFor(sid, { role, check }) {
@@ -205,12 +209,41 @@ export async function renderToday(root, { open }) {
 
     return h('tr', { class: negative ? 'row-neg' : '' },
       h('td', { class: 'num' }, s.number),
-      h('td', null, s.name),
+      h('td', null, h('button', { class: 'linkish', title: '이 학생의 나의마당 보기', onclick: () => openMyWeek(s) }, s.name)),
       moodCell,
       h('td', null, m ? `${m.correct}/${data.perDay}` : h('span', { class: 'muted' }, '-')),
       roleCell,
-      h('td', { class: ts.late ? 'mood-neg' : '' }, ts.left ? `${ts.left}개${ts.late ? ` (늦음 ${ts.late})` : ''}` : h('span', { class: 'muted' }, '0')),
+      h('td', { class: ts.late ? 'mood-neg' : '' }, ts.left
+        ? h('button', { class: 'linkish', title: '남은 과제 보기', onclick: () => openLeft(s, ts.list) }, `${ts.left}개${ts.late ? ` (늦음 ${ts.late})` : ''}`)
+        : h('span', { class: 'muted' }, '0')),
     );
+  }
+
+  // 창 하나 띄우기(바깥을 누르거나 닫기로 닫힘)
+  function sheet(title, body) {
+    const dlg = h('div', { class: 'sheet' }, h('div', { class: 'sheet-box wide' },
+      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h3', { style: 'margin:0' }, title),
+        h('button', { class: 'btn secondary small', onclick: () => dlg.remove() }, '닫기')),
+      body));
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.remove(); });
+    document.body.append(dlg);
+  }
+
+  // 남은 과제 숫자 → 목록(마감 순, 늦은 것은 빨강)
+  function openLeft(s, list) {
+    const items = list.slice().sort((a, b) => (a.t.dueAt?.toMillis?.() ?? Infinity) - (b.t.dueAt?.toMillis?.() ?? Infinity));
+    const stateOf = (sub) => ({ submitted: '확인 대기', redo: '다시 해오기' }[sub?.status] ?? '안 함');
+    sheet(`${s.number}번 ${s.name} · 남은 과제 ${items.length}개`,
+      h('ul', { class: 'left-list' }, ...items.map(({ t, sub, isLate }) => h('li', { class: isLate ? 'late' : '' },
+        h('span', null, t.title), h('span', { class: 'muted' }, `${ddayLabel(t.dueAt) || '기한 없음'} · ${stateOf(sub)}`)))));
+  }
+
+  // 이름 → 그 학생의 나의마당(학생 화면과 같은 내용)
+  async function openMyWeek(s) {
+    const box = h('div', { class: 'myweek-in-teacher' }, h('p', { class: 'muted' }, '불러오는 중…'));
+    sheet(`${s.number}번 ${s.name}의 나의마당`, box);
+    try { await renderMyWeek(box, { sid: s.sid, number: s.number, name: s.name }, await loadSettings()); }
+    catch (e) { console.error(e); box.replaceChildren(h('p', { class: 'banner' }, '불러오지 못했어요.')); }
   }
 
   function draw() {
