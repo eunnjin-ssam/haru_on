@@ -2,11 +2,11 @@
 // 문제 내용은 missionQuestions(정답 없음)에서 읽고, 정답 대조는 서버(규칙)가 missionKeys로 한다.
 // 채점: '정답이라 가정'하고 포인트까지 한 묶음으로 써 본다 → 거부되면 오답이라 포인트 없이 채점만.
 import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, writeBatch, increment, serverTimestamp,
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, writeBatch, increment, serverTimestamp, query, where,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { todayId } from '../common/dates.js';
+import { todayId, addDaysId } from '../common/dates.js';
 
 // 오늘 푼 문제들 (index 0 = 1번). 없으면 null, 채점 전이면 correct 없음
 async function loadAttempts(sid, perDay) {
@@ -24,17 +24,42 @@ async function loadQuestions(units) {
     .filter((q) => units.includes(q.unit));
 }
 
-// 다음 문제 고르기: 1번은 보통, 직전에 틀렸으면 기초, 맞았으면 보통. 이미 푼 문제는 제외.
-function pickQuestion(questions, attempts, n) {
+// 최근 2주 정답률(채점된 문제가 LOW_MIN개 이상일 때만). 계속 낮으면 그날 첫 문제를 기초로 낸다.
+const LOW_MIN = 10; const LOW_RATE = 0.5;
+async function loadRecentLow(sid) {
+  try {
+    const since = addDaysId(todayId(), -14);
+    const snap = await getDocs(query(collection(db, 'missionAttempts'), where('sid', '==', sid)));
+    const graded = snap.docs.map((d) => d.data()).filter((a) => a.date >= since && a.date < todayId() && 'correct' in a);
+    if (graded.length < LOW_MIN) return false;
+    return graded.filter((a) => a.correct).length / graded.length < LOW_RATE;
+  } catch { return false; }
+}
+
+const STEP_UP = { basic: 'normal', normal: 'challenge', challenge: 'challenge' };
+// 다음 문제 고르기. 이미 푼 문제는 제외.
+// 1번: 보통(최근 정답률이 계속 낮으면 기초) / 직전에 맞았으면 한 단계 위(기초→보통→도전) / 틀렸으면 같은 단원 기초
+function pickQuestion(questions, attempts, n, startBasic) {
   const usedQids = new Set(attempts.filter(Boolean).map((a) => a.qid));
-  const prev = attempts[n - 2]; // 직전 문제 (n은 1부터)
-  const wantBasic = prev && prev.correct === false;
   const pool = questions.filter((q) => !usedQids.has(q.id));
   if (pool.length === 0) return null;
-  const want = n === 1 ? 'normal' : (wantBasic ? 'basic' : 'normal');
-  const preferred = pool.filter((q) => q.difficulty === want);
-  const from = preferred.length ? preferred : pool;
-  return from[Math.floor(Math.random() * from.length)];
+  const prev = attempts[n - 2]; // 직전 문제 (n은 1부터)
+  const prevQ = prev && questions.find((q) => q.id === prev.qid);
+  let want = startBasic ? 'basic' : 'normal';
+  let unit = null;
+  if (prev && prev.correct === false) { want = 'basic'; unit = prevQ?.unit ?? null; }
+  else if (prev && prev.correct === true) want = STEP_UP[prevQ?.difficulty] ?? 'normal';
+  const tries = [
+    (q) => q.difficulty === want && (!unit || q.unit === unit),
+    (q) => q.difficulty === want,
+    (q) => !unit || q.unit === unit,
+    () => true,
+  ];
+  for (const ok of tries) {
+    const from = pool.filter(ok);
+    if (from.length) return from[Math.floor(Math.random() * from.length)];
+  }
+  return null;
 }
 
 export async function renderMission(root, student, settings, onBack) {
@@ -45,9 +70,10 @@ export async function renderMission(root, student, settings, onBack) {
 
   let questions = [];
   let attempts = [];
+  let startBasic = false;
 
   async function reload() {
-    [questions, attempts] = await Promise.all([loadQuestions(units), loadAttempts(sid, perDay)]);
+    [questions, attempts, startBasic] = await Promise.all([loadQuestions(units), loadAttempts(sid, perDay), loadRecentLow(sid)]);
   }
 
   // 정답이라 가정하고 포인트까지 한 묶음으로 시도. 거부되면 오답 처리. 맞았으면 true.
@@ -139,7 +165,7 @@ export async function renderMission(root, student, settings, onBack) {
   }
 
   function showQuestion(n) {
-    const q = pickQuestion(questions, attempts, n);
+    const q = pickQuestion(questions, attempts, n, startBasic);
     if (!q) {
       shell(progressBar(), h('p', { class: 'banner' }, '낼 수 있는 문제가 더 없어요. 선생님께 알려 주세요.'));
       return;
