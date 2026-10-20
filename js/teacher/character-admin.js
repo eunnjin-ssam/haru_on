@@ -1,6 +1,6 @@
 // 캐릭터·칭호 관리: 아이템 판매/숨김, 칭호 수여(선생님 수여는 금색), 스마트보드 화면 링크.
 import {
-  collection, doc, getDocs, setDoc, updateDoc, arrayUnion, arrayRemove,
+  collection, doc, getDocs, setDoc, updateDoc, writeBatch, arrayUnion, arrayRemove,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -32,6 +32,22 @@ export async function renderCharacterAdmin(root) {
     for (const [id, it] of Object.entries(CATALOG)) {
       await setDoc(doc(db, 'items', id), { category: it.category, name: it.name, prices: it.prices, onSale: true, starter: !!it.starter }, { merge: true });
     }
+  }
+
+  // 추천 가격 적용: 지금 상점에 있는 색은 그대로 두고 값만 도감 가격으로 바꾼다(판매/숨김도 그대로).
+  // 선생님이 추가한 색처럼 도감에 없는 색은 그 아이템의 도감 가격(가장 높은 값)을 쓴다.
+  async function applyRecommended() {
+    let b = writeBatch(db); let n = 0;
+    for (const it of items) {
+      const cat = CATALOG[it.id];
+      if (!cat) continue;
+      const base = Math.max(...Object.values(cat.prices));
+      const prices = {};
+      for (const c of Object.keys(it.prices ?? {})) prices[c] = (c === 'default' && cat.starter) ? 0 : (cat.prices[c] ?? base);
+      b.update(doc(db, 'items', it.id), { prices });
+      if (++n % 400 === 0) { await b.commit(); b = writeBatch(db); }
+    }
+    await b.commit();
   }
 
   function boardUrl() { return new URL('board.html' + location.search, location.href).href; }
@@ -92,7 +108,12 @@ export async function renderCharacterAdmin(root) {
           h('h2', null, '아이템 관리'),
           h('p', { class: 'muted small', style: 'margin:0' },
             items.length ? `아이템 ${items.length}개 · 판매중 ${onSale}개 · 숨김 ${items.length - onSale}개. 색 이름 옆 숫자를 고치고 ‘가격 저장’을 누르면 바뀌어요.` : '학생이 캐릭터 상점에서 사는 옷과 소품이에요.')),
-        seedBtn),
+        items.length ? h('div', { class: 'row' },
+          h('button', { class: 'btn', onclick: () => {
+            if (!confirm('모든 아이템 가격을 추천 가격으로 바꿀까요?\n색과 판매/숨김은 그대로이고, 이미 산 아이템도 학생에게 그대로 남아요.')) return;
+            run(applyRecommended, '추천 가격을 적용했어요');
+          } }, '추천 가격 적용'),
+          seedBtn) : seedBtn),
       items.length === 0 ? h('p', { class: 'muted', style: 'padding:4px 2px' }, '아이템이 없어요. ‘기본 아이템 넣기’를 눌러 주세요.') : null,
       items.length === 0 ? null : h('div', { class: 'seg-tabs', style: 'margin-top:12px' }, ...Object.entries(CAT_LABEL).map(([k, label]) => {
         const n = items.filter((i) => i.category === k).length;

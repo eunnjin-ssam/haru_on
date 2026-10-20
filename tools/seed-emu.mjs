@@ -41,11 +41,11 @@ await env.withSecurityRulesDisabled(async (ctx) => {
 
   // 상점 기본 쿠폰
   const shop = [
-    ['prep', '준비물 대여권', '준비물을 빌려줘요', 5, true, 2, 'week', 0],
-    ['lunch', '급식 먼저 먹기권', '급식을 먼저 먹어요', 15, false, 0, 'none', 1],
-    ['snack', '간식권', '간식을 먹어요', 20, false, 1, 'week', 0],
-    ['seat', '자유자리권', '자리를 바꿔 앉아요', 30, false, 0, 'none', 3],
-    ['nohw', '숙제면제권', '숙제를 한 번 면제해요', 50, false, 1, 'month', 0],
+    ['prep', '준비물 대여권', '준비물을 빌려줘요', 10, true, 2, 'week', 0],
+    ['lunch', '급식 먼저 먹기권', '급식을 먼저 먹어요', 30, false, 0, 'none', 1],
+    ['snack', '간식권', '간식을 먹어요', 35, false, 1, 'week', 0],
+    ['seat', '자유자리권', '자리를 바꿔 앉아요', 40, false, 0, 'none', 3],
+    ['nohw', '숙제면제권', '숙제를 한 번 면제해요', 70, false, 1, 'month', 0],
   ];
   let order = 0;
   for (const [id, name, desc, price, instant, buyLimit, buyPeriod, dailyUse] of shop) {
