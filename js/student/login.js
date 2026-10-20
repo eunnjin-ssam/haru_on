@@ -90,6 +90,7 @@ export function renderLogin(root, onLoggedIn) {
     const digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => key(d, d));
     if (step === 'number') {
       return h('section', { class: 'login' },
+        h('img', { class: 'login-logo', src: 'img/logo.webp', alt: '하루 On' }),
         h('h1', null, '내 번호를 눌러요'),
         h('div', { class: 'display', 'aria-live': 'polite' },
           number ? `${number}번` : h('span', { class: 'placeholder' }, '번호')),
@@ -100,6 +101,7 @@ export function renderLogin(root, onLoggedIn) {
       );
     }
     return h('section', { class: 'login' },
+      h('img', { class: 'login-logo', src: 'img/logo.webp', alt: '하루 On' }),
       h('h1', null, `${number}번, 비밀번호를 눌러요`),
       h('p', { class: 'guide' }, busy ? '확인하는 중…' : '선생님이 준 숫자 4개'),
       h('div', { class: 'display', 'aria-label': `${pin.length}개 입력함` },

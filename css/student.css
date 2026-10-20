@@ -431,3 +431,123 @@ body { font-size: 17px; }
 .wish-sel { padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; font-size: 16px; background: var(--surface); }
 .wish-done { font-weight: 700; margin: 0; }
 .wish-card .btn { align-self: flex-start; }
+
+/* =========================================================
+   학생 화면 테마 (2026-10-20): 밝고 친근한 파스텔, Pretendard
+   student.css는 학생 화면에서만 읽으므로 여기서 바꾼 색 변수는 선생님 화면에 영향이 없다.
+   ========================================================= */
+:root {
+  --bg: #f6f5fd;
+  --surface: #ffffff;
+  --surface-2: #f8f7ff;
+  --text: #2a2740;
+  --muted: #8b88a3;
+  --line: #ebe8f6;
+  --primary: #7b6cf6;
+  --primary-dark: #5f4ee0;
+  --primary-soft: #efecfe;
+  --accent: #f0a24b;
+  --accent-soft: #fff1df;
+  --danger: #ef6a6a;
+  --danger-soft: #fff0ef;
+  --ok: #2fae74;
+  --ok-soft: #e3f7ee;
+  --radius: 20px;
+  --shadow: 0 4px 18px rgba(123, 108, 246, .07);
+  --shadow-sm: 0 2px 8px rgba(123, 108, 246, .08);
+  /* 파스텔 */
+  --p-sky: #e3f2fb; --p-pink: #fde8f3; --p-violet: #eeebff; --p-mint: #e0f6ec; --p-peach: #fff0e1; --p-yellow: #fff6d6;
+}
+body { -webkit-font-smoothing: antialiased; }
+
+/* 카드·버튼: 둥글고 부드럽게 */
+.card { border: 1px solid var(--line); box-shadow: var(--shadow); }
+.btn { border-radius: 14px; box-shadow: 0 3px 0 var(--primary-dark); }
+.btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--primary-dark); }
+.btn.secondary { box-shadow: none; border: 1.5px solid var(--line); }
+.btn.danger { box-shadow: 0 3px 0 #d55252; }
+.card h2 { font-weight: 800; }
+
+/* 사이드바: 흰 바탕, 메뉴 이모지는 파스텔 동그라미 안에 */
+.sidebar { border-right: 1px solid var(--line); }
+.brand-sub { background: var(--primary-soft); color: var(--primary-dark); border-radius: 999px; padding: 4px 14px; font-size: 14px; }
+.nav-btn { color: #6f6b88; border-radius: 16px; }
+.nav-btn .ico { width: 38px; height: 38px; border-radius: 12px; background: var(--surface-2); display: inline-flex; align-items: center; justify-content: center; font-size: 20px; flex: 0 0 auto; }
+.nav-btn:hover { background: var(--surface-2); color: var(--text); }
+.nav-btn.on { background: var(--primary-soft); color: var(--primary-dark); }
+.nav-btn.on .ico { background: #fff; box-shadow: var(--shadow-sm); }
+.side-nav .nav-btn:nth-child(6n+1) .ico { background: var(--p-violet); }
+.side-nav .nav-btn:nth-child(6n+2) .ico { background: var(--p-sky); }
+.side-nav .nav-btn:nth-child(6n+3) .ico { background: var(--p-pink); }
+.side-nav .nav-btn:nth-child(6n+4) .ico { background: var(--p-mint); }
+.side-nav .nav-btn:nth-child(6n+5) .ico { background: var(--p-peach); }
+.side-nav .nav-btn:nth-child(6n+6) .ico { background: var(--p-yellow); }
+@media (max-width: 760px) { .nav-btn .ico { width: 30px; height: 30px; font-size: 17px; } }
+
+/* 위쪽 머리줄·알약 버튼 */
+.page-title { color: var(--text); }
+.pill { border: 1.5px solid var(--line); background: var(--surface); color: #5c5875; }
+.pill:hover { background: var(--primary-soft); color: var(--primary-dark); border-color: var(--primary-soft); }
+.pill.danger { box-shadow: none; }
+
+/* 대시보드 머리 카드: 갈색 → 연보라·하늘 파스텔, 글씨는 진하게 */
+.hero { background: linear-gradient(135deg, #ece8ff 0%, #e2f1fb 100%); color: var(--text); border: 0; box-shadow: var(--shadow); }
+.hero .avatar { background: #fff; box-shadow: var(--shadow-sm); border-radius: 18px; }
+.wallet-pill { background: #fff; color: var(--primary-dark); box-shadow: var(--shadow-sm); }
+.hero-count { background: #fff; border-radius: 16px; padding: 8px 14px; box-shadow: var(--shadow-sm); }
+.hero-count .big { color: var(--primary-dark); }
+.hero-count .sub { color: var(--muted); opacity: 1; }
+.hero .bar { background: rgba(255, 255, 255, .85); }
+.hero .bar .fill { background: linear-gradient(90deg, #a99cfb, var(--primary)); }
+.bar { background: var(--surface-2); }
+
+/* 할 일 줄: 아이콘 칸을 파스텔로 */
+.todo-ico { background: var(--p-violet); border: 0; border-radius: 12px; }
+.todo:nth-of-type(2n) .todo-ico { background: var(--p-sky); }
+.todo:nth-of-type(3n) .todo-ico { background: var(--p-pink); }
+.done .todo-ico, .todo.is-done .todo-ico { background: var(--p-mint); }
+.todo-check { color: var(--ok); }
+.done .got { background: var(--p-mint); color: var(--ok); }
+
+/* 탭·칩: 진한 채움 대신 연한 보라 */
+.subtab.on, .chip.on { background: var(--primary-soft); color: var(--primary-dark); border-color: var(--primary-soft); font-weight: 700; }
+.seg { background: var(--surface-2); }
+.seg .chip.on, .seg .subtab.on { background: #fff; color: var(--primary-dark); box-shadow: var(--shadow-sm); }
+.wallet-chip { background: var(--p-peach); color: #b9721f; }
+
+/* 노랑·갈색으로 박혀 있던 상태 표시 → 파스텔 */
+.chip-s.wait, .stage-agenda, .badge-wait { background: var(--p-yellow); color: #a7790c; }
+.chip-s.todo, .stage-story { background: var(--p-violet); color: var(--primary-dark); }
+.chip-s.ok, .stage-promise { background: var(--p-mint); color: var(--ok); }
+.chip-s.redo { background: var(--p-pink); color: #c2477e; }
+.banner { background: var(--p-pink); color: #b0436f; }
+.promises { border: 1.5px solid #bfe9d4; background: var(--p-mint); }
+.card.guide { background: var(--p-sky); border-color: #d3e9f6; }
+.tree { background: linear-gradient(135deg, var(--p-mint) 0%, #e9f8f1 100%); border-color: #cdeedd; }
+.tree .bar { background: rgba(255, 255, 255, .9); }
+.sc-progress .bar { background: var(--surface-2); }
+.sc-progress .bar .fill { background: linear-gradient(90deg, #ffc98a, var(--accent)); }
+.linkish { color: var(--primary-dark); text-decoration: none; font-weight: 600; }
+.like.on { color: #e5608f; }
+
+/* 입력칸: 둥글고 포커스 때 연보라 테두리 */
+input, textarea, select { border-radius: 12px; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: #c9c1fb !important; box-shadow: 0 0 0 3px var(--primary-soft); }
+
+/* 로그인 화면: 숫자 패드 */
+.display { border: 2px solid var(--line); box-shadow: var(--shadow); }
+.key { box-shadow: 0 3px 0 var(--line); }
+.key.fn { background: var(--p-violet); color: var(--primary-dark); }
+.key.ok { box-shadow: 0 3px 0 var(--primary-dark); }
+
+/* 창(새소식·축하·아래에서 올라오는 선택지) */
+.sheet, .notice-pop, .cele { background: rgba(42, 39, 64, .35); }
+.notice-tag { background: var(--p-peach); color: #b9721f; }
+.wish-card { border-color: #d8d1fd; background: linear-gradient(135deg, #f4f2ff, #fff); }
+.checks-card { border-color: #f6dcb5; background: var(--p-peach); }
+.messages-card { background: var(--p-yellow); border-color: #f4e3a6; }
+.toast { background: #3b3756; border-radius: 16px; }
+
+/* 로그인 화면 로고 */
+.login-logo { width: 200px; max-width: 60%; height: auto; margin-bottom: 4px; }
+.login-logo { mix-blend-mode: multiply; } /* 로고의 흰 바탕이 연보라 배경에 보이지 않게 */
