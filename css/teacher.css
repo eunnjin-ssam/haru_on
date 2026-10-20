@@ -504,3 +504,6 @@ td.item-pic canvas { width: 48px; height: 48px; background: var(--surface-2); bo
 .pc-del:hover { color: var(--danger); background: var(--danger-soft); }
 .pc-add { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; }
 .pc-add select { padding: 5px 8px; font-size: 13px; }
+
+/* 공동 목표: 기부 명단 */
+.donor-list { margin-top: 6px; }
