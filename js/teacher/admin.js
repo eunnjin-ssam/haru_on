@@ -1,9 +1,10 @@
-// 관리: 전체 백업 내려받기, 백업에서 복원, 학년말 전체 초기화.
+// 관리: 전체 백업 내려받기, 백업에서 복원, 학생 기록 지우기, 학년말 전체 초기화.
 import {
   collection, doc, getDocs, writeBatch, Timestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
+import { resetStudent } from './student-reset.js';
 
 // 백업에 담는 최상위 컬렉션
 const COLLECTIONS = [
@@ -109,6 +110,34 @@ export async function renderAdmin(root) {
     fileInput.value = '';
   } });
 
+  // 학생 기록 지우기: 고른 학생의 기록만 지우고 명단·번호·PIN은 남긴다(시험 기록 정리용)
+  const students = (await getDocs(collection(db, 'students'))).docs
+    .map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active !== false).sort((a, b) => a.number - b.number);
+  function resetStudentCard() {
+    const checks = students.map((s) => ({ s, box: h('input', { type: 'checkbox' }) }));
+    const btn = h('button', { class: 'btn danger', onclick: async () => {
+      const picked = checks.filter((c) => c.box.checked).map((c) => c.s);
+      if (!picked.length) { toast('기록을 지울 학생을 골라 주세요.', 'error'); return; }
+      const who = picked.map((s) => `${s.number}번 ${s.name}`).join(', ');
+      if (!confirm(`${who}의 기록을 모두 지울까요?\n포인트·기분·기초미션·과제·글·아이템 등이 지워지고 되돌릴 수 없어요.`)) return;
+      if (!confirm('한 번 더 확인해요. 정말 지울까요? (학생 명단·번호·PIN은 남아요)')) return;
+      btn.disabled = true;
+      try {
+        for (const s of picked) { toast(`${s.number}번 ${s.name} 기록을 지우는 중…`); await resetStudent(s.sid); }
+        toast('기록을 지웠어요.');
+        for (const c of checks) c.box.checked = false;
+      } catch (e) { console.error(e); toast('다 지우지 못했어요. 다시 눌러 주세요.', 'error'); }
+      btn.disabled = false;
+    } }, '고른 학생 기록 지우기');
+    return h('section', { class: 'card' }, h('h2', null, '학생 기록 지우기'),
+      h('p', { class: 'muted' }, '시험 삼아 써 본 학생의 기록만 깨끗이 지워요. 학생 명단·번호·PIN은 그대로라 바로 다시 쓸 수 있어요.'),
+      h('p', { class: 'muted small' }, '지우는 것: 포인트 내역(지갑·누적 0), 기분, 기초미션, 1인1역 확인·희망, 과제 제출, 글마당 글·공감, 약속마당 이야기·댓글·공감, 신고, 쿠폰, 아이템·캐릭터 모습·칭호, 공동 목표 기부, 쪽지, 건의, 살핌판 메모'),
+      students.length
+        ? h('div', { class: 'reset-pick' }, ...checks.map(({ s, box }) => h('label', { class: 'reset-chip' }, box, ` ${s.number}번 ${s.name}`)))
+        : h('p', { class: 'muted' }, '학생이 없어요.'),
+      h('div', { class: 'row', style: 'margin-top:10px' }, btn));
+  }
+
   root.replaceChildren(
     h('section', { class: 'card' }, h('h2', null, '데이터 백업'),
       h('p', { class: 'muted' }, '우리 반의 모든 데이터를 파일 하나로 내려받아요. 가끔 받아 두면 안전해요.'),
@@ -120,6 +149,8 @@ export async function renderAdmin(root) {
     h('section', { class: 'card' }, h('h2', null, '백업에서 복원'),
       h('p', { class: 'muted' }, '내려받은 백업 파일로 되돌려요. 지금 데이터 위에 덮어써요(지우지는 않아요).'),
       h('button', { class: 'btn secondary', onclick: () => fileInput.click() }, '백업 파일 고르기'), fileInput),
+
+    resetStudentCard(),
 
     h('section', { class: 'card danger-zone' }, h('h2', null, '⚠️ 학년말 전체 초기화'),
       h('p', { class: 'banner' }, '학생·포인트·글·과제 등 한 해 기록을 모두 지워요. 설정·문제은행·상점 틀은 남아요. 되돌릴 수 없으니 먼저 백업을 받아 주세요.'),

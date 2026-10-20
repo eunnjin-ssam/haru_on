@@ -511,3 +511,8 @@ td.item-pic canvas { width: 48px; height: 48px; background: var(--surface-2); bo
 /* 체크판: 완료 칸도 눌러서 취소 */
 .cell.done { cursor: pointer; }
 .cell.done:hover { background: var(--danger-soft); }
+
+/* 학생 기록 지우기: 학생 고르기 */
+.reset-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.reset-chip { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border: 1px solid var(--line, #e5e7eb); border-radius: 999px; background: var(--card, #fff); font-size: 14px; cursor: pointer; }
+.reset-chip:has(input:checked) { border-color: var(--danger, #e5484d); background: #fff1f1; }
