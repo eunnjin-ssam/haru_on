@@ -584,6 +584,14 @@ describe('캐릭터·칭호', () => {
     await assertSucceeds(updateDoc(doc(db, 'profiles/s1'), { 'equip.hair': { owned: 's1_hairBasic_free', item: 'hairBasic', color: 'black' } }));
     await assertFails(updateDoc(doc(db, 'profiles/s1'), { 'equip.headAcc': { owned: 's1_crown_gold', item: 'crown', color: 'gold' } }));
   });
+  it('얼굴 색·손 소품 칸도 가진 아이템만, 맞는 칸에만', async () => {
+    await setDoc(doc(teacher(env), 'items/skinDark'), { category: 'skin', name: '어두움', prices: { default: 0 }, onSale: true, starter: true });
+    const db = await login(env, '1');
+    await assertSucceeds(setDoc(doc(db, 'ownedItems/s1_skinDark_free'), { sid: 's1', item: 'skinDark', category: 'skin', color: 'default', at: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(db, 'profiles/s1'), { 'equip.skin': { owned: 's1_skinDark_free', item: 'skinDark', color: 'default' } }));
+    await assertFails(updateDoc(doc(db, 'profiles/s1'), { 'equip.hand': { owned: 's1_skinDark_free', item: 'skinDark', color: 'default' } }));
+    await assertFails(updateDoc(doc(db, 'profiles/s1'), { 'equip.wing': null }));
+  });
   it('기준을 못 채운 칭호는 못 달고, 선생님이 준 칭호는 단다', async () => {
     const db = await login(env, '1');
     await assertFails(updateDoc(doc(db, 'profiles/s1'), { title: 'reading_0' }));

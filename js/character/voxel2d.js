@@ -46,6 +46,8 @@ export function drawItem(canvas, item, color) {
   let boxes = it.boxes(hex);
   // 얼굴·얼굴소품은 머리 위에 올려야 아이콘이 얼굴처럼 보인다
   if (it.category === 'face' || it.category === 'faceAcc') boxes = [HEAD, ...boxes];
+  // 얼굴 색은 모양이 없으니 그 색 얼굴(웃는 눈)로 보여 준다
+  if (it.category === 'skin') boxes = [{ ...HEAD, color: it.tone }, ...CATALOG.faceSmile.boxes()];
   if (!boxes.length) return;
 
   let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity;

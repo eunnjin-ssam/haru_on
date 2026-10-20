@@ -8,8 +8,8 @@ import { CATALOG, colorHex, colorLabel, COLORS, DEFAULT_LOOK, CORE_SLOTS } from 
 import { renderCharacter3D } from '../character/voxel3d.js';
 import { drawFront, drawItem } from '../character/voxel2d.js';
 
-const SECTION = { hair: '헤어스타일', face: '얼굴 표정', top: '상의', bottom: '하의', shoes: '신발', headAcc: '모자·머리 소품', faceAcc: '얼굴 소품' };
-const SECTION_ORDER = ['hair', 'face', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc'];
+const SECTION = { hair: '헤어스타일', face: '얼굴 표정', skin: '얼굴 색', top: '상의', bottom: '하의', shoes: '신발', headAcc: '모자·머리 소품', faceAcc: '얼굴 소품', hand: '손에 드는 소품', back: '기타 소품' };
+const SECTION_ORDER = ['hair', 'face', 'skin', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc', 'hand', 'back'];
 const EMPTY = { hair: null, face: null, top: null, bottom: null, shoes: null, headAcc: null, faceAcc: null };
 const TITLE_FIELDS = [['reading', 'reading'], ['mission', 'missionDays'], ['role', 'roleDays']];
 
@@ -41,17 +41,19 @@ export async function renderCharacter(content, student, settings) {
   }
 
   async function ensureStarters() {
-    const starters = Object.entries(CATALOG).filter(([, it]) => it.starter);
+    // 선생님 화면이 상점(items)에 아직 안 넣은 새 기본 아이템은 건너뛴다(보안 규칙이 items 문서를 확인함)
+    const starters = Object.entries(CATALOG).filter(([id, it]) => it.starter && data.items.has(id));
     const missing = starters.filter(([id]) => !data.owned.has(`${sid}_${id}_free`));
     if (missing.length) {
       const b = writeBatch(db);
       for (const [id, it] of missing) b.set(doc(db, 'ownedItems', `${sid}_${id}_free`), { sid, item: id, category: it.category, color: 'default', at: serverTimestamp() });
       await b.commit(); await load();
     }
-    // 머리·얼굴·상의·하의·신발 칸이 비어 있으면 무료 기본 아이템을 입힌다(예전에 ‘벗기’로 비운 칸 포함)
+    // 머리·얼굴·상의·하의·신발·얼굴 색 칸이 비어 있으면 무료 기본 아이템을 입힌다(예전에 ‘벗기’로 비운 칸 포함)
     const fill = {};
-    for (const [id, it] of starters) {
-      if (CORE_SLOTS.includes(it.category) && !data.equip[it.category]?.item) fill[`equip.${it.category}`] = { owned: `${sid}_${id}_free`, item: id, color: 'default' };
+    for (const c of CORE_SLOTS) {
+      const id = DEFAULT_LOOK[c].item;
+      if (!data.equip[c]?.item && data.owned.has(`${sid}_${id}_free`)) fill[`equip.${c}`] = { owned: `${sid}_${id}_free`, item: id, color: 'default' };
     }
     if (Object.keys(fill).length) { await updateDoc(doc(db, 'profiles', sid), fill); await load(); }
   }

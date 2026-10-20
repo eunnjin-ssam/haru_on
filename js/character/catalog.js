@@ -18,8 +18,10 @@ export const colorHex = (c) => COLORS[c] ?? c ?? COLORS.default;
 export const colorLabel = (c) => COLOR_LABEL[c] ?? c;
 export const COLOR_LIST = Object.keys(COLORS).filter((c) => c !== 'default');
 
-const SKIN = '#f1c9a5';
+export const SKIN = '#f1c9a5';
 const b = (x, y, z, w, h, d, color) => ({ x, y, z, w, h, d, color });
+// 색을 조금 어둡게(누빔 줄·밑창 같은 무늬용)
+const dk = (hex, f = 0.78) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * f).toString(16).padStart(2, '0')).join('');
 
 // 늘 그리는 몸통 뼈대 (팔다리·머리·목)
 export const BODY = [
@@ -137,9 +139,30 @@ export const CATALOG = {
       b(-2.4, 18.4, -4.0, 1.2, 0.3, 0.6, '#5b3a1e'), b(1.2, 18.4, -4.0, 1.2, 0.3, 0.6, '#5b3a1e'), // 올라간 눈썹
       b(-0.55, 14.9, -4.0, 1.1, 1.1, 0.6, '#c0574a'), // 'O' 입
     ] },
+  // 얼굴 색 (모두 무료 · 모양 없이 피부색만 바꿈)
+  skinLighter: { category: 'skin', name: '아주 밝음', starter: true, tone: '#fbe3cf', prices: { default: 0 }, boxes: () => [] },
+  skinLight: { category: 'skin', name: '밝음', starter: true, tone: '#f6d4b8', prices: { default: 0 }, boxes: () => [] },
+  skinMid: { category: 'skin', name: '보통', starter: true, tone: SKIN, prices: { default: 0 }, boxes: () => [] },
+  skinTan: { category: 'skin', name: '조금 어두움', starter: true, tone: '#d9a77e', prices: { default: 0 }, boxes: () => [] },
+  skinDark: { category: 'skin', name: '어두움', starter: true, tone: '#a8704a', prices: { default: 0 }, boxes: () => [] },
   // 상의
   topPlain: { category: 'top', name: '무지 티셔츠', starter: true, defColor: '#3b6cf6', prices: { default: 0, blue: 15, red: 15, green: 15, yellow: 15, purple: 15, pink: 15, mint: 15, orange: 15, white: 15, black: 15, navy: 15 },
     boxes: (c) => [b(-3.2, 7, -1.7, 6.4, 6, 3.4, c), b(-5.2, 11, -1.2, 2.4, 2.5, 2.4, c), b(2.8, 11, -1.2, 2.4, 2.5, 2.4, c)] },
+  topLongTee: { category: 'top', name: '긴팔 티셔츠', starter: false, prices: { blue: 25, red: 25, green: 25, yellow: 25, purple: 25, pink: 25, mint: 25, white: 25, black: 25, gray: 25, navy: 25 },
+    boxes: (c) => [
+      b(-3.2, 7, -1.7, 6.4, 6, 3.4, c), b(-5.2, 7, -1.2, 2.4, 6.5, 2.4, c), b(2.8, 7, -1.2, 2.4, 6.5, 2.4, c), // 몸판·긴 소매
+      b(-5.25, 7, -1.25, 2.5, 0.6, 2.5, dk(c)), b(2.75, 7, -1.25, 2.5, 0.6, 2.5, dk(c)), // 소맷부리
+      b(-2.0, 12.5, -1.85, 4.0, 0.5, 0.3, dk(c)), // 목 둘레
+    ] },
+  topPadding: { category: 'top', name: '두꺼운 패딩', starter: false, prices: { black: 60, navy: 60, red: 60, white: 60, mint: 60, purple: 60, yellow: 60, gray: 60 },
+    boxes: (c) => [
+      b(-3.8, 6.4, -2.2, 7.6, 7.0, 4.4, c), // 빵빵한 몸판
+      b(-6.0, 6.8, -1.6, 3.0, 6.6, 3.2, c), b(3.0, 6.8, -1.6, 3.0, 6.6, 3.2, c), // 두꺼운 소매
+      b(-3.85, 8.6, -2.25, 7.7, 0.35, 4.5, dk(c)), b(-3.85, 10.8, -2.25, 7.7, 0.35, 4.5, dk(c)), // 누빔 줄
+      b(-6.05, 9.6, -1.65, 3.1, 0.35, 3.3, dk(c)), b(2.95, 9.6, -1.65, 3.1, 0.35, 3.3, dk(c)), // 소매 누빔
+      b(-3.0, 12.9, -2.3, 6.0, 1.0, 4.6, c), // 높은 깃
+      b(-0.15, 6.4, -2.35, 0.3, 7.5, 0.15, '#9aa0ab'), // 지퍼
+    ] },
   topHood: { category: 'top', name: '후드티', starter: false, prices: { gray: 60, blue: 60, pink: 60, purple: 60, red: 60, green: 60, mint: 60, black: 60, white: 60, navy: 60 },
     boxes: (c) => [b(-3.3, 7, -1.8, 6.6, 6.2, 3.6, c), b(-5.3, 9, -1.3, 2.5, 4.5, 2.5, c), b(2.8, 9, -1.3, 2.5, 4.5, 2.5, c), b(-3, 12.5, -2, 6, 1.5, 1, c)] },
   topStripe: { category: 'top', name: '줄무늬 티', starter: false, prices: { red: 50, blue: 50, green: 50, yellow: 50, purple: 50, mint: 50, orange: 50, black: 50, navy: 50 },
@@ -192,7 +215,7 @@ export const CATALOG = {
   bottomPlain: { category: 'bottom', name: '기본 바지', starter: true, defColor: '#2b2b2b', prices: { default: 0, blue: 15, black: 15, brown: 15, navy: 15, green: 15, purple: 15, red: 15, mint: 15, white: 15, gray: 15 },
     boxes: (c) => [b(-2.8, 0, -1.4, 2.6, 7.2, 2.8, c), b(0.2, 0, -1.4, 2.6, 7.2, 2.8, c)] },
   bottomSkirt: { category: 'bottom', name: '치마', starter: false, prices: { pink: 50, red: 50, purple: 50, blue: 50, mint: 50, yellow: 50, green: 50, black: 50, navy: 50 },
-    boxes: (c) => [b(-3.6, 5, -2, 7.2, 3, 4, c), b(-2.8, 0, -1.4, 2.6, 5, 2.8, '#f1c9a5'), b(0.2, 0, -1.4, 2.6, 5, 2.8, '#f1c9a5')] },
+    boxes: (c) => [b(-3.6, 5, -2, 7.2, 3, 4, c), b(-2.8, 0, -1.4, 2.6, 5, 2.8, SKIN), b(0.2, 0, -1.4, 2.6, 5, 2.8, SKIN)] },
   bottomShorts: { category: 'bottom', name: '반바지', starter: false, prices: { blue: 25, green: 25, yellow: 25, red: 25, purple: 25, mint: 25, orange: 25, pink: 25, black: 25, navy: 25 },
     boxes: (c) => [b(-2.8, 3.5, -1.5, 2.6, 3.7, 3, c), b(0.2, 3.5, -1.5, 2.6, 3.7, 3, c)] },
   bottomJeans: { category: 'bottom', name: '청바지', starter: false, prices: { blue: 55, navy: 55, skyblue: 55, black: 55, gray: 55, white: 55 },
@@ -216,19 +239,49 @@ export const CATALOG = {
   // 신발
   shoesBasic: { category: 'shoes', name: '운동화', starter: true, defColor: '#f5f5f5', prices: { default: 0, white: 15, black: 15, red: 15, blue: 15, green: 15, yellow: 15, pink: 15, purple: 15, mint: 15, orange: 15, navy: 15 },
     boxes: (c) => [b(-2.9, 0, -1.6, 2.4, 1.6, 3, c), b(0.3, 0, -1.6, 2.4, 1.6, 3, c)] },
+  shoesDress: { category: 'shoes', name: '구두', starter: false, prices: { black: 50, brown: 50, red: 50, white: 50, navy: 50 },
+    boxes: (c) => [
+      b(-2.9, 0, -1.8, 2.5, 1.3, 3.2, c), b(0.4, 0, -1.8, 2.5, 1.3, 3.2, c),
+      b(-2.8, 0, -2.4, 2.3, 0.9, 0.7, c), b(0.5, 0, -2.4, 2.3, 0.9, 0.7, c), // 둥근 앞코
+      b(-2.95, 0, -2.45, 2.6, 0.3, 3.9, dk(c, 0.6)), b(0.35, 0, -2.45, 2.6, 0.3, 3.9, dk(c, 0.6)), // 밑창
+      b(-2.2, 1.05, -2.45, 1.0, 0.25, 0.1, '#f5f5f5'), b(1.1, 1.05, -2.45, 1.0, 0.25, 0.1, '#f5f5f5'), // 반짝
+    ] },
+  shoesBoots: { category: 'shoes', name: '부츠', starter: false, prices: { brown: 55, black: 55, red: 55, pink: 55, white: 55 },
+    boxes: (c) => [
+      b(-3.0, 0, -1.7, 2.8, 4.2, 3.3, c), b(0.2, 0, -1.7, 2.8, 4.2, 3.3, c), // 목 긴 부츠
+      b(-3.0, 0, -2.2, 2.8, 1.4, 0.6, c), b(0.2, 0, -2.2, 2.8, 1.4, 0.6, c), // 앞코
+      b(-3.05, 0, -2.25, 2.9, 0.45, 3.9, dk(c, 0.6)), b(0.15, 0, -2.25, 2.9, 0.45, 3.9, dk(c, 0.6)), // 밑창
+      b(-3.1, 3.7, -1.8, 3.0, 0.7, 3.5, dk(c)), b(0.1, 3.7, -1.8, 3.0, 0.7, 3.5, dk(c)), // 위 테두리
+    ] },
+  shoesSlipper: { category: 'shoes', name: '슬리퍼', starter: false, prices: { blue: 20, pink: 20, yellow: 20, mint: 20, green: 20, gray: 20 },
+    boxes: (c) => [
+      b(-2.9, 0, -2.0, 2.5, 0.45, 3.4, dk(c)), b(0.4, 0, -2.0, 2.5, 0.45, 3.4, dk(c)), // 바닥
+      b(-2.6, 0.45, -2.05, 1.9, 0.45, 0.7, SKIN), b(0.7, 0.45, -2.05, 1.9, 0.45, 0.7, SKIN), // 발가락
+      b(-2.95, 0.45, -1.4, 2.6, 0.9, 1.4, c), b(0.35, 0.45, -1.4, 2.6, 0.9, 1.4, c), // 발등 끈
+    ] },
   // 머리 소품
   capCap: { category: 'headAcc', name: '모자', starter: false, prices: { blue: 30, red: 30, black: 30, green: 30, yellow: 30, purple: 30, pink: 30, mint: 30, orange: 30, white: 30, navy: 30 },
     boxes: (c) => [b(-4.9, 20.5, -3.9, 9.8, 1.6, 7.8, c), b(-4.9, 20.5, -5.6, 9.8, 1, 2, c)] },
   crown: { category: 'headAcc', name: '왕관', starter: false, prices: { yellow: 150, gold: 150 },
     boxes: () => [b(-4.9, 21.1, -3.9, 9.8, 1, 7.8, '#f1c40f'), b(-4.5, 22.1, -3.5, 1.3, 1.5, 1.3, '#f1c40f'), b(-0.65, 22.1, -0.65, 1.3, 1.8, 1.3, '#f1c40f'), b(3.2, 22.1, -3.5, 1.3, 1.5, 1.3, '#f1c40f'), b(-4.5, 22.1, 2.2, 1.3, 1.5, 1.3, '#f1c40f'), b(3.2, 22.1, 2.2, 1.3, 1.5, 1.3, '#f1c40f')] },
   halo: { category: 'headAcc', name: '빛나는 고리', starter: false, prices: { gold: 150, yellow: 150 },
-    boxes: (c) => [b(-3.0, 25.3, -3.2, 6.0, 0.8, 0.9, c), b(-3.0, 25.3, 2.3, 6.0, 0.8, 0.9, c), b(-3.2, 25.3, -3.0, 0.9, 0.8, 6.0, c), b(2.3, 25.3, -3.0, 0.9, 0.8, 6.0, c)] },
+    boxes: (c) => Array.from({ length: 24 }, (_, i) => {
+      const a = (i / 24) * Math.PI * 2; const x = Math.cos(a) * 3.2; const z = Math.sin(a) * 3.2;
+      return b(x - 0.45, 25.0 + z * 0.22, z - 0.45, 0.9, 0.7, 0.9, c);
+    }) },
   beanie: { category: 'headAcc', name: '비니', starter: false, prices: { red: 60, blue: 60, green: 60, pink: 60, purple: 60, orange: 60, black: 60, white: 60, mint: 60, yellow: 60, navy: 60 },
     boxes: (c) => [b(-5, 20.5, -4.3, 10, 3.3, 8.6, c), b(-5.1, 18.9, -4.4, 10.2, 1.3, 8.8, '#f5f5f5')] },
   strawHat: { category: 'headAcc', name: '밀짚모자', starter: false, prices: { yellow: 100, brown: 100, orange: 100, white: 100, green: 100 },
     boxes: (c) => [b(-6, 20.3, -6, 12, 0.6, 12, c), b(-3.7, 20.6, -3.7, 7.4, 0.4, 7.4, '#c79a4a'), b(-3.5, 20.9, -3.5, 7, 1.5, 7, c)] },
   pirateHat: { category: 'headAcc', name: '해적 모자', starter: false, prices: { black: 130, navy: 130, brown: 130, red: 130 },
-    boxes: (c) => [b(-5, 20.3, -3.8, 10, 1.2, 7.6, c), b(-3.4, 21.3, -3.6, 6.8, 1, 7.2, c), b(-1, 20.8, -4, 2, 1, 0.5, '#f5f5f5')] },
+    boxes: (c) => [
+      b(-4.9, 20.3, -3.95, 9.8, 1.0, 7.9, c), // 머리에 맞는 아래(좁게)
+      b(-5.6, 21.3, -3.95, 11.2, 1.0, 7.9, c),
+      b(-6.3, 22.3, -3.95, 12.6, 1.0, 7.9, c), // 위로 갈수록 넓게
+      b(-6.3, 23.3, -3.95, 12.6, 0.35, 7.9, '#f1c40f'), // 금색 테두리
+      b(-0.7, 21.45, -4.15, 1.4, 1.2, 0.2, '#f5f5f5'), // 해골 표시
+      b(-0.45, 21.75, -4.25, 0.3, 0.3, 0.1, '#2b2b2b'), b(0.15, 21.75, -4.25, 0.3, 0.3, 0.1, '#2b2b2b'),
+    ] },
   headphones: { category: 'headAcc', name: '헤드폰', starter: false, prices: { mint: 110, blue: 110, red: 110, black: 110, pink: 110, purple: 110, green: 110, navy: 110 },
     boxes: (c) => [
       b(-4.7, 21, -1, 9.4, 1.3, 2, c), // 윗 띠(머리 위를 가로질러 양쪽 컵 연결)
@@ -276,24 +329,85 @@ export const CATALOG = {
       b(-1.6, 14.5, -4.45, 3.2, 0.25, 0.2, '#2b2b2b'), b(-1.6, 15.0, -4.45, 3.2, 0.25, 0.2, '#2b2b2b'), // 입 그릴
       b(-0.2, 20.8, -0.2, 0.4, 2.2, 0.4, '#9aa0ab'), b(-0.45, 22.9, -0.45, 0.9, 0.9, 0.9, '#ff4d4d'), // 안테나
     ] },
+  // 손에 드는 소품 (오른손에 들어요)
+  handCane: { category: 'hand', name: '지팡이', starter: false, prices: { brown: 60, black: 60, red: 60, white: 60 },
+    boxes: (c) => [b(3.6, 0.2, -2.3, 0.8, 12.1, 0.8, c), b(3.6, 12.3, -2.3, 2.4, 0.8, 0.8, c), b(5.2, 11.2, -2.3, 0.8, 1.1, 0.8, c), b(3.55, 6.2, -2.45, 0.9, 0.6, 0.9, '#f1c40f')] },
+  handBalloon: { category: 'hand', name: '풍선', starter: false, prices: { red: 30, blue: 30, yellow: 30, pink: 30, green: 30, purple: 30, mint: 30, orange: 30 },
+    boxes: (c) => [
+      b(4.75, 6.6, -1.6, 0.15, 13.6, 0.15, '#9aa0ab'), // 줄
+      b(3.3, 20.6, -3.0, 3.2, 3.8, 3.2, c), b(3.6, 20.2, -2.7, 2.6, 0.5, 2.6, c), b(4.5, 19.8, -1.8, 0.6, 0.5, 0.6, c), // 풍선·매듭
+      b(3.7, 23.3, -3.1, 0.6, 0.6, 0.1, '#ffffff'), // 반짝
+    ] },
+  handFlower: { category: 'hand', name: '꽃', starter: false, prices: { red: 25, pink: 25, yellow: 25, purple: 25, white: 25, orange: 25 },
+    boxes: (c) => [
+      b(4.0, 5.6, -2.3, 0.4, 5.6, 0.4, '#2ecc71'), b(4.4, 7.6, -2.3, 1.0, 0.5, 0.4, '#2ecc71'), // 줄기·잎
+      b(3.1, 11.2, -2.5, 2.2, 0.9, 0.6, c), b(3.75, 10.6, -2.5, 0.9, 2.1, 0.6, c), // 꽃잎
+      b(3.85, 11.25, -2.7, 0.7, 0.8, 0.2, '#f7d14b'), // 꽃술
+    ] },
+  handPencil: { category: 'hand', name: '연필', starter: false, prices: { yellow: 20, red: 20, blue: 20, green: 20, pink: 20 },
+    boxes: (c) => [
+      b(3.6, 5.0, -2.3, 0.8, 5.2, 0.8, c), // 몸통
+      b(3.7, 10.2, -2.25, 0.6, 0.7, 0.6, '#e8c39e'), b(3.85, 10.9, -2.15, 0.3, 0.4, 0.3, '#2b2b2b'), // 깎은 끝·심
+      b(3.6, 4.6, -2.3, 0.8, 0.4, 0.8, '#c0c4cc'), b(3.6, 3.9, -2.3, 0.8, 0.7, 0.8, '#ff8fb3'), // 쇠·지우개
+    ] },
+  handBook: { category: 'hand', name: '책', starter: false, prices: { red: 25, blue: 25, green: 25, brown: 25, purple: 25, navy: 25 },
+    boxes: (c) => [
+      b(3.3, 4.4, -2.5, 2.8, 3.6, 1.0, c), // 표지
+      b(6.0, 4.6, -2.4, 0.2, 3.2, 0.8, '#f5f5f5'), // 책장
+      b(3.8, 6.4, -2.6, 1.8, 0.4, 0.1, '#f5f5f5'), b(3.8, 5.8, -2.6, 1.2, 0.25, 0.1, '#f5f5f5'), // 제목
+    ] },
+  handPhone: { category: 'hand', name: '핸드폰', starter: false, prices: { black: 50, white: 50, pink: 50, mint: 50, skyblue: 50, purple: 50 },
+    boxes: (c) => [b(3.3, 5.6, -2.3, 1.5, 2.6, 0.4, c), b(3.45, 5.95, -2.45, 1.2, 2.05, 0.15, '#2a3f7a'), b(3.6, 7.4, -2.55, 0.5, 0.3, 0.1, '#56c4e8')] },
+  handBall: { category: 'hand', name: '축구공', starter: false, prices: { default: 50 },
+    boxes: () => [
+      b(3.4, 3.0, -1.7, 3.2, 3.2, 3.2, '#f5f5f5'),
+      b(4.5, 4.1, -1.8, 1.0, 1.0, 0.15, '#2b2b2b'), b(3.4, 5.4, -1.8, 0.6, 0.8, 0.15, '#2b2b2b'), b(6.0, 5.4, -1.8, 0.6, 0.8, 0.15, '#2b2b2b'),
+      b(3.6, 3.0, -1.8, 0.8, 0.6, 0.15, '#2b2b2b'), b(5.6, 3.0, -1.8, 0.8, 0.6, 0.15, '#2b2b2b'), b(4.6, 6.1, -0.6, 0.8, 0.15, 1.0, '#2b2b2b'),
+    ] },
+  handWand: { category: 'hand', name: '요술봉', starter: false, prices: { pink: 100, purple: 100, yellow: 100, mint: 100, skyblue: 100 },
+    boxes: (c) => [
+      b(3.8, 5.4, -2.3, 0.5, 5.6, 0.5, '#f5f5f5'), // 막대
+      b(3.0, 11.3, -2.5, 2.1, 0.8, 0.6, c), b(3.65, 10.6, -2.5, 0.8, 2.3, 0.6, c), b(3.35, 10.7, -2.5, 1.4, 0.6, 0.6, c), // 별
+      b(3.85, 11.45, -2.7, 0.4, 0.4, 0.2, '#ffffff'),
+      b(5.5, 12.6, -2.5, 0.45, 0.45, 0.3, '#ffd700'), b(2.4, 12.9, -2.5, 0.35, 0.35, 0.3, '#ffd700'), b(5.1, 10.0, -2.5, 0.3, 0.3, 0.3, '#ffd700'), // 반짝이
+    ] },
+  // 기타 소품 (등 뒤에 달아요)
+  backCape: { category: 'back', name: '슈퍼맨 망토', starter: false, prices: { red: 130, blue: 130, black: 130, purple: 130, yellow: 130 },
+    boxes: (c) => [
+      b(-3.4, 6.0, 1.8, 6.8, 7.2, 0.5, c), // 등판
+      b(-4.4, 1.2, 2.0, 8.8, 4.8, 0.5, c), // 아래로 넓게 퍼진 자락
+      b(-3.4, 12.8, -1.8, 6.8, 0.5, 4.1, c), // 어깨
+      b(-2.6, 12.0, -1.95, 1.0, 1.0, 0.3, '#f1c40f'), b(1.6, 12.0, -1.95, 1.0, 1.0, 0.3, '#f1c40f'), // 단추
+      b(-1.2, 8.0, 2.35, 2.4, 2.4, 0.15, '#f1c40f'), // 등 무늬
+    ] },
+  backWings: { category: 'back', name: '천사 날개', starter: false, prices: { white: 150, pink: 150, skyblue: 150, yellow: 150, black: 150 },
+    boxes: (c) => [-1, 1].flatMap((side) => {
+      const m = (x, w) => (side < 0 ? x : -x - w); // 왼쪽 날개를 오른쪽으로 뒤집기
+      return [
+        b(m(-6.4, 1.8), 13.0, 2.2, 1.8, 4.6, 0.6, c), // 위로 솟은 끝
+        b(m(-6.0, 5.0), 9.0, 2.2, 5.0, 4.2, 0.6, c), // 큰 깃
+        b(m(-5.4, 3.6), 7.0, 2.2, 3.6, 2.0, 0.6, c), // 아래 깃
+        b(m(-5.8, 3.6), 10.2, 2.15, 3.6, 0.3, 0.1, dk(c, 0.88)), b(m(-5.6, 3.0), 8.4, 2.15, 3.0, 0.3, 0.1, dk(c, 0.88)), // 깃털 줄
+      ];
+    }) },
 };
 
 // 아무것도 안 꾸민 학생의 기본 차림(우리 반 격자·대시보드에서 맨몸 방지)
 export const DEFAULT_LOOK = {
   hair: { item: 'hairBasic', color: 'default' }, face: { item: 'faceSmile', color: 'default' },
   top: { item: 'topPlain', color: 'default' }, bottom: { item: 'bottomPlain', color: 'default' },
-  shoes: { item: 'shoesBasic', color: 'default' },
+  shoes: { item: 'shoesBasic', color: 'default' }, skin: { item: 'skinMid', color: 'default' },
 };
 // 입은 게 하나도 없으면 기본 차림으로
 export const lookOf = (equip) => (equip && Object.values(equip).some(Boolean) ? equip : DEFAULT_LOOK);
 
 // 착용 상태(equip) → 그릴 블록 전체 목록.
 // 기본(무료) 아이템은 color가 'default'인데, 아이템마다 defColor가 있으면 그 예쁜 기본색을 쓴다.
-// 머리·얼굴·상의·하의·신발은 늘 입혀 둔다(비어 있으면 기본 아이템으로 그림 — 맨몸 방지)
-export const CORE_SLOTS = ['hair', 'face', 'top', 'bottom', 'shoes'];
+// 머리·얼굴·상의·하의·신발·얼굴 색은 늘 입혀 둔다(비어 있으면 기본 아이템으로 그림 — 맨몸 방지)
+export const CORE_SLOTS = ['hair', 'face', 'top', 'bottom', 'shoes', 'skin'];
 export function buildBoxes(equip) {
   const boxes = [...BODY];
-  const order = ['bottom', 'top', 'shoes', 'hair', 'headAcc', 'face', 'faceAcc'];
+  const order = ['back', 'bottom', 'top', 'shoes', 'hair', 'headAcc', 'face', 'faceAcc', 'hand'];
   for (const slot of order) {
     const e = equip?.[slot]?.item ? equip[slot] : (CORE_SLOTS.includes(slot) ? DEFAULT_LOOK[slot] : null);
     if (!e || !e.item) continue;
@@ -302,5 +416,7 @@ export function buildBoxes(equip) {
     const hex = (e.color === 'default' && item.defColor) ? item.defColor : colorHex(e.color);
     boxes.push(...item.boxes(hex));
   }
-  return boxes;
+  // 얼굴 색: 몸과 치마 밑 다리처럼 피부색(SKIN)으로 그린 블록을 고른 색으로
+  const tone = CATALOG[equip?.skin?.item]?.tone ?? SKIN;
+  return tone === SKIN ? boxes : boxes.map((bx) => (bx.color === SKIN ? { ...bx, color: tone } : bx));
 }

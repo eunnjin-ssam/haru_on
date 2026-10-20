@@ -7,7 +7,7 @@ import { h, toast } from '../common/ui.js';
 import { CATALOG, colorLabel, colorHex, COLORS, COLOR_LIST } from '../character/catalog.js';
 import { drawItem } from '../character/voxel2d.js';
 
-const CAT_LABEL = { hair: '헤어', face: '얼굴', top: '상의', bottom: '하의', shoes: '신발', headAcc: '머리 소품', faceAcc: '얼굴 소품' };
+const CAT_LABEL = { hair: '헤어', face: '얼굴', skin: '얼굴 색', top: '상의', bottom: '하의', shoes: '신발', headAcc: '머리 소품', faceAcc: '얼굴 소품', hand: '손 소품', back: '기타 소품' };
 
 export async function renderCharacterAdmin(root) {
   let items = []; let profiles = new Map(); let students = [];
