@@ -494,3 +494,13 @@ tr.flagged td { background: #fffaf0; }
 /* 살핌판: 진한 빨강 대신 흰 카드 + 연분홍 표시 */
 .care-alert { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid #e7a3c4; border-radius: 12px; }
 .ca-flag { background: var(--p-pink); border: 0; color: #a8457a; font-weight: 600; padding: 3px 10px; }
+
+/* 캐릭터·칭호: 아이템 그림, 색 점·지우기·추가 */
+td.item-pic { width: 64px; }
+td.item-pic canvas { width: 48px; height: 48px; background: var(--surface-2); border-radius: 10px; display: block; }
+.price-chip { padding-left: 8px; }
+.pc-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .12); flex: 0 0 auto; }
+.pc-del { border: 0; background: none; color: #b9bdc6; font-size: 11px; padding: 2px 4px; border-radius: 50%; line-height: 1; }
+.pc-del:hover { color: var(--danger); background: var(--danger-soft); }
+.pc-add { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; }
+.pc-add select { padding: 5px 8px; font-size: 13px; }
