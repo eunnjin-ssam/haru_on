@@ -153,14 +153,13 @@ export async function renderSetup(root, { open }) {
     const moodNeg = numInput(c.moodNegative ?? 3);
     const tasksLeft = numInput(c.tasksLeft ?? 2);
     const activity = numInput(Math.round((c.activityRate ?? 0.5) * 100));
-    const recheck = numInput(c.recheckDays ?? 7);
     const custom = numInput(c.customRepeat ?? 2);
     const late = numInput(c.lateRepeat ?? 2);
     const dropFrom = numInput(Math.round((c.dropFrom ?? 0.9) * 100));
     const dropTo = numInput(Math.round((c.dropTo ?? 0.3) * 100));
     const btn = h('button', { class: 'btn', onclick: () => save('teacher', {
       'care.moodNegative': num(moodNeg), 'care.tasksLeft': num(tasksLeft),
-      'care.activityRate': num(activity) / 100, 'care.recheckDays': num(recheck),
+      'care.activityRate': num(activity) / 100,
       'care.customRepeat': num(custom), 'care.lateRepeat': num(late),
       'care.dropFrom': num(dropFrom) / 100, 'care.dropTo': num(dropTo) / 100,
     }, '살핌판 기준을 바꿨어요') }, '살핌판 기준 저장');
@@ -173,7 +172,6 @@ export async function renderSetup(root, { open }) {
         field('최근 2주 활동 완료율(%) 이 값 미만이면 살펴보기', activity),
         field('갑작스러운 변화: 지난 3주 평균 완료율(%)이 이 값 이상이었는데…', dropFrom),
         field('…이번 주 완료율(%)이 이 값 이하로 떨어지면 살펴보기', dropTo),
-        field("'살펴봤어요' 뒤 며칠 지나면 다시 표시", recheck),
         h('div', { class: 'row' }, btn)));
   }
 

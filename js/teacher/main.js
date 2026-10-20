@@ -4,6 +4,7 @@ import { auth, db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { icon } from '../common/icons.js';
 import { kstNow } from '../common/dates.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js';
 import { signInTeacher, signOutTeacher, isTeacher } from '../common/teacher-auth.js';
 import { renderRoster } from './roster.js';
 import { renderSetup } from './setup.js';
@@ -61,9 +62,10 @@ async function start() {
   showApp(user, hasSettings ? 'today' : 'setup');
 }
 
-function showSignIn() {
+function showSignIn(notice) {
   root.replaceChildren(h('section', { class: 'gate card' },
     h('h1', null, '선생님 로그인'),
+    notice ? h('p', { class: 'banner' }, notice) : null,
     h('p', { class: 'muted' }, '학급 관리용 Google 계정으로 로그인해 주세요.'),
     h('div', null, h('button', { class: 'btn', onclick: async () => {
       try {
@@ -108,6 +110,7 @@ function showApp(user, firstTab) {
   const today = `${k.getUTCFullYear()}년 ${k.getUTCMonth() + 1}월 ${k.getUTCDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][k.getUTCDay()]})`;
   const name = user.displayName || (user.email ?? '').split('@')[0] || '선생님';
   const tabButtons = new Map();
+  let leaving = false; // 로그아웃 버튼으로 나가는 중
 
   async function open(id) {
     for (const [tid, btn] of tabButtons) btn.classList.toggle('on', tid === id);
@@ -117,7 +120,12 @@ function showApp(user, firstTab) {
       await TABS.find((tab) => tab.id === id).render(content, { open });
     } catch (e) {
       console.error(e);
-      content.replaceChildren(h('p', { class: 'banner' }, '불러오지 못했어요. 새로고침해 주세요.'));
+      // 로그인이 풀렸으면 로그인 화면으로, 아니면(인터넷이 잠깐 끊김 등) 이 자리에서 다시 불러오기
+      if (!auth.currentUser || auth.currentUser.uid !== user.uid) { start(); return; }
+      const offline = e?.code === 'unavailable' || !navigator.onLine;
+      content.replaceChildren(h('section', { class: 'card load-fail' },
+        h('p', { style: 'margin:0 0 10px' }, offline ? '인터넷 연결이 잠깐 끊겨서 불러오지 못했어요.' : '불러오지 못했어요.'),
+        h('button', { class: 'btn', onclick: () => open(id) }, '다시 불러오기')));
     }
   }
 
@@ -143,10 +151,16 @@ function showApp(user, firstTab) {
         h('div', { class: 't-user' },
           h('div', { class: 't-avatar' }, name.slice(0, 1).toUpperCase()),
           h('div', null, h('div', { class: 't-user-name' }, `${name} 선생님`), h('div', { class: 't-user-mail' }, user.email ?? '')),
-          h('button', { class: 't-logout', title: '로그아웃', onclick: async () => { if (!confirm('로그아웃할까요?')) return; await signOutTeacher(); start(); } }, icon('log-out', 16)))),
+          h('button', { class: 't-logout', title: '로그아웃', onclick: async () => { if (!confirm('로그아웃할까요?')) return; leaving = true; await signOutTeacher(); start(); } }, icon('log-out', 16)))),
       content)));
   // 반복 과제를 앞으로 2주치 채워 두고 첫 화면을 연다(실패해도 화면은 연다)
   // 1인1역: 시작일이 된 확정 기간을 역할에 반영 / 도감에 새로 생긴 캐릭터 아이템을 상점에 넣기
+  // 다른 곳에서 로그아웃되면(로그인 시간이 끝남 등) 화면이 멈춘 듯 보이지 않게 로그인 화면으로 보낸다
+  const stop = onAuthStateChanged(auth, (u) => {
+    if (leaving || (u && u.uid === user.uid)) return;
+    stop();
+    showSignIn('로그인이 끝나서 다시 로그인이 필요해요.');
+  });
   Promise.all([ensureRepeatTasks(), ensureRoleTerms(), ensureItems()].map((p) => p.catch((e) => console.error(e)))).finally(() => open(firstTab));
 }
 

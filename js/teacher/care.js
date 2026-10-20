@@ -1,4 +1,4 @@
-// 살핌판: 살펴볼 학생(마음·과제·활동·갑작스러운 변화) + 자기관리 현황 표(열 눌러 정렬, 이름 눌러 2주 상세)
+// 살핌판: 자기관리 현황 표(살펴볼 점: 마음·과제·활동·갑작스러운 변화, 열 눌러 정렬, 이름 눌러 2주 상세·메모)
 // + 쪽지/포인트(지급·지급취소·차감). 기준은 settings/teacher.care. 학생에게 보이지 않음.
 import {
   collection, doc, getDoc, getDocs, setDoc, writeBatch, increment, serverTimestamp,
@@ -120,11 +120,10 @@ export async function renderCare(root) {
       if (before != null && now != null && before >= cfg.dropFrom && now <= cfg.dropTo) flags.push(`갑자기 줄었어요 (평소 ${pct(before)} → 이번 주 ${pct(now)})`);
 
       const cn = care.get(s.sid);
-      const checkedRecently = cn?.checkedAt?.toMillis && (Date.now() - cn.checkedAt.toMillis()) < cfg.recheckDays * 86400000;
       return {
         ...s, summary: sums.get(s.sid) ?? {}, partDays, days: myClosed.length,
         rate: graded ? correct / graded : null, activity, remaining,
-        recentMoods: weeks[0].days.map((dt) => mp[dt]), flags, memo: cn?.memo ?? '', checkedRecently,
+        recentMoods: weeks[0].days.map((dt) => mp[dt]), flags, memo: cn?.memo ?? '',
       };
     });
     data = { rows, recent, perDay, moodBy, noteBy, missBy, roleBy, postBy, roleHolders, tasks, subs };
@@ -187,23 +186,6 @@ export async function renderCare(root) {
     document.body.append(dlg);
   }
 
-  function careList() {
-    const flagged = data.rows.filter((r) => r.flags.length && !r.checkedRecently);
-    return h('section', { class: 'card' },
-      h('h2', null, flagged.length ? `살펴볼 학생 (${flagged.length})` : '살펴볼 학생'),
-      h('p', { class: 'muted small', style: 'margin:-2px 0 4px' }, '기분·과제·활동·갑작스러운 변화를 보고 살펴보면 좋을 학생을 모았어요. 기준은 기본 설정에서 바꿔요. 이 화면은 학생에게 보이지 않아요.'),
-      flagged.length === 0
-        ? h('p', { class: 'empty-ok' }, '✅ 지금은 특별히 살펴볼 학생이 없어요.')
-        : h('div', { class: 'care-cards' }, ...flagged.map((r) => h('div', { class: 'care-alert' },
-          h('div', { class: 'ca-head' },
-            h('button', { class: 'linkish', title: '2주 상세 보기', onclick: () => openDetail(r) }, h('b', null, `${r.number}번 ${r.name}`)),
-            h('div', { class: 'ca-flags' }, ...r.flags.map((f) => h('span', { class: 'ca-flag' }, f)))),
-          h('div', { class: 'row' },
-            h('input', { type: 'text', value: r.memo, placeholder: '메모', style: 'flex:1', onchange: (e) => saveMemo(r.sid, e.target.value) }),
-            h('button', { class: 'btn secondary small', onclick: () => run(() => setDoc(doc(db, 'careNotes', r.sid), { checkedAt: serverTimestamp() }, { merge: true }), '살펴봤어요') }, '살펴봤어요'))))),
-    );
-  }
-
   function toolbar() {
     if (selected.size === 0) return null;
     const msg = h('input', { type: 'text', placeholder: '쪽지 내용', style: 'flex:1' });
@@ -227,6 +209,7 @@ export async function renderCare(root) {
     ['partDays', '기초미션', (r) => r.partDays], ['rate', '정답률', (r) => r.rate ?? -1],
     ['activity', '활동률', (r) => r.activity ?? -1], ['mood', '이번 주 기분', null],
     ['wallet', '지갑', (r) => r.summary.wallet ?? 0], ['total', '누적', (r) => r.summary.total ?? 0],
+    ['flags', '살펴볼 점', (r) => r.flags.length],
   ];
   function sortedRows() {
     const get = COLS.find((c) => c[0] === sortKey)?.[2] ?? ((r) => r.number);
@@ -242,21 +225,23 @@ export async function renderCare(root) {
         label, sortKey === key ? (sortDir > 0 ? ' ▲' : ' ▼') : '')
       : h('th', null, label))));
     return h('section', { class: 'card' }, h('h2', null, '자기관리 현황'),
-      h('p', { class: 'muted small', style: 'margin:-2px 0 10px' }, '최근 2주 기초미션 참여·정답률·활동률(기초미션·1인1역·글마당)·기분·포인트예요. 열 제목을 누르면 정렬, 이름을 누르면 2주 상세를 봐요.'),
+      h('p', { class: 'muted small', style: 'margin:-2px 0 10px' }, '최근 2주 기초미션 참여·정답률·활동률(기초미션·1인1역·글마당)·기분·포인트와 살펴볼 점(기준은 기본 설정)이에요. 열 제목을 누르면 정렬, 이름을 누르면 2주 상세와 메모를 봐요.'),
       h('div', { class: 'table-wrap' }, h('table', null, h('thead', null, head),
         h('tbody', null, ...sortedRows().map((r) => h('tr', { class: r.flags.length ? 'flagged' : '' },
           h('td', null, h('input', { type: 'checkbox', checked: selected.has(r.sid), onchange: (e) => { if (e.target.checked) selected.add(r.sid); else selected.delete(r.sid); draw(); } })),
           h('td', { class: 'num' }, r.number),
-          h('td', null, h('button', { class: 'linkish', title: '2주 상세 보기', onclick: () => openDetail(r) }, r.name)),
+          h('td', null, h('button', { class: 'linkish', title: '2주 상세 보기·메모', onclick: () => openDetail(r) }, r.name),
+            r.memo ? h('span', { class: 'memo-mark', title: r.memo }, ' 📝') : null),
           h('td', null, `${r.partDays}/${r.days}일`), h('td', null, pct(r.rate)), h('td', null, pct(r.activity)),
           h('td', null, r.recentMoods.map((m) => (m ? moodEmoji(m) : '·')).join(' ')),
-          h('td', { class: 'num' }, r.summary.wallet ?? 0), h('td', { class: 'num' }, r.summary.total ?? 0))))),
+          h('td', { class: 'num' }, r.summary.wallet ?? 0), h('td', { class: 'num' }, r.summary.total ?? 0),
+          h('td', null, r.flags.length ? h('div', { class: 'ca-flags' }, ...r.flags.map((f) => h('span', { class: 'ca-flag' }, f))) : h('span', { class: 'muted' }, '-')))))),
       ),
       h('p', { class: 'muted small' }, '체크해서 여러 명에게 한 번에 쪽지·포인트를 줄 수 있어요. 살핌판은 학생에게 보이지 않아요.'),
     );
   }
 
-  function draw() { root.replaceChildren(...[careList(), toolbar(), table()].filter(Boolean)); }
+  function draw() { root.replaceChildren(...[toolbar(), table()].filter(Boolean)); }
 
   await load();
   draw();
