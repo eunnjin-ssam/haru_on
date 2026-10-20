@@ -2,6 +2,8 @@
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { auth, db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
+import { icon } from '../common/icons.js';
+import { kstNow } from '../common/dates.js';
 import { signInTeacher, signOutTeacher, isTeacher } from '../common/teacher-auth.js';
 import { renderRoster } from './roster.js';
 import { renderSetup } from './setup.js';
@@ -25,21 +27,21 @@ import { renderNotices } from './notices.js';
 const root = document.getElementById('app');
 
 const TABS = [
-  { id: 'today', label: '오늘 현황', icon: '📊', render: renderToday },
-  { id: 'board', label: '체크판', icon: '✅', render: renderBoard },
-  { id: 'care', label: '살핌판', icon: '💗', render: renderCare },
-  { id: 'feedback', label: '건의함', icon: '💬', render: renderFeedbackAdmin },
-  { id: 'notices', label: '새소식', icon: '📢', render: renderNotices },
-  { id: 'writing', label: '글마당 관리', icon: '📖', render: renderWritingAdmin },
-  { id: 'stories', label: '약속마당 관리', icon: '🗣️', render: renderStoriesAdmin },
-  { id: 'points', label: '포인트 관리', icon: '🪙', render: renderPointsAdmin },
-  { id: 'goals', label: '공동 목표', icon: '🎯', render: renderGoalsAdmin },
-  { id: 'character', label: '캐릭터·칭호', icon: '🧑', render: renderCharacterAdmin },
-  { id: 'roster', label: '학생 명단', icon: '📋', render: renderRoster },
-  { id: 'roles', label: '1인1역', icon: '🧹', render: renderRoles },
-  { id: 'mission', label: '기초미션', icon: '🧮', render: renderMission },
-  { id: 'setup', label: '기본 설정', icon: '⚙️', render: renderSetup },
-  { id: 'admin', label: '백업·초기화', icon: '💾', render: renderAdmin },
+  { id: 'today', label: '오늘 현황', icon: 'layout-dashboard', render: renderToday },
+  { id: 'board', label: '체크판', icon: 'clipboard-check', render: renderBoard },
+  { id: 'care', label: '살핌판', icon: 'heart-handshake', render: renderCare },
+  { id: 'feedback', label: '건의함', icon: 'message-square-text', render: renderFeedbackAdmin },
+  { id: 'notices', label: '새소식', icon: 'megaphone', render: renderNotices },
+  { id: 'writing', label: '글마당 관리', icon: 'book-open', render: renderWritingAdmin },
+  { id: 'stories', label: '약속마당 관리', icon: 'messages-square', render: renderStoriesAdmin },
+  { id: 'points', label: '포인트 관리', icon: 'coins', render: renderPointsAdmin },
+  { id: 'goals', label: '공동 목표', icon: 'target', render: renderGoalsAdmin },
+  { id: 'character', label: '캐릭터·칭호', icon: 'smile', render: renderCharacterAdmin },
+  { id: 'roster', label: '학생 명단', icon: 'users', render: renderRoster },
+  { id: 'roles', label: '1인1역', icon: 'list-checks', render: renderRoles },
+  { id: 'mission', label: '기초미션', icon: 'calculator', render: renderMission },
+  { id: 'setup', label: '기본 설정', icon: 'settings', render: renderSetup },
+  { id: 'admin', label: '백업·초기화', icon: 'database-backup', render: renderAdmin },
 ];
 
 // 사이드바 메뉴 묶음
@@ -101,6 +103,10 @@ function showNotRegistered(user) {
 function showApp(user, firstTab) {
   const content = h('main', { class: 'content' });
   const pageTitle = h('div', { class: 't-page-title' });
+  // 머리줄 아래 작은 글씨: 오늘 날짜
+  const k = kstNow();
+  const today = `${k.getUTCFullYear()}년 ${k.getUTCMonth() + 1}월 ${k.getUTCDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][k.getUTCDay()]})`;
+  const name = user.displayName || (user.email ?? '').split('@')[0] || '선생님';
   const tabButtons = new Map();
 
   async function open(id) {
@@ -117,7 +123,7 @@ function showApp(user, firstTab) {
 
   function navButton(tab) {
     const btn = h('button', { class: 't-nav-btn', type: 'button', onclick: () => open(tab.id) },
-      h('span', { class: 'ico' }, tab.icon), h('span', null, tab.label));
+      icon(tab.icon), h('span', null, tab.label));
     tabButtons.set(tab.id, btn);
     return btn;
   }
@@ -130,11 +136,14 @@ function showApp(user, firstTab) {
     h('aside', { class: 't-sidebar' },
       h('div', { class: 't-brand' }, h('img', { class: 't-logo', src: 'img/logo.webp', alt: '하루 On' })),
       h('nav', { class: 't-nav' }, ...nav),
-      h('div', { class: 't-account' },
-        h('div', { class: 't-email muted' }, user.email),
-        h('button', { class: 'btn secondary small', onclick: async () => { await signOutTeacher(); start(); } }, '로그아웃'))),
+    ),
     h('div', { class: 't-main' },
-      h('header', { class: 't-header' }, pageTitle),
+      h('header', { class: 't-header' },
+        h('div', null, pageTitle, h('div', { class: 't-page-sub' }, today)),
+        h('div', { class: 't-user' },
+          h('div', { class: 't-avatar' }, name.slice(0, 1).toUpperCase()),
+          h('div', null, h('div', { class: 't-user-name' }, `${name} 선생님`), h('div', { class: 't-user-mail' }, user.email ?? '')),
+          h('button', { class: 't-logout', title: '로그아웃', onclick: async () => { if (!confirm('로그아웃할까요?')) return; await signOutTeacher(); start(); } }, icon('log-out', 16)))),
       content)));
   // 반복 과제를 앞으로 2주치 채워 두고 첫 화면을 연다(실패해도 화면은 연다)
   // 1인1역: 시작일이 된 확정 기간을 역할에 반영 / 도감에 새로 생긴 캐릭터 아이템을 상점에 넣기

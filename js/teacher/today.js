@@ -10,6 +10,7 @@ import { MOODS, moodLabel } from '../student/mood.js';
 import { isShown } from '../common/task-visible.js';
 import { loadSettings } from '../common/settings.js';
 import { renderMyWeek } from '../student/myweek.js';
+import { icon } from '../common/icons.js';
 import { loadTerms, currentTerm, nextTerm, daysLeft } from './role-terms.js';
 
 const NEGATIVE = ['upset', 'angry', 'tired'];
@@ -161,21 +162,10 @@ export async function renderToday(root, { open }) {
     await load(); draw();
   }
 
-  function hero() {
-    const k = kstNow();
-    const wd = ['일', '월', '화', '수', '목', '금', '토'][k.getUTCDay()];
-    const dateStr = `${k.getUTCFullYear()}년 ${k.getUTCMonth() + 1}월 ${k.getUTCDate()}일 (${wd})`;
-    return h('section', { class: 'card t-hero' },
-      h('div', null,
-        h('div', { class: 't-hero-date' }, dateStr),
-        h('div', { class: 't-hero-sub' }, `우리 반 ${data.students.length}명 · 오늘 현황을 한눈에 봐요`)),
-      h('div', { class: 't-hero-emoji' }, '🌤️'));
-  }
-
-  function statCard(icon, label, done, total, tone) {
+  function statCard(ico, label, done, total, tone) {
     const pct = total ? Math.round((done / total) * 100) : 0;
     return h('div', { class: `stat-card ${tone || ''}` },
-      h('div', { class: 'stat-top' }, h('span', { class: 'stat-ico' }, icon), h('span', { class: 'stat-pct' }, `${pct}%`)),
+      h('div', { class: 'stat-top' }, h('span', { class: 'stat-ico' }, icon(ico, 20)), h('span', { class: 'stat-pct' }, `${pct}%`)),
       h('div', { class: 'stat-num' }, h('b', null, String(done)), ` / ${total}`),
       h('div', { class: 'stat-label' }, label),
       h('div', { class: 'stat-bar' }, h('div', { class: 'stat-fill', style: `width:${pct}%` })));
@@ -190,25 +180,25 @@ export async function renderToday(root, { open }) {
     const roleDone = roleHolders.filter((s) => roleState(s.sid).kind === 'done').length;
     const negToday = students.filter((s) => { const m = moods.get(s.sid); return m && NEGATIVE.includes(m); }).length;
     return h('div', { class: 'stat-grid' },
-      statCard('😊', '기분 기록', moodDone, total, ''),
-      statCard('🧮', '기초미션 완료', missionDone, total, 'ok'),
-      statCard('🧹', '1인1역 완료', roleDone, roleHolders.length, 'warn'),
-      statCard('💗', '오늘 힘든 친구', negToday, total, 'care'));
+      statCard('smile', '기분 기록', moodDone, total, ''),
+      statCard('calculator', '기초미션 완료', missionDone, total, 'ok'),
+      statCard('list-checks', '1인1역 완료', roleDone, roleHolders.length, 'warn'),
+      statCard('heart', '오늘 힘든 친구', negToday, total, 'care'));
   }
 
   function attention() {
     const items = [];
     const reqCount = data.checks.filter((c) => c.status === 'requested').length;
-    if (reqCount) items.push({ ico: '🧹', text: '1인1역 승인 대기 — 아래 표에서 승인해요', n: reqCount, tone: 'req' });
-    if (data.waiting) items.push({ ico: '📋', text: '과제 확인 대기', n: data.waiting, tone: 'wait', go: 'board' });
+    if (reqCount) items.push({ ico: 'list-checks', text: '1인1역 승인 대기 — 아래 표에서 승인해요', n: reqCount, tone: 'req' });
+    if (data.waiting) items.push({ ico: 'clipboard-check', text: '과제 확인 대기', n: data.waiting, tone: 'wait', go: 'board' });
     const t = data.todo;
-    if (t.reportedPosts) items.push({ ico: '🚩', text: '신고된 글마당 글', n: t.reportedPosts, tone: 'care', go: 'writing' });
-    if (t.reportedComments) items.push({ ico: '🚩', text: '신고된 약속마당 댓글', n: t.reportedComments, tone: 'care', go: 'stories' });
-    if (t.coupons) items.push({ ico: '🎟️', text: '쿠폰 요청 (구매·사용)', n: t.coupons, tone: 'wait', go: 'points' });
-    if (t.privates) items.push({ ico: '🔒', text: '새 ‘선생님만 보기’ 이야기', n: t.privates, tone: 'req', go: 'stories' });
-    if (data.roleTerm) items.push({ ico: '🧹', text: data.roleTerm.text, n: '', tone: data.roleTerm.tone, go: 'roles' });
-    if (t.reviews) items.push({ ico: '🔎', text: '점검할 우리반 약속', n: t.reviews, tone: 'wait', go: 'stories' });
-    if (data.streak.length) items.push({ ico: '💗', text: `3일째 힘든 친구: ${data.streak.map((s) => s.name).join(', ')}`, n: '', tone: 'care', go: 'care' });
+    if (t.reportedPosts) items.push({ ico: 'flag', text: '신고된 글마당 글', n: t.reportedPosts, tone: 'care', go: 'writing' });
+    if (t.reportedComments) items.push({ ico: 'flag', text: '신고된 약속마당 댓글', n: t.reportedComments, tone: 'care', go: 'stories' });
+    if (t.coupons) items.push({ ico: 'ticket', text: '쿠폰 요청 (구매·사용)', n: t.coupons, tone: 'wait', go: 'points' });
+    if (t.privates) items.push({ ico: 'lock', text: '새 ‘선생님만 보기’ 이야기', n: t.privates, tone: 'req', go: 'stories' });
+    if (data.roleTerm) items.push({ ico: 'list-checks', text: data.roleTerm.text, n: '', tone: data.roleTerm.tone, go: 'roles' });
+    if (t.reviews) items.push({ ico: 'search-check', text: '점검할 우리반 약속', n: t.reviews, tone: 'wait', go: 'stories' });
+    if (data.streak.length) items.push({ ico: 'heart', text: `3일째 힘든 친구: ${data.streak.map((s) => s.name).join(', ')}`, n: '', tone: 'care', go: 'care' });
     return h('section', { class: 'card' },
       h('h2', null, '오늘 살펴볼 일'),
       items.length === 0
@@ -217,7 +207,7 @@ export async function renderToday(root, { open }) {
           const attrs = { class: `attn-item ${it.tone}` };
           if (it.go) attrs.onclick = () => open(it.go);
           return h(it.go ? 'button' : 'div', attrs,
-            h('span', { class: 'attn-ico' }, it.ico),
+            h('span', { class: 'attn-ico' }, icon(it.ico, 18)),
             h('span', { class: 'attn-text' }, it.text),
             it.n !== '' ? h('span', { class: 'attn-n' }, String(it.n)) : null);
         })));
@@ -296,7 +286,6 @@ export async function renderToday(root, { open }) {
       onlyTodo ? '모든 학생 보기' : '아직 안 한 학생만 보기');
 
     root.replaceChildren(
-      hero(),
       stats(),
       attention(),
       h('section', { class: 'card' },
