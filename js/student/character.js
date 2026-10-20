@@ -4,7 +4,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { CATALOG, colorHex, colorLabel, COLORS, DEFAULT_LOOK } from '../character/catalog.js';
+import { CATALOG, colorHex, colorLabel, COLORS, DEFAULT_LOOK, CORE_SLOTS } from '../character/catalog.js';
 import { renderCharacter3D } from '../character/voxel3d.js';
 import { drawFront, drawItem } from '../character/voxel2d.js';
 
@@ -48,11 +48,12 @@ export async function renderCharacter(content, student, settings) {
       for (const [id, it] of missing) b.set(doc(db, 'ownedItems', `${sid}_${id}_free`), { sid, item: id, category: it.category, color: 'default', at: serverTimestamp() });
       await b.commit(); await load();
     }
-    if (Object.values(data.equip).every((v) => v == null)) {
-      const eq = { ...EMPTY };
-      for (const [id, it] of starters) eq[it.category] = { owned: `${sid}_${id}_free`, item: id, color: 'default' };
-      await updateDoc(doc(db, 'profiles', sid), { equip: eq }); await load();
+    // 머리·얼굴·상의·하의·신발 칸이 비어 있으면 무료 기본 아이템을 입힌다(예전에 ‘벗기’로 비운 칸 포함)
+    const fill = {};
+    for (const [id, it] of starters) {
+      if (CORE_SLOTS.includes(it.category) && !data.equip[it.category]?.item) fill[`equip.${it.category}`] = { owned: `${sid}_${id}_free`, item: id, color: 'default' };
     }
+    if (Object.keys(fill).length) { await updateDoc(doc(db, 'profiles', sid), fill); await load(); }
   }
 
   const ownedId = (item, color) => (color === 'default' ? `${sid}_${item}_free` : `${sid}_${item}_${color}`);
@@ -158,6 +159,7 @@ export async function renderCharacter(content, student, settings) {
     const toggle = h('div', { class: 'filterbar', style: 'margin-bottom:4px' },
       h('div', { class: 'seg' },
         h('button', { class: `subtab${topView === 'me' ? ' on' : ''}`, onclick: () => { topView = 'me'; draw(); } }, '내 캐릭터'),
+        h('button', { class: `subtab${topView === 'mine' ? ' on' : ''}`, onclick: () => { topView = 'mine'; draw(); } }, `내 아이템 ${data.owned.size}`),
         h('button', { class: `subtab${topView === 'class' ? ' on' : ''}`, onclick: () => { if (view) { view.dispose(); view = null; } topView = 'class'; draw(); } }, '우리 반')));
 
     if (topView === 'class') {
@@ -168,6 +170,45 @@ export async function renderCharacter(content, student, settings) {
 
     const worn = wornTitle();
     const wornOpts = () => (worn ? { title: worn.name, titleColor: worn.color } : {});
+
+    // ---- 내 아이템: 가진 아이템을 칸별로 보고 바로 입기 ----
+    if (topView === 'mine') {
+      if (view) { view.dispose(); view = null; }
+      const stage = h('div', { class: 'char-stage' });
+      const owned = [...data.owned.values()].filter((o) => CATALOG[o.item]);
+      const groups = SECTION_ORDER.map((c) => {
+        const list = owned.filter((o) => CATALOG[o.item].category === c)
+          .sort((a, b) => CATALOG[a.item].name.localeCompare(CATALOG[b.item].name, 'ko'));
+        if (!list.length) return null;
+        return h('section', { class: 'cat-sec' },
+          h('h3', { class: 'cat-h' }, SECTION[c], h('span', { class: 'cat-n muted' }, ` ${list.length}`)),
+          h('div', { class: 'item-grid' }, ...list.map((o) => {
+            const eq = data.equip[c];
+            const on = eq && eq.item === o.item && eq.color === o.color;
+            const cv = h('canvas', { width: 120, height: 150, class: 'item-canvas' });
+            queueMicrotask(() => drawItem(cv, o.item, o.color));
+            return h('div', { class: `item-card mine-card${on ? ' sel' : ''}` },
+              on ? h('span', { class: 'ic-badge' }, '착용 중') : null,
+              cv,
+              h('div', { class: 'ic-name' }, CATALOG[o.item].name),
+              h('div', { class: 'ic-price muted small' }, o.color === 'default' ? '기본' : colorLabel(o.color)),
+              on
+                ? (CORE_SLOTS.includes(c) ? h('span', { class: 'mine-on' }, '입고 있어요') : h('button', { class: 'btn secondary small', onclick: () => act(() => updateDoc(doc(db, 'profiles', sid), { [`equip.${c}`]: null })) }, '빼기'))
+                : h('button', { class: 'btn small', onclick: () => pick(o.item, o.color) }, '입기'));
+          })));
+      }).filter(Boolean);
+      queueMicrotask(() => { view = renderCharacter3D(stage, data.equip, wornOpts()); });
+      content.replaceChildren(h('div', { class: 'character' },
+        h('div', { class: 'board-head' },
+          h('div', null, h('div', { class: 'bh-title' }, '내 아이템'), h('div', { class: 'bh-sub' }, `가지고 있는 아이템 ${owned.length}개 · 눌러서 바로 입어요`)),
+          h('div', { class: 'wallet-chip' }, `🪙 ${data.summary.wallet ?? 0} ${currency}`)),
+        toggle,
+        h('div', { class: 'char-layout' },
+          h('div', { class: 'char-left' }, h('div', { class: 'char-stage-box' }, stage, h('div', { class: 'muted small', style: 'text-align:center;margin-top:4px' }, '지금 내 모습'))),
+          h('div', { class: 'char-catalog' }, ...groups))));
+      return;
+    }
+
     if (!selected) {
       selected = data.equip.hair?.item
         ? { item: data.equip.hair.item, color: data.equip.hair.color }
@@ -187,12 +228,34 @@ export async function renderCharacter(content, student, settings) {
       return !eq || eq.item !== t.item || eq.color !== t.color;
     });
     const tryBar = h('div', { class: 'try-bar' });
+    // 입어 보는 중인 아이템 목록: 아이템마다 그림·색·가격과 사기(가진 것은 입기) 버튼
     function renderTryBar() {
-      const diff = tryingDiff();
+      const diff = tryingDiff().sort(([a], [b]) => SECTION_ORDER.indexOf(a) - SECTION_ORDER.indexOf(b));
       if (!diff.length) { tryBar.replaceChildren(); return; }
-      tryBar.replaceChildren(
-        h('span', { class: 'muted small' }, `입어 보는 중: ${diff.map(([, t]) => CATALOG[t.item].name).join(', ')} · ‘입기’나 ‘사기’를 눌러야 내 캐릭터가 바뀌어요`),
-        h('button', { class: 'btn secondary small', onclick: () => { trying = {}; refreshPreview(); } }, '되돌리기'));
+      const toBuy = diff.filter(([, t]) => !owns(t.item, t.color));
+      const sum = toBuy.reduce((n, [, t]) => n + (priceOf(t.item, t.color) ?? 0), 0);
+      const wallet = data.summary.wallet ?? 0;
+      tryBar.replaceChildren(...[
+        h('div', { class: 'try-head' },
+          h('b', null, `입어 보는 중 ${diff.length}개`),
+          h('button', { class: 'btn secondary small', onclick: () => { trying = {}; refreshPreview(); } }, '모두 되돌리기')),
+        ...diff.map(([c, t]) => {
+          const have = owns(t.item, t.color);
+          const price = priceOf(t.item, t.color);
+          const cv = h('canvas', { width: 56, height: 56, class: 'try-cv' });
+          queueMicrotask(() => drawItem(cv, t.item, t.color));
+          return h('div', { class: 'try-row' }, cv,
+            h('div', { class: 'try-info' },
+              h('div', { class: 'try-name' }, CATALOG[t.item].name),
+              h('div', { class: 'muted small' }, `${SECTION[c]} · ${t.color === 'default' ? '기본' : colorLabel(t.color)}`)),
+            h('div', { class: 'try-price' }, have ? '가지고 있어요' : `${price} ${currency}`),
+            h('button', { class: 'btn small', onclick: () => pick(t.item, t.color) }, have ? '입기' : '사기'),
+            h('button', { class: 'try-x', title: '그만 입어 보기', onclick: () => { delete trying[c]; refreshPreview(); } }, '✕'));
+        }),
+        toBuy.length ? h('p', { class: `try-sum${sum > wallet ? ' short' : ''}` },
+          `살 것 ${toBuy.length}개 · 모두 ${sum} ${currency}`, sum > wallet ? ` (지갑 ${wallet} ${currency} — ${sum - wallet} 모자라요)` : ` (지갑 ${wallet} ${currency})`) : null,
+        h('p', { class: 'muted small', style: 'margin:0' }, '‘사기’나 ‘입기’를 눌러야 내 캐릭터가 바뀌어요.'),
+      ].filter(Boolean));
     }
     function refreshPreview() {
       renderFit();
@@ -223,7 +286,8 @@ export async function renderCharacter(content, student, settings) {
       const primary = isEquipped
         ? h('button', { class: 'btn', disabled: true }, '입고 있어요')
         : h('button', { class: 'btn', onclick: () => pick(selected.item, selected.color) }, isOwned ? '입기' : '🛒 사기');
-      const takeOff = h('button', { class: 'btn secondary', disabled: !eqNow, onclick: () => unequip(c) }, '벗기');
+      // 모자·얼굴 소품만 뺄 수 있다(머리·옷·신발은 늘 입고 있어요)
+      const takeOff = CORE_SLOTS.includes(c) ? null : h('button', { class: 'btn secondary', disabled: !eqNow, onclick: () => unequip(c) }, '빼기');
 
       const colorChips = Object.keys(colorsOf(selected.item)).map((col) => {
         const have = owns(selected.item, col);

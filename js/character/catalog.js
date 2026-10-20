@@ -289,11 +289,13 @@ export const lookOf = (equip) => (equip && Object.values(equip).some(Boolean) ? 
 
 // 착용 상태(equip) → 그릴 블록 전체 목록.
 // 기본(무료) 아이템은 color가 'default'인데, 아이템마다 defColor가 있으면 그 예쁜 기본색을 쓴다.
+// 머리·얼굴·상의·하의·신발은 늘 입혀 둔다(비어 있으면 기본 아이템으로 그림 — 맨몸 방지)
+export const CORE_SLOTS = ['hair', 'face', 'top', 'bottom', 'shoes'];
 export function buildBoxes(equip) {
   const boxes = [...BODY];
   const order = ['bottom', 'top', 'shoes', 'hair', 'headAcc', 'face', 'faceAcc'];
   for (const slot of order) {
-    const e = equip?.[slot];
+    const e = equip?.[slot]?.item ? equip[slot] : (CORE_SLOTS.includes(slot) ? DEFAULT_LOOK[slot] : null);
     if (!e || !e.item) continue;
     const item = CATALOG[e.item];
     if (!item) continue;

@@ -551,3 +551,30 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: #c9c1fb
 /* 로그인 화면 로고 */
 .login-logo { width: 200px; max-width: 60%; height: auto; margin-bottom: 4px; }
 .login-logo { mix-blend-mode: multiply; } /* 로고의 흰 바탕이 연보라 배경에 보이지 않게 */
+
+/* 내 캐릭터: 입어 보는 중 목록 */
+.try-bar { display: flex; flex-direction: column; align-items: stretch; gap: 8px; background: var(--p-violet); border-radius: 18px; padding: 14px; }
+.try-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.try-row { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 14px; padding: 8px 10px; }
+.try-cv { width: 44px; height: 44px; background: var(--surface-2); border-radius: 10px; flex: 0 0 auto; }
+.try-info { flex: 1; min-width: 0; }
+.try-name { font-weight: 700; font-size: 15.5px; }
+.try-price { font-weight: 700; font-size: 14px; color: var(--primary-dark); white-space: nowrap; }
+.try-row .btn { flex: 0 0 auto; padding: 7px 14px; font-size: 14px; }
+.try-x { border: 0; background: var(--surface-2); color: var(--muted); width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; font-size: 13px; }
+.try-x:hover { background: var(--p-pink); color: #c2477e; }
+.try-sum { margin: 2px 0 0; font-weight: 700; font-size: 14.5px; color: var(--primary-dark); }
+.try-sum.short { color: #c2477e; }
+
+/* 내 아이템 탭 */
+.mine-card { cursor: default; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.mine-card .btn { margin-top: 4px; }
+.mine-on { margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--ok); }
+/* 입어 보는 중: 좁은 칸에서도 안 깨지게 두 줄 배치(위: 그림·이름·✕ / 아래: 가격·버튼) */
+.try-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; grid-template-areas: "cv info x" "cv price btn"; column-gap: 10px; row-gap: 4px; align-items: center; }
+.try-row .try-cv { grid-area: cv; align-self: center; }
+.try-row .try-info { grid-area: info; }
+.try-row .try-x { grid-area: x; justify-self: end; }
+.try-row .try-price { grid-area: price; }
+.try-row .btn { grid-area: btn; justify-self: end; }
+.try-name, .try-info .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
