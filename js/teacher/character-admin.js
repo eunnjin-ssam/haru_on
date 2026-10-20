@@ -1,4 +1,4 @@
-// 캐릭터·칭호 관리: 아이템 판매/숨김, 칭호 수여(선생님 수여는 금색), 스마트보드 화면 링크.
+// 캐릭터·칭호 관리: 아이템 판매/숨김, 칭호 수여(선생님 수여는 금색).
 import {
   collection, doc, getDocs, setDoc, updateDoc, writeBatch, arrayUnion, arrayRemove,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
@@ -50,7 +50,6 @@ export async function renderCharacterAdmin(root) {
     await b.commit();
   }
 
-  function boardUrl() { return new URL('board.html' + location.search, location.href).href; }
 
   // 색 이름(한글) 옆에 가격 입력칸 + ✕(색 지우기), 아래에 색 추가. '가격 저장'으로 items/{id}.prices 갱신
   // 색을 지워도 이미 그 색을 산 학생은 계속 가지고 있어요(상점에서만 사라짐).
@@ -161,13 +160,7 @@ export async function renderCharacterAdmin(root) {
     );
   }
 
-  function boardCard() {
-    return h('section', { class: 'card' }, h('h2', null, '우리 반 캐릭터 큰 화면 (스마트보드)'),
-      h('p', { class: 'muted' }, '반 전체 캐릭터를 3D로 크게 띄워요. 새 탭에서 열려요.'),
-      h('a', { class: 'btn', href: boardUrl(), target: '_blank', rel: 'noopener' }, '큰 화면 열기'));
-  }
-
-  function draw() { root.replaceChildren(itemsCard(), awardCard(), boardCard()); }
+  function draw() { root.replaceChildren(itemsCard(), awardCard()); }
 
   await load();
   draw();
