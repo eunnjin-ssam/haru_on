@@ -48,6 +48,36 @@ export async function renderStoriesAdmin(root) {
   }
 
   // 선생님만 보기 이야기: 처음 본 것은 ‘새’로 표시하고 본 것으로 기록(오늘 현황 배지에서 빠짐)
+  // 이야기 지우기: 공감·댓글·익명 작성자 기록·그 이야기 댓글 신고까지 함께
+  async function deleteStory(s) {
+    if (!confirm(`‘${s.wish}’ 이야기를 지울까요?\n공감과 댓글도 함께 지워지고, 되돌릴 수 없어요.`)) return;
+    await run(async () => {
+      const [likes, comments, reps] = await Promise.all([
+        getDocs(collection(db, 'stories', s.id, 'likes')),
+        getDocs(collection(db, 'stories', s.id, 'comments')),
+        getDocs(query(collection(db, 'reports'), where('story', '==', s.id))),
+      ]);
+      const refs = [...likes.docs, ...comments.docs, ...reps.docs].map((d) => d.ref);
+      refs.push(doc(db, 'storyAuthors', s.id), doc(db, 'stories', s.id));
+      for (let i = 0; i < refs.length; i += 400) {
+        const b = writeBatch(db);
+        for (const r of refs.slice(i, i + 400)) b.delete(r);
+        await b.commit();
+      }
+    }, '이야기를 지웠어요');
+  }
+
+  // 선생님만 보기 이야기 지우기: 상담 메모도 함께
+  async function deletePrivate(p) {
+    if (!confirm(`‘${p.wish}’ 이야기를 지울까요?\n상담 메모도 함께 지워지고, 되돌릴 수 없어요.`)) return;
+    await run(async () => {
+      const b = writeBatch(db);
+      b.delete(doc(db, 'privateStories', p.id));
+      b.delete(doc(db, 'storyNotes', p.id));
+      await b.commit();
+    }, '지웠어요');
+  }
+
   async function markPrivatesSeen() {
     const unseen = privates.filter((p) => !p.seenAt);
     newPrivates = new Set(unseen.map((p) => p.id));
@@ -225,6 +255,7 @@ export async function renderStoriesAdmin(root) {
         h('button', { class: 'btn secondary small', onclick: () => run(() => updateDoc(doc(db, 'stories', s.id), { hidden: !s.hidden }), s.hidden ? '다시 보여요' : '가렸어요') }, s.hidden ? '숨김 해제' : '가리기'),
         s.hidden || s.stage === 'hold' ? null : h('button', { class: 'btn secondary small', onclick: () => openMerge(s) }, '합치기'),
         s.hidden ? h('span', { class: 'badge skip' }, '숨김') : null,
+        h('button', { class: 'btn danger small', style: 'margin-left:auto', onclick: () => deleteStory(s) }, '삭제'),
       ),
     );
   }
@@ -237,7 +268,7 @@ export async function renderStoriesAdmin(root) {
       h('div', { class: 'muted small' }, names.get(p.author) ?? p.author),
       h('p', { class: 'ap-body muted' }, p.reason),
       (p.when || p.what || p.feeling) ? h('p', { class: 'muted small' }, [p.when && `언제: ${p.when}`, p.what && `무슨 일: ${p.what}`, p.feeling && `마음: ${p.feeling}`].filter(Boolean).join(' · ')) : null,
-      h('div', { class: 'row' }, memo));
+      h('div', { class: 'row' }, memo, h('button', { class: 'btn danger small', onclick: () => deletePrivate(p) }, '삭제')));
   }
 
   function draw() {
