@@ -2,29 +2,70 @@
   "firestore": {
     "rules": "firestore.rules"
   },
-  "hosting": {
-    "public": ".",
-    "ignore": [
-      "firebase.json",
-      ".firebaserc",
-      "firestore.rules",
-      ".gitignore",
-      ".git/**",
-      "**/.git/**",
-      ".claude/**",
-      "node_modules/**",
-      "**/node_modules/**",
-      "tests/**",
-      "tools/**",
-      "docs/**",
-      "package.json",
-      "package-lock.json"
-    ]
-  },
+  "hosting": [
+    {
+      "site": "haru-on",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        ".firebaserc",
+        "firestore.rules",
+        ".gitignore",
+        ".git/**",
+        "**/.git/**",
+        ".claude/**",
+        "node_modules/**",
+        "**/node_modules/**",
+        "tests/**",
+        "tools/**",
+        "docs/**",
+        "package.json",
+        "package-lock.json"
+      ]
+    },
+    {
+      "site": "our-class-2026",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        ".firebaserc",
+        "firestore.rules",
+        ".gitignore",
+        ".git/**",
+        "**/.git/**",
+        ".claude/**",
+        "node_modules/**",
+        "**/node_modules/**",
+        "tests/**",
+        "tools/**",
+        "docs/**",
+        "package.json",
+        "package-lock.json"
+      ],
+      "redirects": [
+        {
+          "source": "/",
+          "destination": "https://haru-on.web.app/",
+          "type": 301
+        },
+        {
+          "source": "/:path*",
+          "destination": "https://haru-on.web.app/:path",
+          "type": 301
+        }
+      ]
+    }
+  ],
   "emulators": {
-    "auth": { "port": 9099 },
-    "firestore": { "port": 8080 },
-    "ui": { "enabled": false },
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": false
+    },
     "singleProjectMode": true
   }
 }
