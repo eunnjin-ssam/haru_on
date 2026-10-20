@@ -158,7 +158,7 @@ export async function renderCharacter(content, student, settings) {
   async function draw() {
     const toggle = h('div', { class: 'filterbar', style: 'margin-bottom:4px' },
       h('div', { class: 'seg' },
-        h('button', { class: `subtab${topView === 'me' ? ' on' : ''}`, onclick: () => { topView = 'me'; draw(); } }, '내 캐릭터'),
+        h('button', { class: `subtab${topView === 'me' ? ' on' : ''}`, onclick: () => { topView = 'me'; draw(); } }, '아이템 상점'),
         h('button', { class: `subtab${topView === 'mine' ? ' on' : ''}`, onclick: () => { topView = 'mine'; draw(); } }, `내 아이템 ${data.owned.size}`),
         h('button', { class: `subtab${topView === 'class' ? ' on' : ''}`, onclick: () => { if (view) { view.dispose(); view = null; } topView = 'class'; draw(); } }, '우리 반')));
 
@@ -254,7 +254,6 @@ export async function renderCharacter(content, student, settings) {
         }),
         toBuy.length ? h('p', { class: `try-sum${sum > wallet ? ' short' : ''}` },
           `살 것 ${toBuy.length}개 · 모두 ${sum} ${currency}`, sum > wallet ? ` (지갑 ${wallet} ${currency} — ${sum - wallet} 모자라요)` : ` (지갑 ${wallet} ${currency})`) : null,
-        h('p', { class: 'muted small', style: 'margin:0' }, '‘사기’나 ‘입기’를 눌러야 내 캐릭터가 바뀌어요.'),
       ].filter(Boolean));
     }
     function refreshPreview() {
