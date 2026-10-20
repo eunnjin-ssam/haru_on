@@ -51,6 +51,8 @@ export async function renderCare(root) {
     const main = cfgSnap.data() ?? {};
     const perDay = main.mission?.perDay ?? 5;
     const bonusDays = main.points?.bonusDays ?? 3;
+    // 기본 설정에서 글마당 메뉴를 숨겼으면 글마당은 활동률에서 뺀다(학생이 쓸 수 없으니)
+    const writingOn = !(main.hiddenMenus ?? []).includes('writing');
 
     // 학생별 날짜 → 값
     const by = () => new Map();
@@ -94,7 +96,7 @@ export async function renderCare(root) {
       const comps = [partDays / Math.max(1, myClosed.length)];
       if (roleHolders.has(s.sid)) comps.push(roleDays / Math.max(1, myClosed.length));
       // 글마당은 주 단위라, 끝난 지난 두 주로 센다
-      comps.push((Math.min(writeDays(weeks[1]), bonusDays) + Math.min(writeDays(weeks[2]), bonusDays)) / (2 * bonusDays));
+      if (writingOn) comps.push((Math.min(writeDays(weeks[1]), bonusDays) + Math.min(writeDays(weeks[2]), bonusDays)) / (2 * bonusDays));
       const activity = avg(comps);
       // 갑작스러운 변화: 지난 3주 평균 vs 이번 주(이틀 이상 지났을 때)
       const thisDays = present(s.sid, past(weeks[0].days)).filter((d) => d < today || (mi[d]?.n ?? 0) >= perDay);
@@ -126,7 +128,7 @@ export async function renderCare(root) {
         recentMoods: weeks[0].days.map((dt) => mp[dt]), flags, memo: cn?.memo ?? '',
       };
     });
-    data = { rows, recent, perDay, moodBy, noteBy, missBy, roleBy, postBy, roleHolders, tasks, subs };
+    data = { rows, recent, perDay, moodBy, noteBy, missBy, roleBy, postBy, roleHolders, tasks, subs, writingOn };
   }
 
   async function run(task, done) {
@@ -154,7 +156,7 @@ export async function renderCare(root) {
 
   const saveMemo = (sid, memo) => run(() => setDoc(doc(db, 'careNotes', sid), { memo }, { merge: true }), '메모를 저장했어요');
 
-  // 이름 → 최근 2주 상세(날짜별 기분·기초미션·1인1역·글마당) + 남은 과제 + 메모
+  // 이름 → 최근 2주 상세(날짜별 기분·기초미션·1인1역·글마당(숨기지 않았을 때)) + 남은 과제 + 메모
   function openDetail(r) {
     const d = data;
     const cells = d.recent.map((date) => {
@@ -167,7 +169,7 @@ export async function renderCare(root) {
         h('td', null, mood ? `${moodEmoji(mood)} ${mood === 'custom' ? `“${note ?? ''}”` : moodLabel(mood)}` : h('span', { class: 'muted' }, '-')),
         h('td', null, mi ? `${mi.ok}/${mi.n}${mi.n >= d.perDay ? '' : ' (덜 풂)'}` : h('span', { class: 'muted' }, '-')),
         d.roleHolders.has(r.sid) ? h('td', null, d.roleBy.get(r.sid)?.[date] ? '✓' : h('span', { class: 'muted' }, '-')) : null,
-        h('td', null, d.postBy.get(r.sid)?.[date] ? '✓' : h('span', { class: 'muted' }, '-')));
+        d.writingOn ? h('td', null, d.postBy.get(r.sid)?.[date] ? '✓' : h('span', { class: 'muted' }, '-')) : null);
     });
     const left = d.tasks.filter((t) => (t.targets ?? []).includes(r.sid) && !['done', 'exempt'].includes(d.subs.get(`${t.id}_${r.sid}`)?.status));
     const memo = h('input', { type: 'text', value: r.memo, placeholder: '메모 (선생님만 봐요)', style: 'flex:1' });
@@ -178,7 +180,7 @@ export async function renderCare(root) {
       h('p', { class: 'muted small', style: 'margin:0' }, `기초미션 참여 ${r.partDays}/${r.days}일 · 정답률 ${pct(r.rate)} · 활동률 ${pct(r.activity)} · 남은 과제 ${r.remaining}개`),
       h('div', { class: 'table-wrap' }, h('table', null,
         h('thead', null, h('tr', null, h('th', null, '날짜'), h('th', null, '기분'), h('th', null, '기초미션'),
-          d.roleHolders.has(r.sid) ? h('th', null, '1인1역') : null, h('th', null, '글마당'))),
+          d.roleHolders.has(r.sid) ? h('th', null, '1인1역') : null, d.writingOn ? h('th', null, '글마당') : null)),
         h('tbody', null, ...cells))),
       left.length ? h('p', { class: 'muted small', style: 'margin:0' }, `남은 과제: ${left.map((t) => t.title).join(', ')}`) : null,
       h('div', { class: 'row' }, memo, h('button', { class: 'btn small', onclick: () => { dlg.remove(); saveMemo(r.sid, memo.value); } }, '메모 저장'))));
@@ -225,7 +227,7 @@ export async function renderCare(root) {
         label, sortKey === key ? (sortDir > 0 ? ' ▲' : ' ▼') : '')
       : h('th', null, label))));
     return h('section', { class: 'card' }, h('h2', null, '자기관리 현황'),
-      h('p', { class: 'muted small', style: 'margin:-2px 0 10px' }, '최근 2주 기초미션 참여·정답률·활동률(기초미션·1인1역·글마당)·기분·포인트와 살펴볼 점(기준은 기본 설정)이에요. 열 제목을 누르면 정렬, 이름을 누르면 2주 상세와 메모를 봐요.'),
+      h('p', { class: 'muted small', style: 'margin:-2px 0 10px' }, `최근 2주 기초미션 참여·정답률·활동률(기초미션·1인1역${data.writingOn ? '·글마당' : ''})·기분·포인트와 살펴볼 점(기준은 기본 설정)이에요. 열 제목을 누르면 정렬, 이름을 누르면 2주 상세와 메모를 봐요.`),
       h('div', { class: 'table-wrap' }, h('table', null, h('thead', null, head),
         h('tbody', null, ...sortedRows().map((r) => h('tr', { class: r.flags.length ? 'flagged' : '' },
           h('td', null, h('input', { type: 'checkbox', checked: selected.has(r.sid), onchange: (e) => { if (e.target.checked) selected.add(r.sid); else selected.delete(r.sid); draw(); } })),
