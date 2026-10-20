@@ -83,7 +83,7 @@ export async function renderBoard(root, { open }) {
       b.update(doc(db, 'submissions', subId), { status: 'done', lastAt: serverTimestamp() });
     } else {
       b.set(doc(db, 'submissions', subId), {
-        task: task.id, sid, status: 'done', text: '', comment: '',
+        task: task.id, sid, status: 'done', text: '', comment: '', byTeacher: true,
         firstAt: serverTimestamp(), lastAt: serverTimestamp(),
       });
     }
@@ -94,6 +94,30 @@ export async function renderBoard(root, { open }) {
       });
       b.update(doc(db, 'summaries', sid), { wallet: increment(p), total: increment(p), lastTx: txId });
     }
+  }
+
+  // 완료 취소: 준 포인트를 거둬들이고(거래 삭제 + 요약 되돌림),
+  // 선생님이 바로 체크한 것은 빈칸으로, 학생이 제출했던 것은 '제출함'으로 돌린다
+  async function undoComplete(task, sid) {
+    const subId = `${task.id}_${sid}`;
+    const sub = subOf(task.id, sid);
+    const txRef = doc(db, 'points', `task_${subId}`);
+    const tx = await getDoc(txRef);
+    const amt = tx.exists() ? tx.data() : null;
+    const st = students.find((x) => x.sid === sid);
+    const back = amt?.wallet ? `\n줬던 ${amt.wallet}${currency}도 거둬들여요.` : '';
+    if (!confirm(`${st ? st.name : '이 학생'}의 ‘${task.title}’ 완료를 취소할까요?${back}`)) return false;
+    // 예전 기록엔 byTeacher가 없다: 선생님이 바로 체크한 건 처음·마지막 시각이 같다
+    const direct = sub?.byTeacher || (sub?.firstAt?.toMillis && sub.firstAt.toMillis() === sub.lastAt?.toMillis?.());
+    const b = writeBatch(db);
+    if (direct) b.delete(doc(db, 'submissions', subId));
+    else b.update(doc(db, 'submissions', subId), { status: 'submitted', lastAt: serverTimestamp() });
+    if (amt) {
+      b.delete(txRef);
+      b.update(doc(db, 'summaries', sid), { wallet: increment(-(amt.wallet ?? 0)), total: increment(-(amt.total ?? 0)) });
+    }
+    await b.commit();
+    return true;
   }
 
   async function completeOne(task, sid) {
@@ -293,7 +317,8 @@ export async function renderBoard(root, { open }) {
     const st = sub?.status;
     if (st === 'done') {
       const late = sub.firstAt?.toMillis && task.dueAt?.toMillis && sub.firstAt.toMillis() > task.dueAt.toMillis();
-      return h('td', { class: `cell done${late ? ' late' : ''}`, title: late ? '늦은 완료' : '완료' }, late ? '✓늦' : '✓');
+      return h('td', { class: `cell done${late ? ' late' : ''}`, title: `${late ? '늦은 완료' : '완료'} — 누르면 취소`,
+        onclick: async () => { if (await undoComplete(task, s.sid).catch((e) => { console.error(e); toast('안 됐어요.', 'error'); return false; })) { toast('완료를 취소했어요'); await load(); draw(); } } }, late ? '✓늦' : '✓');
     }
     if (st === 'exempt') return h('td', { class: 'cell' }, '면');
     if (st === 'submitted') {

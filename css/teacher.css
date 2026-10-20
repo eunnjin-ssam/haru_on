@@ -507,3 +507,7 @@ td.item-pic canvas { width: 48px; height: 48px; background: var(--surface-2); bo
 
 /* 공동 목표: 기부 명단 */
 .donor-list { margin-top: 6px; }
+
+/* 체크판: 완료 칸도 눌러서 취소 */
+.cell.done { cursor: pointer; }
+.cell.done:hover { background: var(--danger-soft); }
