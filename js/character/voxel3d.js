@@ -33,10 +33,12 @@ export function renderCharacter3D(container, equip, opts = {}) {
   renderer.setSize(w, hgt);
   container.replaceChildren(renderer.domElement);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+  // three.js 0.155부터 빛 세기 단위가 바뀌어(π로 나눔) 예전 값이면 모든 색이 칙칙해진다.
+  // 앞면이 원래 색에 가깝게 보이도록 π를 곱한다.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7 * Math.PI));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.5 * Math.PI);
   dir.position.set(10, 20, 15); scene.add(dir);
-  const dir2 = new THREE.DirectionalLight(0xffffff, 0.3);
+  const dir2 = new THREE.DirectionalLight(0xffffff, 0.25 * Math.PI);
   dir2.position.set(-10, 5, -10); scene.add(dir2);
 
   const group = new THREE.Group();

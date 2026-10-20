@@ -51,8 +51,8 @@ async function start() {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
   root.replaceChildren(renderer.domElement);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-  const dl = new THREE.DirectionalLight(0xffffff, 0.7); dl.position.set(20, 40, 30); scene.add(dl);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7 * Math.PI)); // voxel3d.js와 같은 밝기(π 곱함)
+  const dl = new THREE.DirectionalLight(0xffffff, 0.5 * Math.PI); dl.position.set(20, 40, 30); scene.add(dl);
 
   const world = new THREE.Group();
   const cols = Math.ceil(Math.sqrt(students.length));

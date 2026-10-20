@@ -140,8 +140,8 @@ export const CATALOG = {
       b(-0.55, 14.9, -4.0, 1.1, 1.1, 0.6, '#c0574a'), // 'O' 입
     ] },
   // 얼굴 색 (모두 무료 · 모양 없이 피부색만 바꿈)
-  skinLighter: { category: 'skin', name: '아주 밝음', starter: true, tone: '#fbe3cf', prices: { default: 0 }, boxes: () => [] },
-  skinLight: { category: 'skin', name: '밝음', starter: true, tone: '#f6d4b8', prices: { default: 0 }, boxes: () => [] },
+  skinLighter: { category: 'skin', name: '아주 밝음', starter: true, tone: '#fff0e4', prices: { default: 0 }, boxes: () => [] },
+  skinLight: { category: 'skin', name: '밝음', starter: true, tone: '#f9dcc4', prices: { default: 0 }, boxes: () => [] },
   skinMid: { category: 'skin', name: '보통', starter: true, tone: SKIN, prices: { default: 0 }, boxes: () => [] },
   skinTan: { category: 'skin', name: '조금 어두움', starter: true, tone: '#d9a77e', prices: { default: 0 }, boxes: () => [] },
   skinDark: { category: 'skin', name: '어두움', starter: true, tone: '#a8704a', prices: { default: 0 }, boxes: () => [] },
