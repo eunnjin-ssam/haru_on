@@ -24,9 +24,10 @@ export function renderCharacter3D(container, equip, opts = {}) {
   const hgt = container.clientHeight || 340;
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(32, w / hgt, 0.1, 200);
-  // 발끝(0)부터 칭호 위(31.1)까지 들어오게
-  camera.position.set(0, 17.5, 56);
-  camera.lookAt(0, 16, 0);
+  // 발끝(0)부터 칭호 위(31.1)까지 들어오고, 발 아래·칭호 위에 여백이 조금 남게
+  // (보이는 높이 ≈ 15.5 ± 17.5 → 약 -2 ~ 33)
+  camera.position.set(0, 17, 61);
+  camera.lookAt(0, 15.5, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
