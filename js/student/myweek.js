@@ -123,6 +123,10 @@ export async function renderMyWeek(content, student, settings) {
     );
   }
 
+  // '20261019'~'20261023' → '10월 19일(월) ~ 10월 23일(금)'
+  const dayLabel = (dt) => `${Number(dt.slice(4, 6))}월 ${Number(dt.slice(6, 8))}일`;
+  const weekRange = (days) => `${dayLabel(days[0])}(월) ~ ${dayLabel(days[days.length - 1])}(금)`;
+
   async function draw() {
     const wk = await weekData();
     const nav = h('div', { class: 'row' },
@@ -130,7 +134,8 @@ export async function renderMyWeek(content, student, settings) {
       offset > 0 ? h('button', { class: 'pill', onclick: () => { offset = Math.max(0, offset - 1); draw(); } }, '이번 주 ▶') : null);
     const head = h('div', { class: 'board-head' },
       h('div', null,
-        h('div', { class: 'bh-title' }, offset === 0 ? '이번 주 나의마당' : '지난 주 나의마당'),
+        h('div', { class: 'bh-title' }, offset === 0 ? '이번 주 나의마당' : (offset === 1 ? '지난 주 나의마당' : `${offset}주 전 나의마당`),
+          h('span', { class: 'bh-range' }, weekRange(wk.days))),
         h('div', { class: 'bh-sub' }, '과제·포인트·기분·기초미션·글마당을 한눈에 봐요')),
       nav);
     content.replaceChildren(h('div', { class: 'myweek' },
