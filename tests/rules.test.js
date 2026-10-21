@@ -436,6 +436,13 @@ describe('과제', () => {
     await updateDoc(doc(teacher(env), 'submissions/k1_s1'), { status: 'redo', comment: '다시' });
     await assertSucceeds(updateDoc(doc(db, 'submissions/k1_s1'), { status: 'submitted', text: '고침', lastAt: serverTimestamp() }));
   });
+  it('선생님 확인용은 냈다고 누르면 회신(done)이 되고, 과제는 스스로 완료할 수 없다', async () => {
+    await setDoc(doc(teacher(env), 'tasks/c1'), { kind: 'check', title: '가정통신문', targets: ['s1'], points: 0 });
+    const db = await login(env, '1');
+    await assertFails(setDoc(doc(db, 'submissions/k1_s1'), { ...sub, status: 'done' }));
+    await assertFails(setDoc(doc(db, 'submissions/c1_s1'), { ...sub, task: 'c1', status: 'done', text: '글' }));
+    await assertSucceeds(setDoc(doc(db, 'submissions/c1_s1'), { ...sub, task: 'c1', status: 'done' }));
+  });
 });
 
 // ---------------------------------------------------------------

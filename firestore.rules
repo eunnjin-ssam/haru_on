@@ -615,8 +615,10 @@ service cloud.firestore {
       let task = get(p('tasks', r.task)).data;
       return exactKeys(['task', 'sid', 'status', 'text', 'firstAt', 'lastAt'])
         && safeId(r.task) && id == r.task + '_' + me() && r.sid == me()
-        && task.kind == 'homework' && me() in task.targets
-        && r.status == 'submitted'
+        && me() in task.targets
+        // 과제는 '제출함'(선생님이 확인), 선생님 확인용(회신·포인트 없음)은 학생이 냈다고 누르면 바로 '회신함'
+        && ((task.kind == 'homework' && r.status == 'submitted')
+          || (task.kind == 'check' && r.status == 'done' && r.text == ''))
         && r.firstAt == request.time && r.lastAt == request.time
         && text(r.text, 5000);
     }

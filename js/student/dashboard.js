@@ -1,6 +1,6 @@
 // 학생 대시보드: 지갑과 오늘 할 일을 먼저, 아래에 공동 목표 보태기까지.
 import {
-  doc, getDoc, getDocs, collection, query, where, updateDoc, writeBatch, increment, serverTimestamp,
+  doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, writeBatch, increment, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -12,6 +12,7 @@ import { lookOf } from '../character/catalog.js';
 import { drawFront } from '../character/voxel2d.js';
 import { celebrateGoal } from './celebrate.js';
 import { loadWish, wishCard } from './role-wish.js';
+import { treeCard } from './tree.js';
 
 export async function renderDashboard(content, student, settings, { openMission, openTasks }) {
   const sid = student.sid;
@@ -184,6 +185,17 @@ export async function renderDashboard(content, student, settings, { openMission,
     return h('div', { class: 'avatar' }, cv);
   }
 
+  // 선생님 확인용을 냈다고 알리기: 선생님 체크판에 회신(✓)으로 바로 표시된다(포인트 없음)
+  function turnIn(t) {
+    if (!confirm(`'${t.title}'을(를) 선생님께 냈나요?`)) return;
+    act(async () => {
+      await setDoc(doc(db, 'submissions', `${t.id}_${sid}`), {
+        task: t.id, sid, status: 'done', text: '', firstAt: serverTimestamp(), lastAt: serverTimestamp(),
+      });
+      toast('냈다고 선생님께 알렸어요!');
+    });
+  }
+
   // 선생님 확인용 알림(가정통신문 회신 등): 아직 회신 안 했을 때만
   function checksCard() {
     if (!data.checks.length) return null;
@@ -192,7 +204,7 @@ export async function renderDashboard(content, student, settings, { openMission,
       ...data.checks.map((t) => h('div', { class: 'todo' },
         h('span', { class: 'todo-l' }, h('span', { class: 'todo-ico' }, '📄'),
           h('span', null, t.title, t.dueAt ? h('span', { class: 'todo-due' }, dday(t.dueAt)) : null)),
-        h('span', { class: 'state' }, '내면 선생님이 확인해요'))));
+        h('button', { class: 'btn small', onclick: () => turnIn(t) }, '제출함'))));
   }
 
   // 달성한 목표: 축하 카드(보태기 닫힘)
@@ -250,7 +262,7 @@ export async function renderDashboard(content, student, settings, { openMission,
     const grid = h('div', { class: 'dash-grid' },
       ...[moodCard(), todoCard(), doneCard(), goalCard()].filter(Boolean));
     content.replaceChildren(h('div', { class: 'dash' }, ...[
-      messagesCard(), hero(), requestCard(), checksCard(), wishCard(sid, data.wish), grid,
+      messagesCard(), hero(), treeCard(data.summary.total ?? 0, settings), requestCard(), checksCard(), wishCard(sid, data.wish), grid,
     ].filter(Boolean)));
   }
 

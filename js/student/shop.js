@@ -5,6 +5,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
+import { treeCard } from './tree.js';
 import { todayId, weekId, monthId } from '../common/dates.js';
 import { celebrateGoal } from './celebrate.js';
 import { isExemptCoupon } from '../common/coupons.js';
@@ -139,26 +140,6 @@ export async function renderShop(content, student, settings) {
   }
 
   // ---- 화면 ----
-  function treeCard() {
-    const total = data.summary.total ?? 0;
-    const stages = settings.tree ?? [];
-    let cur = stages[0] ?? { name: '새싹', min: 0 };
-    let next = null;
-    for (let i = 0; i < stages.length; i++) {
-      if (total >= stages[i].min) { cur = stages[i]; next = stages[i + 1] ?? null; }
-    }
-    const pct = next ? Math.min(100, ((total - cur.min) / (next.min - cur.min)) * 100) : 100;
-    return h('section', { class: 'card tree' },
-      h('div', { class: 'tree-emoji' }, '🌱'),
-      h('div', { class: 'tree-info' },
-        h('div', { class: 'tree-name' }, `내 씨앗 나무 · ${cur.name}`),
-        h('div', { class: 'muted' }, `누적 ${total} ${currency}`),
-        h('div', { class: 'bar' }, h('div', { class: 'fill', style: `width:${pct}%` })),
-        next ? h('div', { class: 'muted small' }, `다음 '${next.name}'까지 ${next.min - total} ${currency}`) : h('div', { class: 'muted small' }, '가장 큰 나무예요! 🌳'),
-      ),
-    );
-  }
-
   function buyCard(item) {
     const period = periodKey(item);
     const ownedCount = data.coupons.filter((c) => c.coupon === item.id && c.period === period).length;
@@ -239,7 +220,7 @@ export async function renderShop(content, student, settings) {
       h('div', { class: 'wallet-chip' }, `🪙 ${wallet} ${currency}`));
     content.replaceChildren(h('div', { class: 'shop' },
       head,
-      treeCard(),
+      treeCard(data.summary.total ?? 0, settings),
       ...(data.goals ?? []).map(goalCard),
       h('div', { class: 'feed-grid' },
         h('section', { class: 'card' }, h('h2', null, '쿠폰 사기'),
