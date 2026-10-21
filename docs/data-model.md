@@ -23,6 +23,7 @@
 | summaries | 학생 | wallet, total, lastTx, reading, missionDays, roleDays |
 | moods | 학생_날짜 | sid, date, mood(excited/good/okay/upset/angry/tired/custom), at |
 | moodNotes | 학생_날짜 | sid, date, text, at (본인·교사만) |
+| absences | 학생 | days: [결석한 날 YYYYMMDD] (본인만 읽기, 선생님이 결석 표시할 때 attendance와 함께 씀 — 결석한 날 올라온 과제를 학생 화면에 '결석'으로) |
 | attendance 🔒 | 날짜 | absent: [학생], noSchool(true면 반 전체 쉬는 날 — 공휴일·재량휴업일, 계산에서 그날을 뺌) (1인1역 오늘 탭에서 표시, 1인1역 완료율·살핌판 계산에서 그날을 뺌) |
 | missionKeys 🔒 | 문제 id | unit, answers: [정답 문자열] |
 | missionQuestions | 문제 id | grade, term, topic, unit, difficulty(basic/normal/challenge), type(choice/number), question, choices: [보기] (정답 없음, 학생 읽기 가능) |

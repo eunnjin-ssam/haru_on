@@ -13,6 +13,7 @@ import { drawFront } from '../character/voxel2d.js';
 import { celebrateGoal } from './celebrate.js';
 import { loadWish, wishCard } from './role-wish.js';
 import { treeCard } from './tree.js';
+import { loadAbsentDays, isAbsentTask } from './absent.js';
 
 export async function renderDashboard(content, student, settings, { openMission, openTasks }) {
   const sid = student.sid;
@@ -32,6 +33,7 @@ export async function renderDashboard(content, student, settings, { openMission,
       getDoc(doc(db, 'profiles', sid)).catch(() => null),
     ]);
     const wish = await loadWish(sid).catch(() => null);
+    const absentDays = await loadAbsentDays(sid);
     // 아직 안 낸 과제(제출 전이거나 '다시 해오기'), 마감 빠른 순
     const subs = new Map((subSnap?.docs ?? []).map((d) => [d.id, d.data().status]));
     const allTasks = (taskSnap?.docs ?? []).map((d) => ({ id: d.id, ...d.data() })).filter((t) => isShown(t));
@@ -40,7 +42,7 @@ export async function renderDashboard(content, student, settings, { openMission,
     const tasks = allTasks
       .filter((t) => t.kind === 'homework')
       .map((t) => ({ ...t, status: subs.get(`${t.id}_${sid}`) }))
-      .filter((t) => !t.status || t.status === 'redo')
+      .filter((t) => (!t.status || t.status === 'redo') && !isAbsentTask(t, t.status, absentDays)) // 결석한 날 과제는 할 일에서 뺌
       .sort((a, b) => (a.dueAt?.toMillis?.() ?? Infinity) - (b.dueAt?.toMillis?.() ?? Infinity));
     data = {
       summary: summarySnap.exists() ? summarySnap.data() : { wallet: 0, total: 0 },

@@ -1,7 +1,7 @@
 // 선생님 첫 화면: 오늘 현황. 반 전체의 기분·기초미션·1인1역·남은 과제를 한눈에 본다.
 // (글마당 열은 글마당 단계에서 추가)
 import {
-  collection, doc, getDoc, getDocs, query, where, setDoc, writeBatch, increment, serverTimestamp, arrayUnion, arrayRemove,
+  collection, doc, getDoc, getDocs, query, where, writeBatch, increment, serverTimestamp, arrayUnion, arrayRemove,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -248,7 +248,14 @@ export async function renderToday(root, { open }) {
     const absBtn = h('td', null, h('button', {
       class: `btn small ${isAbs ? 'absent-on' : 'secondary'}`,
       title: isAbs ? '누르면 결석 취소' : '오늘 결석으로 표시',
-      onclick: () => run(() => setDoc(doc(db, 'attendance', data.today), { absent: isAbs ? arrayRemove(s.sid) : arrayUnion(s.sid) }, { merge: true })),
+      onclick: () => run(async () => {
+        // 반 결석부와 학생 본인 결석 목록(학생 화면 '결석' 표시용)을 함께
+        const b = writeBatch(db);
+        const op = isAbs ? arrayRemove : arrayUnion;
+        b.set(doc(db, 'attendance', data.today), { absent: op(s.sid) }, { merge: true });
+        b.set(doc(db, 'absences', s.sid), { days: op(data.today) }, { merge: true });
+        await b.commit();
+      }),
     }, isAbs ? '결석 취소' : '결석'));
     const nameCell = h('td', null, h('button', { class: 'linkish', title: '이 학생의 나의마당 보기', onclick: () => openMyWeek(s) }, s.name));
     if (isAbs) {

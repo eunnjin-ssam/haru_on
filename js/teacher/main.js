@@ -23,6 +23,7 @@ import { renderFeedbackAdmin } from './feedback-admin.js';
 import { ensureRepeatTasks } from './repeats.js';
 import { ensureRoleTerms } from './role-terms.js';
 import { ensureItems } from './items-sync.js';
+import { ensureAbsences } from './absences-sync.js';
 import { renderNotices } from './notices.js';
 
 const root = document.getElementById('app');
@@ -161,7 +162,7 @@ function showApp(user, firstTab) {
     stop();
     showSignIn('로그인이 끝나서 다시 로그인이 필요해요.');
   });
-  Promise.all([ensureRepeatTasks(), ensureRoleTerms(), ensureItems()].map((p) => p.catch((e) => console.error(e)))).finally(() => open(firstTab));
+  Promise.all([ensureRepeatTasks(), ensureRoleTerms(), ensureItems(), ensureAbsences()].map((p) => p.catch((e) => console.error(e)))).finally(() => open(firstTab));
 }
 
 start();

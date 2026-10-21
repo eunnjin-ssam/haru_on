@@ -298,6 +298,11 @@ service cloud.firestore {
     match /attendance/{date} {
       allow read, write: if isTeacher();
     }
+    // 학생별 결석한 날 목록(선생님이 결석 표시할 때 함께 씀). 본인만 읽기 — 결석한 날 올라온 과제를 '결석'으로 보여 주려고
+    match /absences/{sid} {
+      allow read: if isStudent() && sid == me();
+      allow read, write: if isTeacher();
+    }
 
     // 기초미션 정답. 학생은 못 읽고, 채점 규칙이 get()으로 대조한다.
     match /missionKeys/{qid} {

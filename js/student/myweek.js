@@ -7,6 +7,7 @@ import { h } from '../common/ui.js';
 import { weekInfo } from '../common/dates.js';
 import { MOODS } from './mood.js';
 import { isShown } from '../common/task-visible.js';
+import { loadAbsentDays, isAbsentTask } from './absent.js';
 
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '');
 const WD = ['월', '화', '수', '목', '금'];
@@ -21,12 +22,13 @@ export async function renderMyWeek(content, student, settings) {
 
   // 학생별로 안 바뀌는 것(과제·제출·전체 거래/풀이/글)은 한 번만 읽는다
   async function loadBase() {
-    const [taskSnap, subSnap, ptSnap, attSnap, postSnap] = await Promise.all([
+    const [taskSnap, subSnap, ptSnap, attSnap, postSnap, absentDays] = await Promise.all([
       getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))),
       getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))),
       getDocs(query(collection(db, 'points'), where('sid', '==', sid))),
       getDocs(query(collection(db, 'missionAttempts'), where('sid', '==', sid))),
       getDocs(query(collection(db, 'posts'), where('author', '==', sid))),
+      loadAbsentDays(sid),
     ]);
     base = {
       tasks: taskSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.kind === 'homework' && isShown(t)),
@@ -34,6 +36,7 @@ export async function renderMyWeek(content, student, settings) {
       points: ptSnap.docs.map((d) => d.data()),
       attempts: attSnap.docs.map((d) => d.data()),
       posts: postSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      absentDays,
     };
   }
 
@@ -57,9 +60,11 @@ export async function renderMyWeek(content, student, settings) {
 
   function taskCard() {
     const now = Date.now();
-    const done = base.tasks.filter((t) => ['done', 'exempt'].includes(base.subs.get(`${t.id}_${sid}`)?.status)).length;
-    const total = base.tasks.length;
-    const left = base.tasks.filter((t) => !['done', 'exempt'].includes(base.subs.get(`${t.id}_${sid}`)?.status))
+    // 결석한 날 올라온 과제(아직 안 냄)는 세지 않는다
+    const tasks = base.tasks.filter((t) => !isAbsentTask(t, base.subs.get(`${t.id}_${sid}`), base.absentDays));
+    const done = tasks.filter((t) => ['done', 'exempt'].includes(base.subs.get(`${t.id}_${sid}`)?.status)).length;
+    const total = tasks.length;
+    const left = tasks.filter((t) => !['done', 'exempt'].includes(base.subs.get(`${t.id}_${sid}`)?.status))
       .sort((a, b) => (a.dueAt?.toMillis?.() ?? Infinity) - (b.dueAt?.toMillis?.() ?? Infinity));
     return h('section', { class: 'card' }, h('h3', null, '과제'),
       h('p', null, `${total}개 중 ${done}개 완료`),

@@ -7,6 +7,7 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { ddayLabel as dday } from '../common/dates.js';
 import { isShown } from '../common/task-visible.js';
+import { loadAbsentDays, isAbsentTask } from './absent.js';
 
 export async function renderTasks(content, student, settings) {
   const sid = student.sid;
@@ -15,14 +16,15 @@ export async function renderTasks(content, student, settings) {
   let data;
 
   async function load() {
-    const [taskSnap, subSnap] = await Promise.all([
+    const [taskSnap, subSnap, absentDays] = await Promise.all([
       getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))),
       getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))),
+      loadAbsentDays(sid),
     ]);
     const subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
     const tasks = taskSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
       .filter((t) => t.kind === 'homework' && isShown(t))
-      .map((t) => ({ ...t, sub: subs.get(`${t.id}_${sid}`) }))
+      .map((t) => { const sub = subs.get(`${t.id}_${sid}`); return { ...t, sub, absent: isAbsentTask(t, sub, absentDays) }; })
       .sort((a, b) => (a.dueAt?.toMillis?.() ?? Infinity) - (b.dueAt?.toMillis?.() ?? Infinity));
     data = { tasks };
   }
@@ -42,6 +44,7 @@ export async function renderTasks(content, student, settings) {
 
   function statusChip(t) {
     const s = t.sub?.status;
+    if (t.absent) return h('span', { class: 'chip-s' }, '결석'); // 올라온 날 결석 — 안 내도 됨
     if (s === 'submitted') return h('span', { class: 'chip-s wait' }, '확인 대기');
     if (s === 'done') return h('span', { class: 'chip-s ok' }, '완료');
     if (s === 'redo') return h('span', { class: 'chip-s redo' }, '다시 해오기');
@@ -51,13 +54,17 @@ export async function renderTasks(content, student, settings) {
 
   function card(t) {
     const s = t.sub?.status;
-    const canSubmit = !s || s === 'redo';
+    const canSubmit = (!s || s === 'redo') && !t.absent;
     const box = h('article', { class: 'task-card' });
+
+    // 결석한 날 과제는 '결석', 마감 지나 아직 안 냈으면 '지금 내면 0'
+    const overdue = !s && t.dueAt?.toMillis && t.dueAt.toMillis() < Date.now();
+    const pointLabel = t.absent ? '결석' : `${overdue ? '지금 내면 0' : t.points}${currency}`;
 
     function fill(open) {
       const head = h('div', { class: 'tc-head' },
         h('div', null, h('div', { class: 'tc-title' }, t.title),
-          h('div', { class: 'muted small' }, `${t.subject ? t.subject + ' · ' : ''}${dday(t.dueAt)} · ${!s && t.dueAt?.toMillis && t.dueAt.toMillis() < Date.now() ? '지금 내면 0' : t.points}${currency}`)),
+          h('div', { class: 'muted small' }, `${t.subject ? t.subject + ' · ' : ''}${dday(t.dueAt)} · ${pointLabel}`)),
         statusChip(t));
       const children = [head];
       if (t.desc) children.push(h('p', { class: 'muted' }, t.desc));
@@ -97,6 +104,7 @@ export async function renderTasks(content, student, settings) {
   function listFor(which) {
     return data.tasks.filter((t) => {
       const s = t.sub?.status;
+      if (t.absent) return which === 'past'; // 결석한 날 과제는 지난 과제에 '결석'으로
       if (which === 'todo') return !s || s === 'redo';
       if (which === 'sent') return s === 'submitted';
       return s === 'done' || s === 'exempt'; // past

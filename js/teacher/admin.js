@@ -9,7 +9,7 @@ import { resetStudent } from './student-reset.js';
 // 백업에 담는 최상위 컬렉션
 const COLLECTIONS = [
   'students', 'numbers', 'studentPins', 'settings', 'notices', 'messages', 'feedback',
-  'points', 'summaries', 'moods', 'moodNotes', 'attendance', 'missionKeys', 'missionQuestions',
+  'points', 'summaries', 'moods', 'moodNotes', 'attendance', 'absences', 'missionKeys', 'missionQuestions',
   'missionAttempts', 'roles', 'roleChecks', 'roleTerms', 'roleWishes', 'posts', 'writingWeeks',
   'drafts', 'reports', 'stories', 'storyAuthors', 'privateStories', 'storyNotes', 'promises',
   'tasks', 'taskRepeats', 'submissions', 'shopItems', 'coupons', 'couponUses', 'couponIdeas', 'goals',

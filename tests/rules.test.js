@@ -570,6 +570,20 @@ describe('공동 목표', () => {
 });
 
 // ---------------------------------------------------------------
+describe('결석 기록', () => {
+  it('내 결석한 날만 읽고, 친구 것·반 전체 결석부는 못 읽고, 고칠 수 없다', async () => {
+    await setDoc(doc(teacher(env), 'absences/s1'), { days: ['20261020'] });
+    await setDoc(doc(teacher(env), 'absences/s2'), { days: ['20261021'] });
+    await setDoc(doc(teacher(env), 'attendance/20261020'), { absent: ['s1'] });
+    const db = await login(env, '1');
+    await assertSucceeds(getDoc(doc(db, 'absences/s1')));
+    await assertFails(getDoc(doc(db, 'absences/s2')));
+    await assertFails(getDoc(doc(db, 'attendance/20261020')));
+    await assertFails(setDoc(doc(db, 'absences/s1'), { days: [] }));
+  });
+});
+
+// ---------------------------------------------------------------
 describe('캐릭터·칭호', () => {
   const free = { sid: 's1', item: 'hairBasic', category: 'hair', color: 'black', at: serverTimestamp() };
   it('처음 지급 아이템은 무료로 1번 받는다', async () => {
