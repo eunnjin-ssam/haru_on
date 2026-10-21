@@ -128,7 +128,10 @@ export async function renderToday(root, { open }) {
       .filter((x) => x.check?.status === 'requested');
     if (requests.length) return { label: '요청중', kind: 'req', requests };
     const allApproved = mine.every((r) => data.checks.find((c) => c.role === r.id && c.sid === sid)?.status === 'approved');
-    return allApproved ? { label: '완료', kind: 'done', requests: [] } : { label: '미완료', kind: 'todo', requests: [] };
+    // 아직 안 한 역할(요청 없음·다시 해줘): 선생님이 보고 바로 완료 처리할 수 있게
+    const todo = mine.filter((r) => data.checks.find((c) => c.role === r.id && c.sid === sid)?.status !== 'approved')
+      .map((r) => ({ role: r, check: data.checks.find((c) => c.role === r.id && c.sid === sid) }));
+    return allApproved ? { label: '완료', kind: 'done', requests: [] } : { label: '미완료', kind: 'todo', requests: [], todo };
   }
 
   function taskState(sid) {
@@ -150,13 +153,16 @@ export async function renderToday(root, { open }) {
     return { left, late, list };
   }
 
+  // 요청을 대신 승인하거나, 학생이 '했어요'를 안 눌렀어도 선생님이 보고 바로 완료 처리(check 없음)
   async function approveFor(sid, { role, check }) {
-    const txId = `role_${check.id}`;
+    const id = check?.id ?? `${data.today}_${role.id}_${sid}`;
+    const txId = `role_${id}`;
     const b = writeBatch(db);
-    b.update(doc(db, 'roleChecks', check.id), { status: 'approved', by: 'teacher', at: serverTimestamp() });
+    if (check) b.update(doc(db, 'roleChecks', id), { status: 'approved', by: 'teacher', at: serverTimestamp() });
+    else b.set(doc(db, 'roleChecks', id), { sid, role: role.id, date: data.today, status: 'approved', by: 'teacher', at: serverTimestamp() });
     b.set(doc(db, 'points', txId), {
       sid, type: 'role', wallet: role.points, total: role.points,
-      reason: `1인1역 ${role.name} (선생님 승인)`, ref: check.id, by: 'teacher', at: serverTimestamp(),
+      reason: `1인1역 ${role.name} (선생님 승인)`, ref: id, by: 'teacher', at: serverTimestamp(),
     });
     b.update(doc(db, 'summaries', sid), {
       wallet: increment(role.points), total: increment(role.points), roleDays: increment(1), lastTx: txId,
@@ -234,7 +240,12 @@ export async function renderToday(root, { open }) {
     const roleCell = rs.kind === 'req'
       ? h('td', null, ...rs.requests.map(({ role, check }) =>
         h('button', { class: 'btn small', title: '대신 승인', onclick: () => run(() => approveFor(s.sid, { role, check })) }, `승인: ${role.name}`)))
-      : h('td', { class: `role-${rs.kind}` }, rs.label);
+      : rs.kind === 'todo'
+        ? h('td', null, ...rs.todo.map(({ role, check }) => h('button', {
+          class: 'btn secondary small', title: '학생이 안 눌렀어도 선생님이 보고 완료 처리 (+포인트)',
+          onclick: () => { if (confirm(`${s.name}의 ‘${role.name}’을 완료 처리할까요? (+${role.points})`)) run(() => approveFor(s.sid, { role, check })); },
+        }, `완료 처리: ${role.name}`)))
+        : h('td', { class: `role-${rs.kind}` }, rs.label);
 
     const moodCell = mood
       ? h('td', { class: negative ? 'mood-neg' : '' },
@@ -329,7 +340,7 @@ export async function renderToday(root, { open }) {
               h('th', null, '번호'), h('th', null, '이름'), h('th', null, '기분'),
               h('th', null, '기초미션'), h('th', null, '1인1역'), h('th', null, '남은 과제'), h('th', null, '결석'))),
             h('tbody', null, ...rows.map(row)))),
-        h('p', { class: 'muted small' }, '요청중 칸을 누르면 선생님이 대신 승인해요. 결석을 누르면 그날은 1인1역 완료율과 살핌판 계산에서 빠지고, 위 숫자에서도 빠져요. 한 번 더 누르면 취소돼요.'),
+        h('p', { class: 'muted small' }, '1인1역 칸: 요청중이면 ‘승인’, 학생이 안 눌렀어도 하는 걸 봤으면 ‘완료 처리’로 포인트를 줘요. 결석을 누르면 그날은 1인1역 완료율과 살핌판 계산에서 빠지고, 위 숫자에서도 빠져요. 한 번 더 누르면 취소돼요.'),
       ),
     );
   }
