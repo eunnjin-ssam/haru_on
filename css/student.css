@@ -565,6 +565,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: #c9c1fb
 .try-x:hover { background: var(--p-pink); color: #c2477e; }
 .try-sum { margin: 2px 0 0; font-weight: 700; font-size: 14.5px; color: var(--primary-dark); }
 .try-sum.short { color: #c2477e; }
+.try-sum .try-wallet { font-weight: 600; font-size: 13.5px; }
 
 /* 내 아이템 탭 */
 .mine-card { cursor: default; display: flex; flex-direction: column; align-items: center; gap: 4px; }

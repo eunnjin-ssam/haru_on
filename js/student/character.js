@@ -256,7 +256,8 @@ export async function renderCharacter(content, student, settings) {
             h('button', { class: 'try-x', title: '그만 입어 보기', onclick: () => { delete trying[c]; refreshPreview(); } }, '✕'));
         }),
         toBuy.length ? h('p', { class: `try-sum${sum > wallet ? ' short' : ''}` },
-          `살 것 ${toBuy.length}개 · 모두 ${sum} ${currency}`, sum > wallet ? ` (지갑 ${wallet} ${currency} — ${sum - wallet} 모자라요)` : ` (지갑 ${wallet} ${currency})`) : null,
+          `살 것 ${toBuy.length}개 · 모두 ${sum} ${currency}`, h('br'),
+          h('span', { class: 'try-wallet' }, sum > wallet ? `(지갑 ${wallet} ${currency} — ${sum - wallet} 모자라요)` : `(지갑 ${wallet} ${currency})`)) : null,
       ].filter(Boolean));
     }
     function refreshPreview() {
