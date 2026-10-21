@@ -1,5 +1,7 @@
 // 관리: 기본 설정. 처음 한 번 저장하고, 그 뒤로는 값(이름·포인트·기준 등)을 바꾼다.
-import { doc, getDoc, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
+import {
+  collection, doc, getDoc, getDocs, query, where, setDoc, updateDoc, deleteField,
+} from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { DEFAULT_SETTINGS, DEFAULT_TEACHER_SETTINGS, writingMinOf } from '../common/defaults.js';
@@ -181,9 +183,46 @@ export async function renderSetup(root, { open }) {
         h('div', { class: 'row' }, btn)));
   }
 
+  // ----- 쉬는 날(공휴일·재량휴업일): 반 전체가 등교하지 않은 평일 -----
+  // attendance/{날짜}.noSchool = true. 살핌판 활동률·1인1역 완료율에서 그날을 아예 뺀다.
+  function offDaysCard() {
+    const list = h('div', { class: 'offday-list' });
+    const date = h('input', { type: 'date' });
+    const ymd = (v) => v.replaceAll('-', '');
+    const label = (id) => {
+      const d = new Date(Date.UTC(+id.slice(0, 4), +id.slice(4, 6) - 1, +id.slice(6, 8)));
+      return `${+id.slice(4, 6)}월 ${+id.slice(6, 8)}일(${'일월화수목금토'[d.getUTCDay()]})`;
+    };
+    async function refresh() {
+      const snap = await getDocs(query(collection(db, 'attendance'), where('noSchool', '==', true)));
+      const ids = snap.docs.map((d) => d.id).sort();
+      list.replaceChildren(...(ids.length
+        ? ids.map((id) => h('span', { class: 'offday' }, `${id.slice(0, 4)}년 ${label(id)}`,
+          h('button', { class: 'pc-del', title: '쉬는 날에서 빼기', onclick: async () => {
+            try { await updateDoc(doc(db, 'attendance', id), { noSchool: deleteField() }); toast('뺐어요'); } catch (e) { console.error(e); toast('안 됐어요', 'error'); }
+            refresh();
+          } }, '✕')))
+        : [h('p', { class: 'muted', style: 'margin:0' }, '아직 없어요.')]));
+    }
+    const add = h('button', { class: 'btn', onclick: async () => {
+      if (!date.value) { toast('날짜를 골라 주세요.', 'error'); return; }
+      const id = ymd(date.value);
+      const dow = new Date(`${date.value}T00:00:00Z`).getUTCDay();
+      if (dow === 0 || dow === 6) { toast('토·일요일은 원래 계산에 안 들어가요. 평일을 골라 주세요.', 'error'); return; }
+      try { await setDoc(doc(db, 'attendance', id), { noSchool: true }, { merge: true }); toast(`${label(id)}을 쉬는 날로 넣었어요`); date.value = ''; }
+      catch (e) { console.error(e); toast('안 됐어요', 'error'); }
+      refresh();
+    } }, '쉬는 날 넣기');
+    refresh().catch((e) => console.error(e));
+    return fold('쉬는 날 (공휴일·재량휴업일)',
+      h('p', { class: 'muted small', style: 'margin:0 0 10px' }, '반 전체가 등교하지 않은 평일을 넣어 주세요. 그날은 살핌판 활동률과 1인1역 완료율 계산에서 아예 빠져요. 미리 넣어 둬도 돼요.'),
+      h('div', { class: 'row' }, date, add),
+      h('div', { style: 'margin-top:12px' }, list));
+  }
+
   root.replaceChildren(
     h('section', { class: 'card' }, h('h2', null, '설정'),
       h('p', { class: 'muted' }, '학생 메뉴·이름·포인트·기준을 바꿀 수 있어요. 각 칸을 고치고 그 칸의 저장 버튼을 누르면 바로 반영돼요.')),
-    menusCard(), namesCard(), pointsCard(), titlesCard(), treeCard(), careCard(),
+    menusCard(), namesCard(), pointsCard(), titlesCard(), treeCard(), careCard(), offDaysCard(),
   );
 }

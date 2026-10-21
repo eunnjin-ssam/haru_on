@@ -68,7 +68,9 @@ export async function renderCare(root) {
     for (const d of postSnap.docs) { const p = d.data(); const date = d.id.slice(d.id.lastIndexOf('_') + 1); put(postBy, p.author, date, p.title ?? true); }
     // 결석한 날은 완료율 계산에서 뺀다(attendance/{날짜}.absent)
     const absentOn = new Map(absSnap.docs.map((d) => [d.id, new Set(d.data().absent ?? [])]));
-    const present = (sid, days) => days.filter((d) => !absentOn.get(d)?.has(sid));
+    // 쉬는 날(공휴일·재량휴업일, attendance/{날짜}.noSchool)은 반 전체가 계산에서 빠진다
+    const noSchool = new Set(absSnap.docs.filter((d) => d.data().noSchool === true).map((d) => d.id));
+    const present = (sid, days) => days.filter((d) => !noSchool.has(d) && !absentOn.get(d)?.has(sid));
     const roleHolders = new Set(roleSnap.docs.flatMap((d) => d.data().members ?? []));
 
     const subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
@@ -128,7 +130,7 @@ export async function renderCare(root) {
         recentMoods: weeks[0].days.map((dt) => mp[dt]), flags, memo: cn?.memo ?? '',
       };
     });
-    data = { rows, recent, perDay, moodBy, noteBy, missBy, roleBy, postBy, roleHolders, tasks, subs, writingOn };
+    data = { rows, recent, perDay, moodBy, noteBy, missBy, roleBy, postBy, roleHolders, tasks, subs, writingOn, noSchool };
   }
 
   async function run(task, done) {
@@ -165,7 +167,7 @@ export async function renderCare(root) {
       const mi = d.missBy.get(r.sid)?.[date];
       const dow = WD[(new Date(Date.UTC(+date.slice(0, 4), +date.slice(4, 6) - 1, +date.slice(6, 8))).getUTCDay() + 6) % 7];
       return h('tr', { class: NEG.includes(mood) ? 'row-neg' : '' },
-        h('td', null, `${md(date)} (${dow})`),
+        h('td', null, `${md(date)} (${dow})`, d.noSchool.has(date) ? h('span', { class: 'badge skip', style: 'margin-left:6px' }, '쉬는 날') : null),
         h('td', null, mood ? `${moodEmoji(mood)} ${mood === 'custom' ? `“${note ?? ''}”` : moodLabel(mood)}` : h('span', { class: 'muted' }, '-')),
         h('td', null, mi ? `${mi.ok}/${mi.n}${mi.n >= d.perDay ? '' : ' (덜 풂)'}` : h('span', { class: 'muted' }, '-')),
         d.roleHolders.has(r.sid) ? h('td', null, d.roleBy.get(r.sid)?.[date] ? '✓' : h('span', { class: 'muted' }, '-')) : null,

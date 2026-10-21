@@ -516,3 +516,7 @@ td.item-pic canvas { width: 48px; height: 48px; background: var(--surface-2); bo
 .reset-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .reset-chip { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border: 1px solid var(--line, #e5e7eb); border-radius: 999px; background: var(--card, #fff); font-size: 14px; cursor: pointer; }
 .reset-chip:has(input:checked) { border-color: var(--danger, #e5484d); background: #fff1f1; }
+
+/* 기본 설정: 쉬는 날 목록 */
+.offday-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.offday { display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 12px; border: 1px solid var(--line, #e5e7eb); border-radius: 999px; background: var(--p-sky, #eef6ff); font-size: 14px; }

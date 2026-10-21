@@ -21,6 +21,7 @@ let tab = 'today'; // 메뉴를 다시 열어도 보던 탭 유지
 
 export async function renderRoles(root) {
   let students = []; let roles = []; let checks = []; let absent = new Map(); // date → Set(sid)
+  let noSchool = new Set(); // 쉬는 날(공휴일·재량휴업일)
   let terms = []; let wishes = new Map(); // termId → Map(sid → picks)
   let editing = null; let weekOffset = 0;
   let draft = null; // 교체 조정 중인 { plan, ranks, checkers }
@@ -34,6 +35,7 @@ export async function renderRoles(root) {
     roles = rSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'ko'));
     checks = cSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     absent = new Map(aSnap.docs.map((d) => [d.id, new Set(d.data().absent ?? [])]));
+    noSchool = new Set(aSnap.docs.filter((d) => d.data().noSchool === true).map((d) => d.id)); // 쉬는 날(반 전체)
     terms = await loadTerms();
     wishes = new Map();
     for (const d of wSnap.docs) {
@@ -115,6 +117,7 @@ export async function renderRoles(root) {
     // 학생 × 요일
     const cell = (sid, date) => {
       if (date > today) return h('td', { class: 'cell off' }, '');
+      if (noSchool.has(date)) return h('td', { class: 'cell off', title: '쉬는 날(공휴일·재량휴업일)' }, '쉼');
       if (isAbsent(date, sid)) return h('td', { class: 'cell', title: '결석' }, '결');
       const mine = checks.filter((c) => c.date === date && c.sid === sid);
       if (mine.some((c) => c.status === 'approved')) return h('td', { class: 'cell done' }, '✓');
@@ -122,8 +125,8 @@ export async function renderRoles(root) {
       if (mine.some((c) => c.status === 'redo')) return h('td', { class: 'cell redo-cell' }, '↺');
       return h('td', { class: 'cell' }, roleOf.has(sid) ? '·' : '');
     };
-    // 역할별 완료율(지난 2주 + 이번 주, 오늘 제외, 결석 뺌)
-    const range = [...weekInfo(2).days, ...weekInfo(1).days, ...weekInfo(0).days].filter((d) => d < today);
+    // 역할별 완료율(지난 2주 + 이번 주, 오늘 제외, 결석·쉬는 날 뺌)
+    const range = [...weekInfo(2).days, ...weekInfo(1).days, ...weekInfo(0).days].filter((d) => d < today && !noSchool.has(d));
     const roleRates = roles.map((r) => {
       let need = 0; let ok = 0;
       for (const d of range) for (const sid of r.members ?? []) {
@@ -156,7 +159,7 @@ export async function renderRoles(root) {
           h('div', { class: 'row' },
             h('button', { class: 'btn secondary small', onclick: () => { weekOffset += 1; draw(); } }, '◀ 지난주'),
             weekOffset > 0 ? h('button', { class: 'btn secondary small', onclick: () => { weekOffset -= 1; draw(); } }, '다음 주 ▶') : null)),
-        h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '✓ 완료 · … 요청중 · ↺ 다시 해줘 · 결 결석 · · 안 함'),
+        h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '✓ 완료 · … 요청중 · ↺ 다시 해줘 · 결 결석 · 쉼 쉬는 날 · · 안 함'),
         h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
           h('thead', null, h('tr', null, h('th', { class: 'stick' }, '학생 · 역할'), ...WD.map((w, i) => h('th', null, `${w} ${md(days[i])}`)))),
           h('tbody', null, ...students.map((s) => h('tr', null,
@@ -164,7 +167,7 @@ export async function renderRoles(root) {
             ...days.map((d) => cell(s.sid, d)))))))),
       h('section', { class: 'card' },
         h('h2', null, '역할별 완료율'),
-        h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, `최근 3주(오늘 빼고 ${range.length}일) 기준이에요. 결석한 날은 빼고 계산해요.`),
+        h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, `최근 3주(오늘 빼고 ${range.length}일) 기준이에요. 결석한 날과 쉬는 날(기본 설정)은 빼고 계산해요.`),
         roles.length === 0 ? h('p', { class: 'muted' }, '역할이 없어요.')
           : h('table', null, h('thead', null, h('tr', null, h('th', null, '역할'), h('th', null, '담당'), h('th', null, '완료'), h('th', null, '완료율'))),
             h('tbody', null, ...roleRates.map(({ r, need, ok }) => h('tr', null,
