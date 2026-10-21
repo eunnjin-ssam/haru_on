@@ -30,7 +30,7 @@ export async function renderCharacterAdmin(root) {
 
   async function seedItems() {
     for (const [id, it] of Object.entries(CATALOG)) {
-      await setDoc(doc(db, 'items', id), { category: it.category, name: it.name, prices: it.prices, onSale: true, starter: !!it.starter }, { merge: true });
+      await setDoc(doc(db, 'items', id), { category: it.category, name: it.name, prices: it.prices, onSale: !it.retired, starter: !!it.starter }, { merge: true }); // 판매를 그만둔 아이템은 숨긴 채로
     }
   }
 

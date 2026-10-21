@@ -412,14 +412,33 @@ export const CATALOG = {
       b(-5.1, 19.5, -4.35, 10.2, 0.8, 0.5, '#e9fcff'), // 이마 테두리
       b(-0.7, 22.6, -0.7, 1.4, 1.0, 1.4, '#e9fcff'), // 꼭대기 보석
     ] },
+  earrings: { category: 'headAcc', name: '귀걸이', starter: false, prices: { gold: 30, silver: 30, pink: 30, mint: 30, purple: 30 },
+    boxes: (c) => [-1, 1].flatMap((side) => {
+      const m = (x, w) => (side < 0 ? x : -x - w);
+      return [
+        b(m(-4.8, 0.4), 15.2, -0.6, 0.4, 0.7, 0.4, c), // 고리
+        b(m(-5.0, 0.8), 13.9, -0.8, 0.8, 1.3, 0.8, c), // 늘어진 장식
+      ];
+    }) },
   // 얼굴 소품
   glasses: { category: 'faceAcc', name: '안경', starter: false, prices: { black: 25, brown: 25, blue: 25, red: 25, mint: 25, purple: 25 },
     boxes: (c) => [b(-2.8, 16.6, -3.8, 1.9, 1.5, 0.4, c), b(0.9, 16.6, -3.8, 1.9, 1.5, 0.4, c), b(-0.9, 17.1, -3.8, 1.8, 0.3, 0.4, c)] },
   mask: { category: 'faceAcc', name: '마스크', starter: false, prices: { white: 20, blue: 20, black: 20, pink: 20, mint: 20, green: 20 },
     boxes: (c) => [b(-3.2, 13.8, -4.2, 6.4, 2.9, 0.7, c)] },
-  sunglasses: { category: 'faceAcc', name: '선글라스', starter: false, prices: { black: 50, navy: 50, purple: 50, red: 50, pink: 50, orange: 50 },
+  sunglasses: { category: 'faceAcc', name: '선글라스', starter: false, retired: true, prices: { black: 50, navy: 50, purple: 50, red: 50, pink: 50, orange: 50 },
     boxes: (c) => [b(-3.0, 16.4, -3.95, 2.3, 1.6, 0.45, c), b(0.7, 16.4, -3.95, 2.3, 1.6, 0.45, c), b(-0.7, 17.4, -3.95, 1.4, 0.35, 0.45, '#2b2b2b'),
       b(-4.6, 17.3, -3.6, 0.3, 0.35, 3, '#2b2b2b'), b(4.3, 17.3, -3.6, 0.3, 0.35, 3, '#2b2b2b')] },
+  heartGlasses: { category: 'faceAcc', name: '하트 선글라스', starter: false, prices: { pink: 50, red: 50, purple: 50, black: 50 },
+    boxes: (c) => [-1, 1].flatMap((side) => {
+      const cx = side * 1.75; // 렌즈 가운데
+      return [
+        b(cx - 1.15, 17.6, -4.0, 0.95, 0.6, 0.45, c), b(cx + 0.2, 17.6, -4.0, 0.95, 0.6, 0.45, c), // 하트 윗부분 둘
+        b(cx - 1.15, 16.8, -4.0, 2.3, 0.8, 0.45, c), // 가운데
+        b(cx - 0.65, 16.3, -4.0, 1.3, 0.5, 0.45, c), // 아래
+        b(cx - 0.2, 15.95, -4.0, 0.4, 0.35, 0.45, c), // 뾰족한 끝
+        b(side < 0 ? -4.6 : 4.3, 17.6, -3.6, 0.3, 0.35, 3, '#2b2b2b'), // 다리
+      ];
+    }).concat([b(-0.6, 17.75, -3.95, 1.2, 0.3, 0.4, '#2b2b2b')]) }, // 코 다리
   bandage: { category: 'faceAcc', name: '반창고', starter: false, prices: { default: 20 },
     boxes: () => [b(1.6, 15.4, -4.1, 2.0, 0.8, 0.3, '#f0b45a'), b(2.3, 15.5, -4.2, 0.6, 0.6, 0.15, '#fff3dc')] },
   starSticker: { category: 'faceAcc', name: '별 스티커', starter: false, prices: { yellow: 20, pink: 20, mint: 20, blue: 20, purple: 20, gold: 20 },
@@ -473,6 +492,43 @@ export const CATALOG = {
       b(3.85, 11.45, -2.7, 0.4, 0.4, 0.2, '#ffffff'),
       b(5.5, 12.6, -2.5, 0.45, 0.45, 0.3, '#ffd700'), b(2.4, 12.9, -2.5, 0.35, 0.35, 0.3, '#ffd700'), b(5.1, 10.0, -2.5, 0.3, 0.3, 0.3, '#ffd700'), // 반짝이
     ] },
+  handGlove: { category: 'hand', name: '야구 글러브', starter: false, prices: { brown: 50, black: 50, orange: 50, red: 50 },
+    boxes: (c) => [
+      b(2.6, 5.0, -2.0, 3.0, 3.4, 3.4, c), // 손을 감싼 글러브
+      b(2.2, 6.4, -2.5, 0.9, 1.8, 1.4, c), // 엄지
+      b(2.8, 8.4, -1.9, 0.6, 0.8, 3.2, c), b(3.6, 8.4, -1.9, 0.6, 1.0, 3.2, c), b(4.4, 8.4, -1.9, 0.6, 0.8, 3.2, c), // 손가락
+      b(2.7, 5.6, -2.15, 2.8, 0.25, 0.2, dk(c, 0.6)), b(2.7, 7.0, -2.15, 2.8, 0.25, 0.2, dk(c, 0.6)), // 끈
+      b(3.3, 5.9, -2.2, 1.6, 0.9, 0.15, dk(c, 0.75)), // 손바닥 주머니
+    ] },
+  handBat: { category: 'hand', name: '야구 배트', starter: false, prices: { brown: 50, black: 50, silver: 50, white: 50 },
+    boxes: (c) => [
+      b(3.6, 4.6, -2.45, 0.8, 0.45, 0.8, dk(c, 0.7)), // 손잡이 끝(노브)
+      b(3.75, 5.05, -2.3, 0.5, 3.6, 0.5, dk(c, 0.85)), // 손잡이
+      b(3.65, 8.6, -2.4, 0.7, 2.2, 0.7, c), // 점점 굵어짐
+      b(3.55, 10.8, -2.5, 0.9, 4.2, 0.9, c), // 굵은 부분
+      b(3.6, 15.0, -2.45, 0.8, 0.35, 0.8, c), // 끝
+    ] },
+  handSword: { category: 'hand', name: '다이아몬드 칼', starter: false, prices: { mint: 250, skyblue: 250, blue: 250, purple: 250 },
+    boxes: (c) => [
+      b(3.75, 4.4, -2.3, 0.5, 2.3, 0.5, '#8b5a2b'), // 손잡이
+      b(3.65, 4.1, -2.4, 0.7, 0.35, 0.7, '#5b3a1e'), // 손잡이 끝
+      b(2.85, 6.7, -2.45, 2.3, 0.6, 0.8, '#5b3a1e'), // 날밑
+      b(3.5, 7.3, -2.35, 1.0, 6.8, 0.6, c), // 칼날
+      b(3.5, 7.3, -2.42, 0.3, 6.8, 0.1, '#e9fcff'), // 반짝이는 날
+      b(3.7, 14.1, -2.35, 0.6, 0.6, 0.6, c), b(3.85, 14.7, -2.35, 0.3, 0.4, 0.6, c), // 칼끝
+    ] },
+  handDumbbell: { category: 'hand', name: '아령', starter: false, prices: { black: 30, red: 30, blue: 30, pink: 30, gray: 30, mint: 30 },
+    boxes: (c) => [
+      b(3.75, 4.6, -2.3, 0.5, 3.8, 0.5, '#9aa0ab'), // 손잡이 봉(세로로 쥠)
+      b(2.9, 8.2, -2.9, 2.2, 1.4, 1.8, c), b(2.9, 3.4, -2.9, 2.2, 1.4, 1.8, c), // 위·아래 무게
+      b(2.9, 8.9, -2.95, 2.2, 0.25, 0.1, dk(c, 0.75)), b(2.9, 4.1, -2.95, 2.2, 0.25, 0.1, dk(c, 0.75)), // 무게 줄무늬
+    ] },
+  handTote: { category: 'hand', name: '토트백', starter: false, prices: { pink: 50, mint: 50, yellow: 50, white: 50, navy: 50, brown: 50 },
+    boxes: (c) => [
+      b(3.3, 5.6, -2.3, 0.35, 1.6, 0.35, dk(c, 0.7)), b(4.75, 5.6, -2.3, 0.35, 1.6, 0.35, dk(c, 0.7)), b(3.3, 7.1, -2.3, 1.8, 0.35, 0.35, dk(c, 0.7)), // 손잡이
+      b(2.5, 1.8, -2.7, 3.4, 3.9, 1.3, c), // 가방
+      b(2.8, 3.2, -2.75, 2.8, 1.2, 0.1, dk(c, 0.85)), // 앞 주머니
+    ] },
   // 기타 소품 (등 뒤에 달아요)
   backCape: { category: 'back', name: '슈퍼맨 망토', starter: false, prices: { red: 130, blue: 130, black: 130, purple: 130, yellow: 130 },
     boxes: (c) => [
@@ -481,6 +537,15 @@ export const CATALOG = {
       b(-3.4, 12.8, -1.8, 6.8, 0.5, 4.1, c), // 어깨
       b(-2.6, 12.0, -1.95, 1.0, 1.0, 0.3, '#f1c40f'), b(1.6, 12.0, -1.95, 1.0, 1.0, 0.3, '#f1c40f'), // 단추
       b(-1.2, 8.0, 2.35, 2.4, 2.4, 0.15, '#f1c40f'), // 등 무늬
+    ] },
+  backBag: { category: 'back', name: '책가방', starter: false, prices: { red: 60, blue: 60, yellow: 60, pink: 60, navy: 60, mint: 60, black: 60, purple: 60 },
+    boxes: (c) => [
+      b(-2.7, 7.2, 1.75, 5.4, 5.6, 2.2, c), // 가방
+      b(-2.7, 12.3, 1.7, 5.4, 0.7, 2.35, dk(c, 0.8)), // 윗덮개
+      b(-1.9, 7.6, 3.9, 3.8, 2.4, 0.5, dk(c, 0.85)), // 앞주머니
+      b(-0.5, 9.1, 4.35, 1.0, 0.3, 0.1, '#f1c40f'), // 지퍼 손잡이
+      b(-2.5, 13.0, -1.9, 0.8, 0.4, 3.8, dk(c, 0.7)), b(1.7, 13.0, -1.9, 0.8, 0.4, 3.8, dk(c, 0.7)), // 어깨끈(어깨 위)
+      b(-2.5, 8.2, -1.95, 0.8, 4.8, 0.3, dk(c, 0.7)), b(1.7, 8.2, -1.95, 0.8, 4.8, 0.3, dk(c, 0.7)), // 어깨끈(앞)
     ] },
   backWings: { category: 'back', name: '천사 날개', starter: false, prices: { white: 150, pink: 150, skyblue: 150, yellow: 150, black: 150 },
     boxes: (c) => [-1, 1].flatMap((side) => {
