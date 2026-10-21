@@ -62,6 +62,8 @@ export async function renderCharacter(content, student, settings) {
   const owns = (item, color) => data.owned.has(ownedId(item, color));
   const colorsOf = (item) => data.items.get(item)?.prices ?? CATALOG[item].prices;
   const priceOf = (item, color) => colorsOf(item)[color];
+  // 아이템 이름: 선생님이 바꾼 이름(items/{id}.name)이 있으면 그것, 없으면 도감 이름
+  const itemName = (item) => data.items.get(item)?.name || CATALOG[item].name;
   // 정렬용 아이템 값: 색 가운데 가장 싼 값(기본 아이템은 0이라 맨 앞)
   const basePrice = (item) => { const v = Object.values(colorsOf(item)).filter((n) => typeof n === 'number'); return v.length ? Math.min(...v) : 0; };
   // 값이 같으면 도감 순서(얼굴 색은 밝은 것부터)
@@ -83,11 +85,11 @@ export async function renderCharacter(content, student, settings) {
     const price = priceOf(item, color);
     if (price == null) { toast('이 색은 살 수 없어요.', 'error'); return false; }
     if ((data.summary.wallet ?? 0) < price) { toast('포인트가 모자라요.', 'error'); return false; }
-    if (!confirm(`'${CATALOG[item].name}'(${color})을 ${price} ${currency}에 살까요?`)) return false;
+    if (!confirm(`'${itemName(item)}'(${color})을 ${price} ${currency}에 살까요?`)) return false;
     const id = ownedId(item, color);
     const b = writeBatch(db);
     b.set(doc(db, 'ownedItems', id), { sid, item, category: CATALOG[item].category, color, at: serverTimestamp() });
-    b.set(doc(db, 'points', `item_${id}`), { sid, type: 'item', wallet: -price, total: 0, reason: `아이템 ${CATALOG[item].name}`, ref: id, by: sid, at: serverTimestamp() });
+    b.set(doc(db, 'points', `item_${id}`), { sid, type: 'item', wallet: -price, total: 0, reason: `아이템 ${itemName(item)}`, ref: id, by: sid, at: serverTimestamp() });
     b.update(doc(db, 'summaries', sid), { wallet: increment(-price), lastTx: `item_${id}` });
     await b.commit(); return true;
   }
@@ -197,7 +199,7 @@ export async function renderCharacter(content, student, settings) {
             return h('div', { class: `item-card mine-card${on ? ' sel' : ''}` },
               on ? h('span', { class: 'ic-badge' }, '착용 중') : null,
               cv,
-              h('div', { class: 'ic-name' }, CATALOG[o.item].name),
+              h('div', { class: 'ic-name' }, itemName(o.item)),
               h('div', { class: 'ic-price muted small' }, o.color === 'default' ? '기본' : colorLabel(o.color)),
               on
                 ? (CORE_SLOTS.includes(c) ? h('span', { class: 'mine-on' }, '입고 있어요') : h('button', { class: 'btn secondary small', onclick: () => act(() => updateDoc(doc(db, 'profiles', sid), { [`equip.${c}`]: null })) }, '빼기'))
@@ -254,7 +256,7 @@ export async function renderCharacter(content, student, settings) {
           queueMicrotask(() => drawItem(cv, t.item, t.color));
           return h('div', { class: 'try-row' }, cv,
             h('div', { class: 'try-info' },
-              h('div', { class: 'try-name' }, CATALOG[t.item].name),
+              h('div', { class: 'try-name' }, itemName(t.item)),
               h('div', { class: 'muted small' }, `${SECTION[c]} · ${t.color === 'default' ? '기본' : colorLabel(t.color)}`)),
             h('div', { class: 'try-price' }, have ? '가지고 있어요' : `${price} ${currency}`),
             h('button', { class: 'btn small', onclick: () => pick(t.item, t.color) }, have ? '입기' : '사기'),
@@ -312,7 +314,7 @@ export async function renderCharacter(content, student, settings) {
 
       fitBox.replaceChildren(
         h('div', { class: 'fit-head' },
-          h('div', null, h('div', { class: 'fit-name' }, item.name), h('div', { class: 'fit-cat muted small' }, SECTION[c])),
+          h('div', null, h('div', { class: 'fit-name' }, itemName(selected.item)), h('div', { class: 'fit-cat muted small' }, SECTION[c])),
           h('div', { class: 'fit-price' }, isEquipped ? '입고 있어요' : (isOwned ? '가지고 있어요' : `${price} ${currency}`))),
         h('div', { class: 'fit-actions' }, primary, takeOff),
         h('p', { class: 'muted small' }, selected.allOwned
@@ -334,7 +336,7 @@ export async function renderCharacter(content, student, settings) {
       const card = h('button', { class: `item-card${selected.item === id ? ' sel' : ''}`, onclick: () => select(id) },
         equipped ? h('span', { class: 'ic-badge' }, '착용 중') : (ownsAny(id) ? h('span', { class: 'ic-badge own' }, '보유 중') : null),
         cv,
-        h('div', { class: 'ic-name' }, it.name),
+        h('div', { class: 'ic-name' }, itemName(id)),
         h('div', { class: 'ic-price muted small' }, priceLine),
         h('div', { class: 'swatch-dots' },
           ...colors.slice(0, 7).map((col) => h('span', { class: 'sdot', style: `background:${dotHex(id, col)}` })),

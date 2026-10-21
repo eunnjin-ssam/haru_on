@@ -528,3 +528,8 @@ tr.row-absent td { background: #fafafb; color: var(--muted, #8a8f98); }
 .board .stu-abs { margin-top: 2px; font-size: 11px; font-weight: 700; color: #c0392b; }
 .board td.absent-col { background-color: #fbf6f6; }
 .board td.cell.excused { color: var(--muted, #8a8f98); font-size: 12px; cursor: default; }
+
+/* 캐릭터·칭호: 아이템 이름 바꾸기 */
+.item-name-cell { min-width: 150px; }
+.item-name-cell .linkish.small { display: block; margin-top: 4px; font-size: 12.5px; color: var(--primary); }
+.item-name-cell .name-input { width: 100%; max-width: 180px; }

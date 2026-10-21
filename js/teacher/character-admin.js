@@ -30,7 +30,7 @@ export async function renderCharacterAdmin(root) {
 
   async function seedItems() {
     for (const [id, it] of Object.entries(CATALOG)) {
-      await setDoc(doc(db, 'items', id), { category: it.category, name: it.name, prices: it.prices, onSale: !it.retired, starter: !!it.starter }, { merge: true }); // 판매를 그만둔 아이템은 숨긴 채로
+      await setDoc(doc(db, 'items', id), { category: it.category, name: it.name, nameEdited: false, prices: it.prices, onSale: !it.retired, starter: !!it.starter }, { merge: true }); // 판매를 그만둔 아이템은 숨긴 채로
     }
   }
 
@@ -94,6 +94,37 @@ export async function renderCharacterAdmin(root) {
         missing.length ? h('span', { class: 'pc-add' }, addSel, addPrice, addBtn) : null));
   }
 
+  // 아이템 이름 칸: '이름 바꾸기'를 누르면 그 자리에서 고친다. 바꾼 이름은 nameEdited로 표시해 도감 이름으로 덮어쓰지 않는다.
+  function nameCell(item) {
+    const td = h('td', { class: 'item-name-cell' });
+    const orig = CATALOG[item.id]?.name;
+    const show = () => td.replaceChildren(...[
+      h('b', null, item.name),
+      item.nameEdited && orig && orig !== item.name ? h('div', { class: 'muted small' }, `원래 이름: ${orig}`) : null,
+      h('button', { class: 'linkish small', onclick: edit }, '이름 바꾸기'),
+    ].filter(Boolean));
+    function edit() {
+      const inp = h('input', { type: 'text', value: item.name, maxlength: '20', class: 'name-input' });
+      const save = () => {
+        const v = inp.value.trim();
+        if (!v) { toast('이름을 써 주세요.', 'error'); return; }
+        if (v === item.name) { show(); return; }
+        run(() => updateDoc(doc(db, 'items', item.id), { name: v, nameEdited: true }), '이름을 바꿨어요');
+      };
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') show(); });
+      td.replaceChildren(...[
+        inp,
+        h('div', { class: 'row', style: 'margin-top:6px;gap:6px' },
+          h('button', { class: 'btn small', onclick: save }, '저장'),
+          h('button', { class: 'btn secondary small', onclick: show }, '취소'),
+          item.nameEdited && orig ? h('button', { class: 'btn secondary small', onclick: () => run(() => updateDoc(doc(db, 'items', item.id), { name: orig, nameEdited: false }), '원래 이름으로 되돌렸어요') }, '원래 이름으로') : null),
+      ].filter(Boolean));
+      inp.focus(); inp.select();
+    }
+    show();
+    return td;
+  }
+
   let cat = 'hair'; // 보고 있는 칸
   function itemsCard() {
     const onSale = items.filter((i) => i.onSale !== false).length;
@@ -126,7 +157,7 @@ export async function renderCharacterAdmin(root) {
               queueMicrotask(() => { if (CATALOG[i.id]) drawItem(cv, i.id, Object.keys(i.prices ?? {})[0] ?? 'default'); });
               return cv;
             })()),
-            h('td', null, h('b', null, i.name)),
+            nameCell(i),
             h('td', null, priceEditor(i)),
             h('td', null, i.onSale !== false ? h('span', { class: 'badge new' }, '판매중') : h('span', { class: 'badge' }, '숨김')),
             h('td', { class: 'actions' }, h('button', { class: 'btn secondary small', onclick: () => run(() => updateDoc(doc(db, 'items', i.id), { onSale: i.onSale === false }), i.onSale === false ? '다시 판매해요' : '상점에서 숨겼어요') }, i.onSale !== false ? '숨기기' : '판매하기'))))))),
