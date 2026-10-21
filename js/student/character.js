@@ -208,6 +208,7 @@ export async function renderCharacter(content, student, settings) {
         h('div', { class: 'char-layout' },
           h('div', { class: 'char-left' }, h('div', { class: 'char-stage-box' }, stage, h('div', { class: 'muted small', style: 'text-align:center;margin-top:4px' }, '지금 내 모습'))),
           h('div', { class: 'char-catalog' }, ...groups))));
+      fitColumns();
       return;
     }
 
@@ -351,11 +352,25 @@ export async function renderCharacter(content, student, settings) {
         h('div', { class: 'char-left' },
           h('div', { class: 'char-stage-box' }, stageBox, h('div', { class: 'muted small', style: 'text-align:center;margin-top:4px' }, '밀어서 돌려보세요')),
           tryBar,
-          fitBox),
+          fitBox,
+          titlesCard()),
         catalog),
-      titlesCard(),
     ));
+    fitColumns();
   }
+
+  // 넓은 화면: 캐릭터 쪽(왼쪽)과 상점(오른쪽)을 화면 높이에 맞추고 따로 스크롤한다.
+  // 좁은 화면(한 줄로 쌓일 때)은 예전처럼 페이지 전체가 스크롤된다(CSS에서 높이를 안 씀).
+  function fitColumns() {
+    requestAnimationFrame(() => {
+      const layout = content.querySelector('.char-layout');
+      if (!layout) return;
+      const top = layout.getBoundingClientRect().top + window.scrollY; // 아래 여백(화면 padding 40px)까지 빼서 페이지는 안 움직이게
+      layout.style.setProperty('--char-h', `${Math.max(420, window.innerHeight - top - 44)}px`);
+    });
+  }
+  const onResize = () => { if (content.querySelector('.char-layout')) fitColumns(); else window.removeEventListener('resize', onResize); };
+  window.addEventListener('resize', onResize);
 
   await load();
   await ensureStarters();

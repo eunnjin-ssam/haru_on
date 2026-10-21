@@ -313,7 +313,7 @@ body { font-size: 17px; }
 /* 왼쪽 미리보기 + 오른쪽 카테고리 상점 */
 .char-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 860px) { .char-layout { grid-template-columns: 1fr; } }
-.char-left { position: sticky; top: 14px; display: flex; flex-direction: column; gap: 12px; }
+.char-left { display: flex; flex-direction: column; gap: 12px; }
 .char-stage-box { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; }
 .char-stage { width: 100%; height: 300px; display: flex; justify-content: center; align-items: center; touch-action: pan-y; cursor: grab; }
 .char-stage canvas { border-radius: 12px; }
@@ -588,3 +588,10 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: #c9c1fb
 
 /* 나의마당: 제목 옆 주 날짜 */
 .bh-range { margin-left: 10px; font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; white-space: nowrap; }
+
+/* 내 캐릭터: 넓은 화면에선 왼쪽(캐릭터·입어 보는 중·색·칭호)과 오른쪽(상점)을 따로 스크롤 */
+@media (min-width: 861px) {
+  .char-layout { height: var(--char-h, calc(100dvh - 220px)); align-items: stretch; }
+  .char-left, .char-catalog { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; padding-bottom: 12px; scrollbar-gutter: stable; }
+  .char-left > * { flex-shrink: 0; } /* 칸이 눌려 작아지지 않게 */
+}
