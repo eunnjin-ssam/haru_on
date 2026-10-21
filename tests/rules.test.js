@@ -617,6 +617,8 @@ describe('캐릭터·칭호', () => {
     await assertSucceeds(setDoc(doc(db, 'ownedItems/s1_skinDark_free'), { sid: 's1', item: 'skinDark', category: 'skin', color: 'default', at: serverTimestamp() }));
     await assertSucceeds(updateDoc(doc(db, 'profiles/s1'), { 'equip.skin': { owned: 's1_skinDark_free', item: 'skinDark', color: 'default' } }));
     await assertFails(updateDoc(doc(db, 'profiles/s1'), { 'equip.hand': { owned: 's1_skinDark_free', item: 'skinDark', color: 'default' } }));
+    await assertFails(updateDoc(doc(db, 'profiles/s1'), { 'equip.pet': { owned: 's1_skinDark_free', item: 'skinDark', color: 'default' } }));
+    await assertSucceeds(updateDoc(doc(db, 'profiles/s1'), { 'equip.pet': null }));
     await assertFails(updateDoc(doc(db, 'profiles/s1'), { 'equip.wing': null }));
   });
   it('기준을 못 채운 칭호는 못 달고, 선생님이 준 칭호는 단다', async () => {

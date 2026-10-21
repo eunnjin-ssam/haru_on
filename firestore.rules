@@ -796,12 +796,12 @@ service cloud.firestore {
       return ch.hasOnly(['equip', 'title'])
         && !ch.hasAll(['equip', 'title'])
         && request.resource.data.equip.keys()
-             .hasOnly(['hair', 'face', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc', 'skin', 'hand', 'back'])
+             .hasOnly(['hair', 'face', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc', 'skin', 'hand', 'back', 'pet'])
         && slotOK(sid, eq, 'hair') && slotOK(sid, eq, 'face')
         && slotOK(sid, eq, 'top') && slotOK(sid, eq, 'bottom')
         && slotOK(sid, eq, 'shoes') && slotOK(sid, eq, 'headAcc')
         && slotOK(sid, eq, 'faceAcc') && slotOK(sid, eq, 'skin')
-        && slotOK(sid, eq, 'hand') && slotOK(sid, eq, 'back')
+        && slotOK(sid, eq, 'hand') && slotOK(sid, eq, 'back') && slotOK(sid, eq, 'pet')
         && (!ch.hasAny(['title']) || titleOK(sid, request.resource.data.title));
     }
     // 바뀐 칸만 검사: 내가 가진 아이템이어야 한다

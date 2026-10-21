@@ -8,8 +8,8 @@ import { CATALOG, colorHex, colorLabel, COLORS, DEFAULT_LOOK, CORE_SLOTS } from 
 import { renderCharacter3D } from '../character/voxel3d.js';
 import { drawFront, drawItem } from '../character/voxel2d.js';
 
-const SECTION = { hair: '헤어스타일', face: '얼굴 표정', skin: '얼굴 색', top: '상의', bottom: '하의', shoes: '신발', headAcc: '모자·머리 소품', faceAcc: '얼굴 소품', hand: '손에 드는 소품', back: '기타 소품' };
-const SECTION_ORDER = ['hair', 'face', 'skin', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc', 'hand', 'back'];
+const SECTION = { hair: '헤어스타일', face: '얼굴 표정', skin: '얼굴 색', top: '상의', bottom: '하의', shoes: '신발', headAcc: '모자·머리 소품', faceAcc: '얼굴 소품', hand: '손에 드는 소품', back: '기타 소품', pet: '펫' };
+const SECTION_ORDER = ['hair', 'face', 'skin', 'top', 'bottom', 'shoes', 'headAcc', 'faceAcc', 'hand', 'back', 'pet'];
 const EMPTY = { hair: null, face: null, top: null, bottom: null, shoes: null, headAcc: null, faceAcc: null };
 const TITLE_FIELDS = [['reading', 'reading'], ['mission', 'missionDays'], ['role', 'roleDays']];
 
