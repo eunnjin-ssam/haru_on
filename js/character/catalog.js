@@ -6,13 +6,13 @@ export const COLORS = {
   default: '#cfd3da', black: '#2b2b2b', brown: '#8b5a2b', red: '#d9443a', orange: '#e67e22',
   blue: '#3b6cf6', skyblue: '#56c4e8', green: '#2ecc71', yellow: '#f1c40f',
   pink: '#ff8fb3', purple: '#9b59b6', white: '#f5f5f5', gray: '#9aa0ab', gold: '#ffd700',
-  mint: '#4fd1b8', navy: '#2a3f7a',
+  mint: '#4fd1b8', navy: '#2a3f7a', silver: '#c9ced6',
 };
 // 색 이름은 영어 id로 저장하고(보안 규칙), 화면에는 한글로 보여 준다.
 export const COLOR_LABEL = {
   black: '검정', brown: '갈색', red: '빨강', orange: '주황', blue: '파랑',
   skyblue: '하늘', green: '초록', yellow: '노랑', pink: '분홍', purple: '보라',
-  white: '흰색', gray: '회색', gold: '금색', mint: '민트', navy: '남색',
+  white: '흰색', gray: '회색', gold: '금색', mint: '민트', navy: '남색', silver: '은색',
 };
 export const colorHex = (c) => COLORS[c] ?? c ?? COLORS.default;
 export const colorLabel = (c) => COLOR_LABEL[c] ?? c;
@@ -363,9 +363,10 @@ export const CATALOG = {
   // 머리 소품
   capCap: { category: 'headAcc', name: '모자', starter: false, prices: { blue: 30, red: 30, black: 30, green: 30, yellow: 30, purple: 30, pink: 30, mint: 30, orange: 30, white: 30, navy: 30 },
     boxes: (c) => [b(-4.9, 20.5, -3.9, 9.8, 1.6, 7.8, c), b(-4.9, 20.5, -5.6, 9.8, 1, 2, c)] },
-  crown: { category: 'headAcc', name: '왕관', starter: false, prices: { yellow: 150, gold: 150 },
-    boxes: () => [b(-4.9, 21.1, -3.9, 9.8, 1, 7.8, '#f1c40f'), b(-4.5, 22.1, -3.5, 1.3, 1.5, 1.3, '#f1c40f'), b(-0.65, 22.1, -0.65, 1.3, 1.8, 1.3, '#f1c40f'), b(3.2, 22.1, -3.5, 1.3, 1.5, 1.3, '#f1c40f'), b(-4.5, 22.1, 2.2, 1.3, 1.5, 1.3, '#f1c40f'), b(3.2, 22.1, 2.2, 1.3, 1.5, 1.3, '#f1c40f')] },
-  halo: { category: 'headAcc', name: '빛나는 고리', starter: false, prices: { gold: 150, yellow: 150 },
+  crown: { category: 'headAcc', name: '왕관', starter: false, prices: { yellow: 150, gold: 150, silver: 150 },
+    boxes: (c) => [b(-4.9, 21.1, -3.9, 9.8, 1, 7.8, c), b(-4.5, 22.1, -3.5, 1.3, 1.5, 1.3, c), b(-0.65, 22.1, -0.65, 1.3, 1.8, 1.3, c), b(3.2, 22.1, -3.5, 1.3, 1.5, 1.3, c), b(-4.5, 22.1, 2.2, 1.3, 1.5, 1.3, c), b(3.2, 22.1, 2.2, 1.3, 1.5, 1.3, c),
+      b(-0.5, 21.3, -4.05, 1.0, 0.6, 0.2, '#d9443a')] }, // 앞 보석
+  halo: { category: 'headAcc', name: '천사 링', starter: false, prices: { gold: 150, yellow: 150, silver: 150 },
     boxes: (c) => Array.from({ length: 24 }, (_, i) => {
       const a = (i / 24) * Math.PI * 2; const x = Math.cos(a) * 3.2; const z = Math.sin(a) * 3.2;
       return b(x - 0.45, 25.0 + z * 0.22, z - 0.45, 0.9, 0.7, 0.9, c);

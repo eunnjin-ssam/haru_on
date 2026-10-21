@@ -53,7 +53,7 @@
 | couponIdeas | 학생_주_1~2 | sid, week, n, what, price, why, at |
 | goals | 자동 | title, target, reward, raised, donors, status(open/done/closed), lastTx |
 | goals/{id}/donors 🔒 | 학생 | total (본인은 자기 것 읽기 가능) |
-| items | 아이템 id | category(hair/face/top/bottom/shoes/headAcc/faceAcc), name, prices: {색: 가격}, onSale, starter |
+| items | 아이템 id | category(hair/face/skin/top/bottom/shoes/headAcc/faceAcc/hand/back), name(도감을 따름), prices: {색: 가격}, onSale, starter, colorAdds(나중에 한 번 넣은 색 기록 — 지워도 다시 안 넣음) |
 | ownedItems | 학생_아이템_색 / 학생_아이템_free | sid, item, category, color, at |
 | profiles | 학생 | equip: {칸: {owned, item, color} 또는 null}, title, awarded: [칭호 이름] |
 | careNotes 🔒 | 학생 | 살핌판 메모, checkedAt |
