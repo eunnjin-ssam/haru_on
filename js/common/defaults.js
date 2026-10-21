@@ -26,7 +26,6 @@ export const DEFAULT_SETTINGS = {
     units: [],         // 출제할 단원 id 목록 (관리 페이지에서 체크)
   },
   writingMin: { summary: 100, thoughts: 150 }, // 글마당 최소 글자 수(띄어쓰기 빼고 셈)
-  lateDays: 7,         // 마감 후 절반 포인트를 받는 기간
   storyAgendaLikes: 5, // 약속마당 회의 안건 공감 기준
   titles: {
     reading: [

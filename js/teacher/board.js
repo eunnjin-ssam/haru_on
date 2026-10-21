@@ -72,16 +72,15 @@ export async function renderBoard(root, { open }) {
   const subOf = (taskId, sid) => subs.get(`${taskId}_${sid}`);
   const isTarget = (t, sid) => (t.targets ?? []).includes(sid);
 
-  function pointsFor(task, sub) {
-    const full = task.points ?? 0;
-    const late = sub?.firstAt?.toMillis && task.dueAt?.toMillis && sub.firstAt.toMillis() > task.dueAt.toMillis();
-    return late ? Math.floor(full / 2) : full;
+  // 늦게 내도 같은 포인트(결석한 다음 날 내는 과제 때문에 절반 규칙은 없앰). '✓늦' 표시만 남긴다
+  function pointsFor(task) {
+    return task.points ?? 0;
   }
 
   // 완료 처리: 제출 done + 과제 포인트 거래 + 요약을 한 묶음으로
   function completeInBatch(b, task, sid, existingSub) {
     const subId = `${task.id}_${sid}`;
-    const p = pointsFor(task, existingSub);
+    const p = pointsFor(task);
     if (existingSub) {
       b.update(doc(db, 'submissions', subId), { status: 'done', lastAt: serverTimestamp() });
     } else {
@@ -317,7 +316,7 @@ export async function renderBoard(root, { open }) {
         repeatFields(),
         repeating ? null : h('label', { class: 'field' }, h('span', null, '마감'), due),
         f.kind === 'homework' ? h('label', { class: 'field' }, h('span', null, '제출 방식'), submitType) : null,
-        f.kind === 'homework' ? h('label', { class: 'field' }, h('span', null, `포인트 (늦으면 자동 절반)`), points) : null,
+        f.kind === 'homework' ? h('label', { class: 'field' }, h('span', null, `포인트`), points) : null,
         h('div', { class: 'field' }, h('span', null, '대상'),
           h('label', { class: 'pick' }, allCb, '전체'),
           h('div', { class: 'picks' }, ...memberBoxes.map((m) => m.el))),

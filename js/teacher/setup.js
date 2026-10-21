@@ -36,7 +36,7 @@ export async function renderSetup(root, { open }) {
     root.replaceChildren(h('section', { class: 'card' },
       h('h2', null, '처음 설정'),
       h('p', null, '포인트 값, 칭호 기준, 메뉴 이름 같은 기본 설정을 저장해요. 처음 한 번만 하면 돼요.'),
-      h('p', { class: 'muted' }, '기획서의 값(기초미션 1문제 1점, 글마당 2점, 주간 보너스 3일 3점, 늦은 제출 7일 등)으로 시작하고, 나중에 바꿀 수 있어요.'),
+      h('p', { class: 'muted' }, '기획서의 값(기초미션 1문제 1점, 글마당 2점, 주간 보너스 3일 3점 등)으로 시작하고, 나중에 바꿀 수 있어요.'),
       save,
     ));
     return;
@@ -97,7 +97,6 @@ export async function renderSetup(root, { open }) {
     const writing = numInput(s.points.writing);
     const bonus = numInput(s.points.writingBonus);
     const bonusDays = numInput(s.points.bonusDays);
-    const lateDays = numInput(s.lateDays);
     const agenda = numInput(s.storyAgendaLikes);
     const wMin = writingMinOf(s);
     const minSummary = numInput(wMin.summary);
@@ -106,7 +105,7 @@ export async function renderSetup(root, { open }) {
       'mission.perDay': num(perDay),
       'points.mission': num(mission), 'points.writing': num(writing),
       'points.writingBonus': num(bonus), 'points.bonusDays': num(bonusDays),
-      lateDays: num(lateDays), storyAgendaLikes: num(agenda),
+      storyAgendaLikes: num(agenda),
       'writingMin.summary': num(minSummary), 'writingMin.thoughts': num(minThoughts),
     }, '포인트·기준을 바꿨어요') }, '포인트 저장');
     return fold('포인트·기준',
@@ -118,7 +117,6 @@ export async function renderSetup(root, { open }) {
         field('글마당 줄거리 최소 글자 수 (띄어쓰기 빼고, 0이면 제한 없음)', minSummary),
         field('글마당 생각과 느낌 최소 글자 수 (띄어쓰기 빼고, 0이면 제한 없음)', minThoughts),
         field('주간 보너스 기준 일수', bonusDays),
-        field('과제 늦은 제출 기간(일) — 이후 절반', lateDays),
         field('약속마당 회의 안건 공감 기준 수', agenda),
         h('div', { class: 'row' }, btn)));
   }

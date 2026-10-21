@@ -1,5 +1,5 @@
 // 과제마당: 선생님이 낸 과제를 보고 제출한다. 제출하면 체크판에 '확인 대기'로 들어간다.
-// 포인트는 선생님이 확인할 때 지급(늦으면 절반). 여기서는 제출만 한다.
+// 포인트는 선생님이 확인할 때 지급(늦게 내도 같은 포인트). 여기서는 제출만 한다.
 import {
   collection, doc, getDocs, query, where, setDoc, updateDoc, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
@@ -7,8 +7,6 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { ddayLabel as dday } from '../common/dates.js';
 import { isShown } from '../common/task-visible.js';
-
-const isLate = (dueAt) => dueAt?.toMillis && dueAt.toMillis() < Date.now();
 
 export async function renderTasks(content, student, settings) {
   const sid = student.sid;
@@ -53,14 +51,13 @@ export async function renderTasks(content, student, settings) {
 
   function card(t) {
     const s = t.sub?.status;
-    const late = isLate(t.dueAt);
     const canSubmit = !s || s === 'redo';
     const box = h('article', { class: 'task-card' });
 
     function fill(open) {
       const head = h('div', { class: 'tc-head' },
         h('div', null, h('div', { class: 'tc-title' }, t.title),
-          h('div', { class: 'muted small' }, `${t.subject ? t.subject + ' · ' : ''}${dday(t.dueAt)} · ${t.points}${currency}${late ? ' (늦으면 절반)' : ''}`)),
+          h('div', { class: 'muted small' }, `${t.subject ? t.subject + ' · ' : ''}${dday(t.dueAt)} · ${t.points}${currency}`)),
         statusChip(t));
       const children = [head];
       if (t.desc) children.push(h('p', { class: 'muted' }, t.desc));
