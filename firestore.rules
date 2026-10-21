@@ -430,7 +430,12 @@ service cloud.firestore {
         && r.author == me() && r.status == 'public' && r.likes == 0
         && r.editedByTeacher == false && r.at == request.time
         && text(r.readDate, 10) && text(r.title, 100)
-        && text(r.summary, 3000) && text(r.thoughts, 3000);
+        && text(r.summary, 3000) && text(r.thoughts, 3000)
+        && longEnough(r.summary, 'summary', 100) && longEnough(r.thoughts, 'thoughts', 150);
+    }
+    // 글마당 최소 글자 수(settings/main.writingMin, 없으면 기본값). 띄어쓰기·줄바꿈은 빼고 센다
+    function longEnough(t, key, def) {
+      return t.replace('\\s', '').size() >= cfg().get('writingMin', {}).get(key, def);
     }
     // 공감: 공감 수 +1과 내 공감 표시를 함께, 1인 1회, 내 글 불가
     function postLikeOK(postId) {

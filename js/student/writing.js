@@ -6,6 +6,7 @@ import {
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId, weekId, kstNow } from '../common/dates.js';
+import { writingMinOf, charCount } from '../common/defaults.js';
 
 const REPORT_REASONS = [['tease', '놀리는 말'], ['swear', '욕설'], ['etc', '기타']];
 const STATUS_LABEL = { hidden: '선생님이 숨긴 글', reported: '신고되어 숨겨진 글' };
@@ -117,13 +118,25 @@ export async function renderWriting(content, student, settings) {
     const title = h('input', { type: 'text', maxlength: '100', value: f.title, placeholder: '책 제목', oninput: (e) => { f.title = e.target.value; counts(); autosave(); } });
     const summary = h('textarea', { maxlength: '3000', placeholder: '어떤 이야기였나요? (줄거리)', oninput: (e) => { f.summary = e.target.value; counts(); autosave(); } }, f.summary);
     const thoughts = h('textarea', { maxlength: '3000', placeholder: '내 생각과 느낌', oninput: (e) => { f.thoughts = e.target.value; counts(); autosave(); } }, f.thoughts);
-    const cnt = h('span', { class: 'muted' });
-    function counts() { cnt.textContent = `줄거리 ${f.summary.length}자 · 느낌 ${f.thoughts.length}자`; }
+    // 칸마다 '지금 글자 수 / 최소 글자 수'(띄어쓰기 빼고). 채우면 초록색
+    const min = writingMinOf(settings);
+    const sumCnt = h('div', { class: 'wf-count' });
+    const thoCnt = h('div', { class: 'wf-count' });
+    const cnt = h('span', { class: 'muted small' }, '띄어쓰기는 글자 수에 넣지 않아요');
+    function counts() {
+      for (const [el, text, need] of [[sumCnt, f.summary, min.summary], [thoCnt, f.thoughts, min.thoughts]]) {
+        const n = charCount(text);
+        el.textContent = need > 0 ? (n >= need ? `${n}자 ✓` : `${n} / ${need}자 · ${need - n}자 더 써요`) : `${n}자`;
+        el.classList.toggle('ok', n >= need);
+      }
+    }
     counts();
 
     const submit = h('button', { class: 'btn', onclick: async () => {
       if (!f.title.trim()) { toast('책 제목을 써 주세요.', 'error'); return; }
       if (!f.summary.trim() && !f.thoughts.trim()) { toast('줄거리나 느낌을 써 주세요.', 'error'); return; }
+      if (charCount(f.summary) < min.summary) { toast(`줄거리를 ${min.summary}자 이상 써 주세요. (지금 ${charCount(f.summary)}자)`, 'error'); return; }
+      if (charCount(f.thoughts) < min.thoughts) { toast(`생각과 느낌을 ${min.thoughts}자 이상 써 주세요. (지금 ${charCount(f.thoughts)}자)`, 'error'); return; }
       submit.disabled = true;
       try { await post(f); toast(`글을 올렸어요! +${W}점`); view = 'feed'; await reload(); }
       catch (e) { console.error(e); toast('올리지 못했어요. 다시 해 주세요.', 'error'); submit.disabled = false; }
@@ -133,8 +146,8 @@ export async function renderWriting(content, student, settings) {
       h('h3', null, '오늘의 독서 감상'),
       h('label', { class: 'wf' }, h('span', null, '읽은 날'), readDate),
       h('label', { class: 'wf' }, h('span', null, '책 제목'), title),
-      h('label', { class: 'wf' }, h('span', null, '줄거리'), summary),
-      h('label', { class: 'wf' }, h('span', null, '내 생각과 느낌'), thoughts),
+      h('label', { class: 'wf' }, h('span', null, '줄거리'), summary, sumCnt),
+      h('label', { class: 'wf' }, h('span', null, '내 생각과 느낌'), thoughts, thoCnt),
       h('div', { class: 'row', style: 'justify-content:space-between' }, cnt,
         h('div', { class: 'row' },
           h('button', { class: 'btn secondary', onclick: () => { saveDraft(f).then(() => toast('임시저장했어요')); } }, '임시저장'),

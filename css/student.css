@@ -581,3 +581,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: #c9c1fb
 
 /* 상점 쿠폰 가격 버튼: 숫자 길이와 상관없이 같은 크기 */
 .shop-item .price-btn { flex: none; min-width: 112px; justify-content: center; text-align: center; white-space: nowrap; }
+
+/* 글마당: 칸마다 글자 수(최소 글자 수를 채우면 초록) */
+.wf-count { align-self: flex-end; font-size: 13px; color: #d9534f; font-weight: 600; }
+.wf-count.ok { color: #1f9d55; }

@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS = {
     perDay: 5,
     units: [],         // 출제할 단원 id 목록 (관리 페이지에서 체크)
   },
+  writingMin: { summary: 100, thoughts: 150 }, // 글마당 최소 글자 수(띄어쓰기 빼고 셈)
   lateDays: 7,         // 마감 후 절반 포인트를 받는 기간
   storyAgendaLikes: 5, // 약속마당 회의 안건 공감 기준
   titles: {
@@ -77,3 +78,8 @@ export const DEFAULT_TEACHER_SETTINGS = {
     recheckDays: 7,       // '살펴봤어요' 뒤 다시 표시
   },
 };
+
+// 글마당 최소 글자 수: 예전에 저장된 설정에 없으면 기본값
+export const writingMinOf = (s) => ({ ...DEFAULT_SETTINGS.writingMin, ...(s?.writingMin ?? {}) });
+// 글자 수는 띄어쓰기·줄바꿈을 빼고 센다(보안 규칙도 같은 방법)
+export const charCount = (t) => (t ?? '').replace(/\s/g, '').length;

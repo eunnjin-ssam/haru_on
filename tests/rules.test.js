@@ -305,7 +305,7 @@ describe('1인1역', () => {
 describe('글마당', () => {
   const pid = () => `s1_${T()}`;
   const post = (author = 's1') => ({
-    author, readDate: T(), title: '책', summary: '줄거리', thoughts: '생각',
+    author, readDate: T(), title: '책', summary: '가'.repeat(100), thoughts: '나'.repeat(150),
     status: 'public', likes: 0, editedByTeacher: false, at: serverTimestamp(),
   });
   function write(db) {
@@ -321,6 +321,12 @@ describe('글마당', () => {
     await assertFails(setDoc(doc(db, `posts/${pid()}`), post()));
     const s = (await getDoc(doc(db, 'summaries/s1'))).data();
     if (s.wallet !== 22 || s.reading !== 1) throw new Error(JSON.stringify(s));
+  });
+  it('줄거리·느낌이 최소 글자 수(띄어쓰기 빼고)보다 짧으면 못 올린다', async () => {
+    const db = await login(env, '1');
+    await assertFails(setDoc(doc(db, `posts/${pid()}`), { ...post(), summary: '가 '.repeat(99) }));
+    await assertFails(setDoc(doc(db, `posts/${pid()}`), { ...post(), thoughts: '나\n'.repeat(148) + '나' }));
+    await assertSucceeds(setDoc(doc(db, `posts/${pid()}`), { ...post(), summary: '가 '.repeat(100) }));
   });
   it('남의 이름으로 글을 쓸 수 없다', async () => {
     const db = await login(env, '1');

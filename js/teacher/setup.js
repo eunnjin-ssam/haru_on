@@ -2,7 +2,7 @@
 import { doc, getDoc, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { DEFAULT_SETTINGS, DEFAULT_TEACHER_SETTINGS } from '../common/defaults.js';
+import { DEFAULT_SETTINGS, DEFAULT_TEACHER_SETTINGS, writingMinOf } from '../common/defaults.js';
 
 const MENU_KEYS = [['dashboard', '대시보드'], ['writing', '글마당'], ['stories', '약속마당'], ['tasks', '과제마당'], ['myweek', '나의마당'], ['character', '내 캐릭터'], ['shop', '상점']];
 const TITLE_CATS = [['reading', '독서(글마당 편수)'], ['mission', '기초미션(참여일)'], ['role', '1인1역(완료일)']];
@@ -97,11 +97,15 @@ export async function renderSetup(root, { open }) {
     const bonusDays = numInput(s.points.bonusDays);
     const lateDays = numInput(s.lateDays);
     const agenda = numInput(s.storyAgendaLikes);
+    const wMin = writingMinOf(s);
+    const minSummary = numInput(wMin.summary);
+    const minThoughts = numInput(wMin.thoughts);
     const btn = h('button', { class: 'btn', onclick: () => save('main', {
       'mission.perDay': num(perDay),
       'points.mission': num(mission), 'points.writing': num(writing),
       'points.writingBonus': num(bonus), 'points.bonusDays': num(bonusDays),
       lateDays: num(lateDays), storyAgendaLikes: num(agenda),
+      'writingMin.summary': num(minSummary), 'writingMin.thoughts': num(minThoughts),
     }, '포인트·기준을 바꿨어요') }, '포인트 저장');
     return fold('포인트·기준',
       h('div', { class: 'role-form' },
@@ -109,6 +113,8 @@ export async function renderSetup(root, { open }) {
         field('기초미션 1문제 점수', mission),
         field('글마당 점수 (하루 1회)', writing),
         field('글마당 주간 보너스 점수', bonus),
+        field('글마당 줄거리 최소 글자 수 (띄어쓰기 빼고, 0이면 제한 없음)', minSummary),
+        field('글마당 생각과 느낌 최소 글자 수 (띄어쓰기 빼고, 0이면 제한 없음)', minThoughts),
         field('주간 보너스 기준 일수', bonusDays),
         field('과제 늦은 제출 기간(일) — 이후 절반', lateDays),
         field('약속마당 회의 안건 공감 기준 수', agenda),
