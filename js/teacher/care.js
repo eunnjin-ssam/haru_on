@@ -7,7 +7,7 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { weekInfo, todayId } from '../common/dates.js';
 import { MOODS, moodLabel } from '../student/mood.js';
-import { isShown } from '../common/task-visible.js';
+import { isShown, excusedFor } from '../common/task-visible.js';
 import { DEFAULT_TEACHER_SETTINGS } from '../common/defaults.js';
 
 const NEG = ['upset', 'angry', 'tired'];
@@ -107,7 +107,9 @@ export async function renderCare(root) {
 
       const neg = last5.filter((d) => NEG.includes(mp[d])).length;
       const customN = last5.filter((d) => mp[d] === 'custom').length;
-      const remaining = tasks.filter((t) => (t.targets ?? []).includes(s.sid) && !['done', 'exempt'].includes(subs.get(`${t.id}_${s.sid}`)?.status)).length;
+      // 과제가 올라온 날 결석했고 안 낸 과제는 남은 과제에서 뺀다
+      const remaining = tasks.filter((t) => (t.targets ?? []).includes(s.sid) && !['done', 'exempt'].includes(subs.get(`${t.id}_${s.sid}`)?.status)
+        && !(!subs.get(`${t.id}_${s.sid}`) && excusedFor(t, s.sid, absentOn))).length;
       const lateOrRedo = tasks.filter((t) => {
         const sub = subs.get(`${t.id}_${s.sid}`);
         if (!sub || !t.dueAt?.toMillis || t.dueAt.toMillis() < since2w) return false;
@@ -130,7 +132,7 @@ export async function renderCare(root) {
         recentMoods: weeks[0].days.map((dt) => mp[dt]), flags, memo: cn?.memo ?? '',
       };
     });
-    data = { rows, recent, perDay, moodBy, noteBy, missBy, roleBy, postBy, roleHolders, tasks, subs, writingOn, noSchool };
+    data = { rows, recent, perDay, moodBy, noteBy, missBy, roleBy, postBy, roleHolders, tasks, subs, writingOn, noSchool, absentOn };
   }
 
   async function run(task, done) {
@@ -173,7 +175,8 @@ export async function renderCare(root) {
         d.roleHolders.has(r.sid) ? h('td', null, d.roleBy.get(r.sid)?.[date] ? '✓' : h('span', { class: 'muted' }, '-')) : null,
         d.writingOn ? h('td', null, d.postBy.get(r.sid)?.[date] ? '✓' : h('span', { class: 'muted' }, '-')) : null);
     });
-    const left = d.tasks.filter((t) => (t.targets ?? []).includes(r.sid) && !['done', 'exempt'].includes(d.subs.get(`${t.id}_${r.sid}`)?.status));
+    const left = d.tasks.filter((t) => (t.targets ?? []).includes(r.sid) && !['done', 'exempt'].includes(d.subs.get(`${t.id}_${r.sid}`)?.status)
+      && !(!d.subs.get(`${t.id}_${r.sid}`) && excusedFor(t, r.sid, d.absentOn)));
     const memo = h('input', { type: 'text', value: r.memo, placeholder: '메모 (선생님만 봐요)', style: 'flex:1' });
     const dlg = h('div', { class: 'sheet' }, h('div', { class: 'sheet-box wide care-detail' },
       h('div', { class: 'row', style: 'justify-content:space-between' }, h('h3', { style: 'margin:0' }, `${r.number}번 ${r.name} · 최근 2주`),

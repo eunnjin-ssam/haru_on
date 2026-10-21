@@ -7,7 +7,7 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId, kstNow, ddayLabel } from '../common/dates.js';
 import { MOODS, moodLabel } from '../student/mood.js';
-import { isShown } from '../common/task-visible.js';
+import { isShown, excusedFor } from '../common/task-visible.js';
 import { loadSettings } from '../common/settings.js';
 import { renderMyWeek } from '../student/myweek.js';
 import { icon } from '../common/icons.js';
@@ -92,7 +92,7 @@ export async function renderToday(root, { open }) {
       getDocs(query(collection(db, 'couponUses'), where('status', '==', 'requested'))).catch(() => null),
       getDocs(collection(db, 'privateStories')).catch(() => null),
       loadTerms().catch(() => []),
-      getDoc(doc(db, 'attendance', today)).catch(() => null),
+      getDocs(collection(db, 'attendance')).catch(() => null),
       getDocs(collection(db, 'roleWishes')).catch(() => null),
       getDocs(collection(db, 'couponIdeas')).catch(() => null), // 상점에 올리거나 지우기 전까지 남아 있음
       getDocs(query(collection(db, 'feedback'), where('status', '==', 'new'))).catch(() => null), // '확인함' 누르기 전
@@ -103,7 +103,8 @@ export async function renderToday(root, { open }) {
     if (next?.status === 'wish') roleTerm = { text: `1인1역 희망 받는 중 (${(wishSnap?.docs ?? []).filter((d) => d.data().term === next.id).length}/${students.length}명)`, tone: 'wait' };
     else if (next?.status === 'assigned') roleTerm = { text: '1인1역 새 배정 확정이 남았어요', tone: 'wait' };
     else if (!next && cur && daysLeft(cur) <= 3) roleTerm = { text: `1인1역이 ${daysLeft(cur) < 0 ? '끝났어요' : `${daysLeft(cur)}일 뒤 끝나요`} — 희망 받기를 열까요?`, tone: 'req' };
-    const absent = new Set(attSnap?.exists() ? attSnap.data().absent ?? [] : []);
+    const absentOn = new Map((attSnap?.docs ?? []).map((d) => [d.id, new Set(d.data().absent ?? [])]));
+    const absent = absentOn.get(today) ?? new Set();
     const repComments = await Promise.all((storiesSnap?.docs ?? []).map((d) =>
       getDocs(query(collection(db, 'stories', d.id, 'comments'), where('status', '==', 'reported'))).then((x) => x.size).catch(() => 0)));
     const todo = {
@@ -116,7 +117,7 @@ export async function renderToday(root, { open }) {
       reviews: (storiesSnap?.docs ?? []).filter((d) => d.data().stage === 'promise' && d.data().reviewAt && d.data().reviewAt <= today).length,
     };
 
-    data = { today, perDay, settings, students, moods, notes, mission, roles, checks, tasks, subs, waiting, streak, todo, roleTerm, absent };
+    data = { today, perDay, settings, students, moods, notes, mission, roles, checks, tasks, subs, waiting, streak, todo, roleTerm, absent, absentOn };
   }
 
   function roleState(sid) {
@@ -137,6 +138,8 @@ export async function renderToday(root, { open }) {
     for (const t of mine) {
       const sub = data.subs.get(`${t.id}_${sid}`);
       const finished = sub && ['done', 'exempt'].includes(sub.status);
+      // 과제가 올라온 날 결석했고 안 냈으면 안 내도 됨
+      if (!sub && excusedFor(t, sid, data.absentOn)) continue;
       if (!finished) {
         left += 1;
         const isLate = !!(t.dueAt?.toMillis && t.dueAt.toMillis() < now);

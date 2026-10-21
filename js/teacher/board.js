@@ -7,7 +7,7 @@ import {
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId } from '../common/dates.js';
-import { isShown } from '../common/task-visible.js';
+import { isShown, excusedFor } from '../common/task-visible.js';
 import { ensureRepeatTasks, ruleText, whenText, AHEAD } from './repeats.js';
 
 const DOW = [[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [7, '일']];
@@ -35,6 +35,7 @@ function dueLabel(ts) {
 
 export async function renderBoard(root, { open }) {
   let students = []; let absentToday = new Set(); // 오늘 결석(오늘 현황에서 표시)
+  let absentOn = new Map(); // 날짜 → Set(결석한 학생)
   let tasks = [];
   let subs = new Map();
   let currency = '포인트';
@@ -52,7 +53,7 @@ export async function renderBoard(root, { open }) {
       getDocs(collection(db, 'submissions')),
       getDoc(doc(db, 'settings', 'main')),
       getDocs(collection(db, 'taskRepeats')),
-      getDoc(doc(db, 'attendance', todayId())).catch(() => null),
+      getDocs(collection(db, 'attendance')).catch(() => null),
     ]);
     students = sSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
     // 반복 과제 중 아직 학생에게 안 보이는 미래 것은 체크판에서도 뺀다. 마감 순.
@@ -61,7 +62,8 @@ export async function renderBoard(root, { open }) {
     repeats = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
     currency = cfgSnap.data()?.names?.currency ?? '포인트';
-    absentToday = new Set(attSnap?.exists() ? attSnap.data().absent ?? [] : []);
+    absentOn = new Map((attSnap?.docs ?? []).map((d) => [d.id, new Set(d.data().absent ?? [])]));
+    absentToday = absentOn.get(todayId()) ?? new Set();
   }
 
   async function run(task, done) {
@@ -71,6 +73,9 @@ export async function renderBoard(root, { open }) {
 
   const subOf = (taskId, sid) => subs.get(`${taskId}_${sid}`);
   const isTarget = (t, sid) => (t.targets ?? []).includes(sid);
+  // 과제가 올라온 날 결석했고 아직 아무것도 안 냈으면 그 학생은 안 내도 된다(칸 비활성화, 숫자에서 뺌)
+  const excused = (t, sid) => t.kind === 'homework' && !subOf(t.id, sid) && excusedFor(t, sid, absentOn);
+  const needs = (t, sid) => isTarget(t, sid) && !excused(t, sid);
 
   // 학생이 마감 뒤에 처음 냈으면 0점(완료 표시만). 선생님이 빈칸을 눌러 바로 완료한 것은
   // 선생님 판단(결석 등)이라 늦어도 그대로 준다
@@ -131,7 +136,7 @@ export async function renderBoard(root, { open }) {
   }
 
   async function completeAll(task) {
-    const targets = students.filter((s) => isTarget(task, s.sid));
+    const targets = students.filter((s) => needs(task, s.sid));
     const todo = targets.filter((s) => !['done', 'exempt'].includes(subOf(task.id, s.sid)?.status));
     for (let i = 0; i < todo.length; i += 100) {
       const b = writeBatch(db);
@@ -193,7 +198,8 @@ export async function renderBoard(root, { open }) {
       targets: form.targets, notify: form.notify, repeatWeekly: false,
     };
     if (editing) { await updateDoc(doc(db, 'tasks', editing), data); return; }
-    if (form.repeatMode === 'none') { await addDoc(collection(db, 'tasks'), data); return; }
+    // postDay: 올린 날(그날 결석한 학생은 이 과제를 안 내도 됨)
+    if (form.repeatMode === 'none') { await addDoc(collection(db, 'tasks'), { ...data, postDay: todayId() }); return; }
     // 반복: 규칙을 저장하고 2주치를 바로 만든다
     const { dueAt, repeatWeekly, ...rest } = data;
     await addDoc(collection(db, 'taskRepeats'), {
@@ -356,6 +362,7 @@ export async function renderBoard(root, { open }) {
   // ---- 격자 ----
   function cell(task, s) {
     if (!isTarget(task, s.sid)) return h('td', { class: 'cell off' }, '');
+    if (excused(task, s.sid)) return h('td', { class: 'cell off excused', title: '과제가 올라온 날 결석 — 안 내도 돼요' }, '결');
     const sub = subOf(task.id, s.sid);
     const st = sub?.status;
     if (st === 'done') {
@@ -375,7 +382,7 @@ export async function renderBoard(root, { open }) {
   }
 
   function doneCount(task) {
-    const targets = students.filter((s) => isTarget(task, s.sid));
+    const targets = students.filter((s) => needs(task, s.sid));
     const done = targets.filter((s) => ['done', 'exempt'].includes(subOf(task.id, s.sid)?.status)).length;
     return `${done}/${targets.length}`;
   }
@@ -383,7 +390,7 @@ export async function renderBoard(root, { open }) {
   // 모두 끝났고 마감이 OLD_DAYS일보다 지난 과제
   function isOld(t) {
     if (!t.dueAt?.toMillis || t.dueAt.toMillis() > Date.now() - OLD_DAYS * 86400000) return false;
-    return students.filter((s) => isTarget(t, s.sid)).every((s) => ['done', 'exempt'].includes(subOf(t.id, s.sid)?.status));
+    return students.filter((s) => needs(t, s.sid)).every((s) => ['done', 'exempt'].includes(subOf(t.id, s.sid)?.status));
   }
 
   function homeworkGrid() {
@@ -416,7 +423,7 @@ export async function renderBoard(root, { open }) {
 
   // 맨 아래 줄: 학생별로 아직 안 끝난 개수(접어 둔 것 포함 전체 기준)
   function leftRow(list, label, notDone) {
-    const counts = students.map((s) => list.filter((t) => isTarget(t, s.sid) && notDone(subOf(t.id, s.sid)?.status)).length);
+    const counts = students.map((s) => list.filter((t) => needs(t, s.sid) && notDone(subOf(t.id, s.sid)?.status)).length);
     return h('tfoot', null, h('tr', { class: 'left-row' },
       h('th', { class: 'stick' }, label),
       ...counts.map((n) => h('td', { class: `num${n ? ' has-left' : ''}` }, n ? String(n) : '·')),

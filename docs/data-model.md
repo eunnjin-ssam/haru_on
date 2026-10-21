@@ -43,7 +43,7 @@
 | privateStories | 자동 | author, wish, reason, when, what, feeling, at, (+교사: seenAt = 선생님이 본 때) (본인·교사만) |
 | storyNotes 🔒 | privateStories id | memo, at (상담 메모) |
 | promises | (안 씀) | 약속은 stories의 stage=promise·decided·confirmedAt·reviewAt로 관리한다 |
-| tasks | 자동 / 반복은 `규칙id_날짜` | kind(homework/check), title, desc, subject, dueAt, submitType(check/text), points, targets: [학생], notify, repeatWeekly, (반복이면) repeat, showAt(이때부터 학생에게 보임) |
+| tasks | 자동 / 반복은 `규칙id_날짜` | kind(homework/check), title, desc, subject, dueAt, submitType(check/text), points, targets: [학생], notify, repeatWeekly, (반복이면) repeat, showAt(이때부터 학생에게 보임), postDay(보통 과제를 올린 날 YYYYMMDD — 그날 결석한 학생은 안 내도 됨) |
 | taskRepeats 🔒 | 자동 | 반복 규칙: kind, title, desc, subject, submitType, points, targets, notify, mode(daily/days), days[1=월…7=일], dueTime('HH:MM'), leadDays, startDate, endDate, skip[날짜], active, createdAt. 선생님 화면을 열 때 오늘부터 2주치 tasks를 미리 만든다 |
 | submissions | 과제_학생 | task, sid, status(submitted/done/redo/exempt), text, firstAt, lastAt (+교사: comment) |
 | shopItems | 자동 | name, desc, price, instant, buyLimit(0=무제한), buyPeriod(week/month/none), dailyUse(0=무제한), onSale, order |
