@@ -62,6 +62,11 @@ export async function renderCharacter(content, student, settings) {
   const owns = (item, color) => data.owned.has(ownedId(item, color));
   const colorsOf = (item) => data.items.get(item)?.prices ?? CATALOG[item].prices;
   const priceOf = (item, color) => colorsOf(item)[color];
+  // 정렬용 아이템 값: 색 가운데 가장 싼 값(기본 아이템은 0이라 맨 앞)
+  const basePrice = (item) => { const v = Object.values(colorsOf(item)).filter((n) => typeof n === 'number'); return v.length ? Math.min(...v) : 0; };
+  // 값이 같으면 도감 순서(얼굴 색은 밝은 것부터)
+  const CAT_ORDER = new Map(Object.keys(CATALOG).map((id, i) => [id, i]));
+  const byPrice = (a, b) => basePrice(a) - basePrice(b) || CAT_ORDER.get(a) - CAT_ORDER.get(b);
   const dotHex = (item, c) => (c === 'default' ? (CATALOG[item].defColor ?? COLORS.default) : colorHex(c));
   const onSaleOf = (id) => { const m = data.items.get(id); return m ? m.onSale !== false : true; };
   const ownsAny = (id) => Object.keys(colorsOf(id)).some((c) => owns(id, c));
@@ -180,7 +185,7 @@ export async function renderCharacter(content, student, settings) {
       const owned = [...data.owned.values()].filter((o) => CATALOG[o.item]);
       const groups = SECTION_ORDER.map((c) => {
         const list = owned.filter((o) => CATALOG[o.item].category === c)
-          .sort((a, b) => CATALOG[a.item].name.localeCompare(CATALOG[b.item].name, 'ko'));
+          .sort((a, b) => byPrice(a.item, b.item)); // 칸마다 싼 것부터
         if (!list.length) return null;
         return h('section', { class: 'cat-sec' },
           h('h3', { class: 'cat-h' }, SECTION[c], h('span', { class: 'cat-n muted' }, ` ${list.length}`)),
@@ -339,7 +344,8 @@ export async function renderCharacter(content, student, settings) {
     }
 
     const sections = SECTION_ORDER.map((c) => {
-      const items = Object.entries(CATALOG).filter(([id, it]) => it.category === c && (onSaleOf(id) || ownsAny(id)));
+      const items = Object.entries(CATALOG).filter(([id, it]) => it.category === c && (onSaleOf(id) || ownsAny(id)))
+        .sort(([a], [b]) => byPrice(a, b)); // 칸마다 싼 것부터
       if (!items.length) return null;
       return h('section', { class: 'cat-sec' },
         h('h3', { class: 'cat-h' }, SECTION[c], h('span', { class: 'cat-n muted' }, ` ${items.length}`)),
