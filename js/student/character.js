@@ -354,7 +354,7 @@ export async function renderCharacter(content, student, settings) {
 
     content.replaceChildren(h('div', { class: 'character' },
       h('div', { class: 'board-head' },
-        h('div', null, h('div', { class: 'bh-title' }, '꾸미기'), h('div', { class: 'bh-sub' }, '아이템을 눌러 입어 보고, 사기로 내 것을 만들어요')),
+        h('div', null, h('div', { class: 'bh-title' }, '꾸미기'), h('div', { class: 'bh-sub' }, '아이템을 눌러서 입어 보고, 구매해서 나의 캐릭터를 꾸며요')),
         h('div', { class: 'wallet-chip' }, `🪙 ${data.summary.wallet ?? 0} ${currency}`)),
       toggle,
       h('div', { class: 'char-layout' },
