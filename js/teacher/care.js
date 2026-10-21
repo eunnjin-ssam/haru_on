@@ -222,7 +222,15 @@ export async function renderCare(root) {
   }
 
   function table() {
-    const head = h('tr', null, h('th', null, ''), ...COLS.map(([key, label, get]) => (get
+    // 전체 선택: 모두 골랐으면 체크, 일부만이면 '−'(중간 상태). 누르면 모두 고르기 ↔ 모두 풀기
+    const allSids = data.rows.map((r) => r.sid);
+    const picked = allSids.filter((sid) => selected.has(sid)).length;
+    const all = h('input', { type: 'checkbox', title: '학생 모두 고르기', checked: allSids.length > 0 && picked === allSids.length, onchange: (e) => {
+      if (e.target.checked) allSids.forEach((sid) => selected.add(sid)); else selected.clear();
+      draw();
+    } });
+    all.indeterminate = picked > 0 && picked < allSids.length;
+    const head = h('tr', null, h('th', null, all), ...COLS.map(([key, label, get]) => (get
       ? h('th', { class: 'sortable', onclick: () => { if (sortKey === key) sortDir = -sortDir; else { sortKey = key; sortDir = key === 'number' || key === 'name' ? 1 : -1; } draw(); } },
         label, sortKey === key ? (sortDir > 0 ? ' ▲' : ' ▼') : '')
       : h('th', null, label))));
