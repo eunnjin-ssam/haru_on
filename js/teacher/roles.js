@@ -1,8 +1,7 @@
-// 1인1역 관리: 오늘(상태·대신 승인·결석) / 기록(학생×요일·역할별 완료율·확인 담당 처리 속도) /
+// 1인1역 관리: 오늘(상태·대신 승인, 결석 표시는 오늘 현황) / 기록(학생×요일·역할별 완료율·확인 담당 처리 속도) /
 // 2주 교체(희망 받기 → 자동 배정 → 조정 → 확정) / 역할 설정(이름·하는 일·담당 2명·확인 담당·포인트).
 import {
   collection, doc, getDocs, setDoc, deleteDoc, updateDoc, addDoc, writeBatch, increment, serverTimestamp,
-  arrayUnion, arrayRemove,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -73,13 +72,11 @@ export async function renderRoles(root) {
     approveBatch(b, sid, role, id);
     await b.commit();
   }
-  const toggleAbsent = (sid, on) => setDoc(doc(db, 'attendance', todayId()), { absent: on ? arrayUnion(sid) : arrayRemove(sid) }, { merge: true });
 
   // ---- 오늘 ----
   function todayTab() {
     const date = todayId();
     const rows = roles.flatMap((r) => (r.members ?? []).map((sid) => ({ r, sid })));
-    const memberSet = new Set(rows.map((x) => x.sid));
     const done = rows.filter(({ r, sid }) => checkOf(date, r.id, sid)?.status === 'approved').length;
     const abs = absent.get(date) ?? new Set();
     return [
@@ -99,13 +96,9 @@ export async function renderRoles(root) {
                 h('td', { class: 'actions' }, c?.status === 'approved' || isAbsent(date, sid) ? null
                   : h('button', { class: 'btn small', onclick: () => run(() => teacherApprove(r, sid), `${short(sid)} 완료 처리했어요 (+${r.points})`) }, c?.status === 'requested' ? '대신 승인' : '완료 처리')));
             }))))),
-      h('section', { class: 'card' },
-        h('h2', null, `오늘 결석 (${abs.size})`),
-        h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '결석한 학생을 눌러 표시해요. 그날은 1인1역 완료율과 살핌판 계산에서 빠져요.'),
-        h('div', { class: 'picks absent-picks' }, ...students.map((s) => h('button', {
-          class: `chip-btn${abs.has(s.sid) ? ' on' : ''}${memberSet.has(s.sid) ? '' : ' faint'}`,
-          onclick: () => run(() => toggleAbsent(s.sid, !abs.has(s.sid)), abs.has(s.sid) ? '결석을 지웠어요' : '결석으로 표시했어요'),
-        }, `${s.number} ${s.name}`)))),
+      h('p', { class: 'muted small', style: 'margin:0 2px' }, abs.size
+        ? `오늘 결석 ${abs.size}명: ${[...abs].map(short).join(', ')} · 결석 표시는 ‘오늘 현황 → 학생별 현황’의 결석 버튼으로 해요.`
+        : '결석 표시는 ‘오늘 현황 → 학생별 현황’의 결석 버튼으로 해요.'),
     ];
   }
 

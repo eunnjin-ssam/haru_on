@@ -34,7 +34,7 @@ function dueLabel(ts) {
 }
 
 export async function renderBoard(root, { open }) {
-  let students = [];
+  let students = []; let absentToday = new Set(); // 오늘 결석(오늘 현황에서 표시)
   let tasks = [];
   let subs = new Map();
   let currency = '포인트';
@@ -46,12 +46,13 @@ export async function renderBoard(root, { open }) {
   let showOld = false; // 접어 둔 지난 과제 펼치기
 
   async function load() {
-    const [sSnap, tSnap, subSnap, cfgSnap, rSnap] = await Promise.all([
+    const [sSnap, tSnap, subSnap, cfgSnap, rSnap, attSnap] = await Promise.all([
       getDocs(collection(db, 'students')),
       getDocs(collection(db, 'tasks')),
       getDocs(collection(db, 'submissions')),
       getDoc(doc(db, 'settings', 'main')),
       getDocs(collection(db, 'taskRepeats')),
+      getDoc(doc(db, 'attendance', todayId())).catch(() => null),
     ]);
     students = sSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
     // 반복 과제 중 아직 학생에게 안 보이는 미래 것은 체크판에서도 뺀다. 마감 순.
@@ -60,6 +61,7 @@ export async function renderBoard(root, { open }) {
     repeats = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
     currency = cfgSnap.data()?.names?.currency ?? '포인트';
+    absentToday = new Set(attSnap?.exists() ? attSnap.data().absent ?? [] : []);
   }
 
   async function run(task, done) {
@@ -343,6 +345,13 @@ export async function renderBoard(root, { open }) {
       container);
   }
 
+  // 학생 열 제목: 오늘 결석이면 이름 아래 '결석'
+  const stuHead = (s) => h('th', { class: `stu${absentToday.has(s.sid) ? ' absent' : ''}`, title: absentToday.has(s.sid) ? '오늘 결석' : null },
+    h('div', { class: 'stu-no' }, s.number), h('div', { class: 'stu-nm' }, shortName(s.name)),
+    absentToday.has(s.sid) ? h('div', { class: 'stu-abs' }, '결석') : null);
+  // 결석한 학생 열은 칸을 옅게
+  const absCol = (td, s) => { if (absentToday.has(s.sid)) td.classList.add('absent-col'); return td; };
+
   // ---- 격자 ----
   function cell(task, s) {
     if (!isTarget(task, s.sid)) return h('td', { class: 'cell off' }, '');
@@ -386,7 +395,7 @@ export async function renderBoard(root, { open }) {
     return h('div', null, h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
       h('thead', null, h('tr', null,
         h('th', { class: 'stick' }, '과제'),
-        ...students.map((s) => h('th', { class: 'stu' }, h('div', { class: 'stu-no' }, s.number), h('div', { class: 'stu-nm' }, shortName(s.name)))),
+        ...students.map((s) => stuHead(s)),
         h('th', null, '완료'))),
       h('tbody', null, ...list.map((t) => h('tr', null,
         h('td', { class: 'stick taskname' },
@@ -397,7 +406,7 @@ export async function renderBoard(root, { open }) {
             h('button', { class: 'btn secondary tiny', onclick: () => { prefill = { ...t, title: `${t.title} (복사)`, id: undefined }; editing = null; editingRepeat = null; showForm = true; draw(); } }, '복사'),
             h('button', { class: 'btn danger tiny', onclick: () => deleteTask(t) }, '삭제')),
         ),
-        ...students.map((s) => cell(t, s)),
+        ...students.map((s) => absCol(cell(t, s), s)),
         h('td', { class: 'num' }, doneCount(t)),
       ))),
       leftRow(all, '남은 과제', (st) => !['done', 'exempt'].includes(st)),
@@ -438,7 +447,7 @@ export async function renderBoard(root, { open }) {
         ? h('p', { class: 'muted' }, '아직 없어요. ‘새 과제’에서 종류를 ‘선생님 확인용’으로 만들면 여기 나와요.')
         : h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
           h('thead', null, h('tr', null,
-            h('th', { class: 'stick' }, '항목'), ...students.map((s) => h('th', { class: 'stu' }, h('div', { class: 'stu-no' }, s.number), h('div', { class: 'stu-nm' }, shortName(s.name)))), h('th', null, '회신'))),
+            h('th', { class: 'stick' }, '항목'), ...students.map((s) => stuHead(s)), h('th', null, '회신'))),
           h('tbody', null, ...list.map((t) => h('tr', null,
             h('td', { class: 'stick taskname' },
               h('button', { class: 'linkish', onclick: () => { editing = t.id; editingRepeat = null; showForm = true; draw(); } }, `${t.repeat ? '🔁 ' : ''}${t.title}`),
@@ -447,8 +456,8 @@ export async function renderBoard(root, { open }) {
             ...students.map((s) => {
               if (!isTarget(t, s.sid)) return h('td', { class: 'cell off' }, '');
               const done = subOf(t.id, s.sid)?.status === 'done';
-              return h('td', { class: `cell ${done ? 'done' : 'blank'}`, title: done ? '회신함 (눌러 취소)' : '누르면 회신 표시',
-                onclick: () => run(() => markReturn(t, s.sid, !done)) }, done ? '✓' : '');
+              return absCol(h('td', { class: `cell ${done ? 'done' : 'blank'}`, title: done ? '회신함 (눌러 취소)' : '누르면 회신 표시',
+                onclick: () => run(() => markReturn(t, s.sid, !done)) }, done ? '✓' : ''), s);
             }),
             h('td', { class: 'num' }, doneCount(t)),
           ))),

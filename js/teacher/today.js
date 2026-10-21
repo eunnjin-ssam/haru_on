@@ -1,7 +1,7 @@
 // 선생님 첫 화면: 오늘 현황. 반 전체의 기분·기초미션·1인1역·남은 과제를 한눈에 본다.
 // (글마당 열은 글마당 단계에서 추가)
 import {
-  collection, doc, getDoc, getDocs, query, where, writeBatch, increment, serverTimestamp,
+  collection, doc, getDoc, getDocs, query, where, setDoc, writeBatch, increment, serverTimestamp, arrayUnion, arrayRemove,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -176,7 +176,8 @@ export async function renderToday(root, { open }) {
   }
 
   function stats() {
-    const { students, moods, mission, perDay } = data;
+    const { moods, mission, perDay } = data;
+    const students = data.students.filter((s) => !data.absent.has(s.sid)); // 결석한 학생은 빼고 센다
     const total = students.length;
     const moodDone = students.filter((s) => moods.has(s.sid)).length;
     const missionDone = students.filter((s) => (mission.get(s.sid)?.graded ?? 0) >= perDay).length;
@@ -239,16 +240,29 @@ export async function renderToday(root, { open }) {
           : `${moodEmoji(mood)} ${moodLabel(mood)}`)
       : h('td', { class: 'muted' }, '-');
 
+    // 결석: 기분·기초미션·1인1역·남은 과제 칸에 '결석'. 그날은 1인1역 완료율·살핌판 계산에서 빠진다
+    const isAbs = data.absent.has(s.sid);
+    const absBtn = h('td', null, h('button', {
+      class: `btn small ${isAbs ? 'absent-on' : 'secondary'}`,
+      title: isAbs ? '누르면 결석 취소' : '오늘 결석으로 표시',
+      onclick: () => run(() => setDoc(doc(db, 'attendance', data.today), { absent: isAbs ? arrayRemove(s.sid) : arrayUnion(s.sid) }, { merge: true })),
+    }, isAbs ? '결석 취소' : '결석'));
+    const nameCell = h('td', null, h('button', { class: 'linkish', title: '이 학생의 나의마당 보기', onclick: () => openMyWeek(s) }, s.name));
+    if (isAbs) {
+      const absCell = () => h('td', null, h('span', { class: 'badge skip' }, '결석'));
+      return h('tr', { class: 'row-absent' }, h('td', { class: 'num' }, s.number), nameCell, absCell(), absCell(), absCell(), absCell(), absBtn);
+    }
+
     return h('tr', { class: negative ? 'row-neg' : '' },
       h('td', { class: 'num' }, s.number),
-      h('td', null, h('button', { class: 'linkish', title: '이 학생의 나의마당 보기', onclick: () => openMyWeek(s) }, s.name),
-        data.absent.has(s.sid) ? h('span', { class: 'badge skip', style: 'margin-left:6px' }, '결석') : null),
+      nameCell,
       moodCell,
       h('td', null, m ? `${m.correct}/${data.perDay}` : h('span', { class: 'muted' }, '-')),
       roleCell,
       h('td', { class: ts.late ? 'mood-neg' : '' }, ts.left
         ? h('button', { class: 'linkish', title: '남은 과제 보기', onclick: () => openLeft(s, ts.list) }, `${ts.left}개${ts.late ? ` (늦음 ${ts.late})` : ''}`)
         : h('span', { class: 'muted' }, '0')),
+      absBtn,
     );
   }
 
@@ -282,6 +296,7 @@ export async function renderToday(root, { open }) {
   function draw() {
     const rows = data.students.filter((s) => {
       if (!onlyTodo) return true;
+      if (data.absent.has(s.sid)) return false;
       const done = data.moods.has(s.sid)
         && (data.mission.get(s.sid)?.graded ?? 0) >= data.perDay
         && roleState(s.sid).kind !== 'todo' && roleState(s.sid).kind !== 'req';
@@ -302,9 +317,9 @@ export async function renderToday(root, { open }) {
           : h('div', { class: 'table-wrap' }, h('table', null,
             h('thead', null, h('tr', null,
               h('th', null, '번호'), h('th', null, '이름'), h('th', null, '기분'),
-              h('th', null, '기초미션'), h('th', null, '1인1역'), h('th', null, '남은 과제'))),
+              h('th', null, '기초미션'), h('th', null, '1인1역'), h('th', null, '남은 과제'), h('th', null, '결석'))),
             h('tbody', null, ...rows.map(row)))),
-        h('p', { class: 'muted small' }, '요청중 칸을 누르면 선생님이 대신 승인해요.'),
+        h('p', { class: 'muted small' }, '요청중 칸을 누르면 선생님이 대신 승인해요. 결석을 누르면 그날은 1인1역 완료율과 살핌판 계산에서 빠지고, 위 숫자에서도 빠져요. 한 번 더 누르면 취소돼요.'),
       ),
     );
   }
