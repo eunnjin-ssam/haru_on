@@ -578,3 +578,6 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: #c9c1fb
 .try-row .try-price { grid-area: price; }
 .try-row .btn { grid-area: btn; justify-self: end; }
 .try-name, .try-info .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 상점 쿠폰 가격 버튼: 숫자 길이와 상관없이 같은 크기 */
+.shop-item .price-btn { flex: none; min-width: 112px; justify-content: center; text-align: center; white-space: nowrap; }

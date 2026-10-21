@@ -149,7 +149,7 @@ export async function renderShop(content, student, settings) {
     return h('div', { class: 'shop-item' },
       h('div', null, h('div', { class: 'si-name' }, item.name),
         h('div', { class: 'muted small' }, [item.desc, limit ? `${periodName} ${limit}장까지${full ? ' (다 샀어요)' : ''}` : ''].filter(Boolean).join(' · '))),
-      h('button', { class: 'btn small', disabled: full, onclick: () => buy(item) }, `${item.price} ${currency}`),
+      h('button', { class: 'btn small price-btn', disabled: full, onclick: () => buy(item) }, `${item.price} ${currency}`),
     );
   }
 
@@ -170,14 +170,14 @@ export async function renderShop(content, student, settings) {
   function ideaForm() {
     if (data.ideasThisWeek.length >= 2) return h('p', { class: 'muted' }, '이번 주 제안을 다 했어요(주 2개).');
     const what = h('input', { type: 'text', maxlength: '100', placeholder: '어떤 쿠폰이 있으면 좋을까요?' });
-    const price = h('input', { type: 'number', min: '0', max: '1000', placeholder: '몇 포인트?', style: 'width:110px' });
-    const why = h('input', { type: 'text', maxlength: '300', placeholder: '왜요?' });
+    const price = h('input', { type: 'number', min: '0', max: '1000', placeholder: '가격은 몇 포인트로 할까요?' });
+    const why = h('input', { type: 'text', maxlength: '300', placeholder: '이 쿠폰이 왜 필요한가요?' });
     const btn = h('button', { class: 'btn', onclick: async () => {
       if (!what.value.trim()) { toast('쿠폰 이름을 써 주세요.', 'error'); return; }
       try { await suggest({ what: what.value.trim(), price: price.value, why: why.value.trim() }); toast('제안을 보냈어요'); await reload(); }
       catch (e) { console.error(e); toast('보내지 못했어요', 'error'); }
     } }, '보내기');
-    return h('div', { class: 'idea-form' }, what, h('div', { class: 'row' }, price, why), btn);
+    return h('div', { class: 'idea-form' }, what, price, why, btn);
   }
 
   function goalCard(goal) {
