@@ -1,5 +1,5 @@
 // 과제마당: 선생님이 낸 과제를 보고 제출한다. 제출하면 체크판에 '확인 대기'로 들어간다.
-// 포인트는 선생님이 확인할 때 지급(늦게 내도 같은 포인트). 여기서는 제출만 한다.
+// 포인트는 선생님이 확인할 때 지급(마감 뒤에 내면 0점). 여기서는 제출만 한다.
 import {
   collection, doc, getDocs, query, where, setDoc, updateDoc, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
@@ -57,7 +57,7 @@ export async function renderTasks(content, student, settings) {
     function fill(open) {
       const head = h('div', { class: 'tc-head' },
         h('div', null, h('div', { class: 'tc-title' }, t.title),
-          h('div', { class: 'muted small' }, `${t.subject ? t.subject + ' · ' : ''}${dday(t.dueAt)} · ${t.points}${currency}`)),
+          h('div', { class: 'muted small' }, `${t.subject ? t.subject + ' · ' : ''}${dday(t.dueAt)} · ${!s && t.dueAt?.toMillis && t.dueAt.toMillis() < Date.now() ? '지금 내면 0' : t.points}${currency}`)),
         statusChip(t));
       const children = [head];
       if (t.desc) children.push(h('p', { class: 'muted' }, t.desc));

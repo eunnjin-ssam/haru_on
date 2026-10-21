@@ -72,15 +72,17 @@ export async function renderBoard(root, { open }) {
   const subOf = (taskId, sid) => subs.get(`${taskId}_${sid}`);
   const isTarget = (t, sid) => (t.targets ?? []).includes(sid);
 
-  // 늦게 내도 같은 포인트(결석한 다음 날 내는 과제 때문에 절반 규칙은 없앰). '✓늦' 표시만 남긴다
-  function pointsFor(task) {
-    return task.points ?? 0;
+  // 학생이 마감 뒤에 처음 냈으면 0점(완료 표시만). 선생님이 빈칸을 눌러 바로 완료한 것은
+  // 선생님 판단(결석 등)이라 늦어도 그대로 준다
+  const isLateSub = (task, sub) => !!(sub && !sub.byTeacher && sub.firstAt?.toMillis && task.dueAt?.toMillis && sub.firstAt.toMillis() > task.dueAt.toMillis());
+  function pointsFor(task, sub) {
+    return isLateSub(task, sub) ? 0 : (task.points ?? 0);
   }
 
   // 완료 처리: 제출 done + 과제 포인트 거래 + 요약을 한 묶음으로
   function completeInBatch(b, task, sid, existingSub) {
     const subId = `${task.id}_${sid}`;
-    const p = pointsFor(task);
+    const p = pointsFor(task, existingSub);
     if (existingSub) {
       b.update(doc(db, 'submissions', subId), { status: 'done', lastAt: serverTimestamp() });
     } else {
@@ -316,7 +318,7 @@ export async function renderBoard(root, { open }) {
         repeatFields(),
         repeating ? null : h('label', { class: 'field' }, h('span', null, '마감'), due),
         f.kind === 'homework' ? h('label', { class: 'field' }, h('span', null, '제출 방식'), submitType) : null,
-        f.kind === 'homework' ? h('label', { class: 'field' }, h('span', null, `포인트`), points) : null,
+        f.kind === 'homework' ? h('label', { class: 'field' }, h('span', null, `포인트 (마감 뒤에 내면 0점)`), points) : null,
         h('div', { class: 'field' }, h('span', null, '대상'),
           h('label', { class: 'pick' }, allCb, '전체'),
           h('div', { class: 'picks' }, ...memberBoxes.map((m) => m.el))),
@@ -357,8 +359,8 @@ export async function renderBoard(root, { open }) {
     const sub = subOf(task.id, s.sid);
     const st = sub?.status;
     if (st === 'done') {
-      const late = sub.firstAt?.toMillis && task.dueAt?.toMillis && sub.firstAt.toMillis() > task.dueAt.toMillis();
-      return h('td', { class: `cell done${late ? ' late' : ''}`, title: `${late ? '늦은 완료' : '완료'} — 누르면 취소`,
+      const late = isLateSub(task, sub);
+      return h('td', { class: `cell done${late ? ' late' : ''}`, title: `${late ? '늦게 냄(0점)' : '완료'} — 누르면 취소`,
         onclick: async () => { if (await undoComplete(task, s.sid).catch((e) => { console.error(e); toast('안 됐어요.', 'error'); return false; })) { toast('완료를 취소했어요'); await load(); draw(); } } }, late ? '✓늦' : '✓');
     }
     if (st === 'exempt') return h('td', { class: 'cell' }, '면');
