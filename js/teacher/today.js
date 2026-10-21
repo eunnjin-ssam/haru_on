@@ -84,8 +84,8 @@ export async function renderToday(root, { open }) {
       return recent.every((dt) => NEGATIVE.includes(map[dt]));
     });
 
-    // 처리할 일: 신고(글·댓글), 쿠폰 요청(구매·사용), 새 선생님만 보기 이야기
-    const [repPosts, storiesSnap, buyReq, useReq, privSnap, terms, attSnap, wishSnap] = await Promise.all([
+    // 처리할 일: 신고(글·댓글), 쿠폰 요청(구매·사용), 쿠폰 제안, 새 건의, 새 선생님만 보기 이야기
+    const [repPosts, storiesSnap, buyReq, useReq, privSnap, terms, attSnap, wishSnap, ideaSnap, fbSnap] = await Promise.all([
       getDocs(query(collection(db, 'posts'), where('status', '==', 'reported'))).catch(() => null),
       getDocs(collection(db, 'stories')).catch(() => null),
       getDocs(query(collection(db, 'coupons'), where('status', '==', 'pending'))).catch(() => null),
@@ -94,6 +94,8 @@ export async function renderToday(root, { open }) {
       loadTerms().catch(() => []),
       getDoc(doc(db, 'attendance', today)).catch(() => null),
       getDocs(collection(db, 'roleWishes')).catch(() => null),
+      getDocs(collection(db, 'couponIdeas')).catch(() => null), // 상점에 올리거나 지우기 전까지 남아 있음
+      getDocs(query(collection(db, 'feedback'), where('status', '==', 'new'))).catch(() => null), // '확인함' 누르기 전
     ]);
     // 1인1역 교체: 희망 받는 중 / 확정 남음 / 끝나기 3일 전인데 다음 기간 없음
     const cur = currentTerm(terms); const next = nextTerm(terms);
@@ -108,6 +110,8 @@ export async function renderToday(root, { open }) {
       reportedPosts: repPosts?.size ?? 0,
       reportedComments: repComments.reduce((a, b) => a + b, 0),
       coupons: (buyReq?.size ?? 0) + (useReq?.size ?? 0),
+      ideas: ideaSnap?.size ?? 0,
+      feedback: fbSnap?.size ?? 0,
       privates: (privSnap?.docs ?? []).filter((d) => !d.data().seenAt).length,
       reviews: (storiesSnap?.docs ?? []).filter((d) => d.data().stage === 'promise' && d.data().reviewAt && d.data().reviewAt <= today).length,
     };
@@ -195,6 +199,8 @@ export async function renderToday(root, { open }) {
     if (t.reportedPosts) items.push({ ico: 'flag', text: '신고된 글마당 글', n: t.reportedPosts, tone: 'care', go: 'writing' });
     if (t.reportedComments) items.push({ ico: 'flag', text: '신고된 약속마당 댓글', n: t.reportedComments, tone: 'care', go: 'stories' });
     if (t.coupons) items.push({ ico: 'ticket', text: '쿠폰 요청 (구매·사용)', n: t.coupons, tone: 'wait', go: 'points' });
+    if (t.ideas) items.push({ ico: 'sparkles', text: '학생 쿠폰 제안', n: t.ideas, tone: 'wait', go: 'points' });
+    if (t.feedback) items.push({ ico: 'message-square-text', text: '새 건의 (오류·아이디어)', n: t.feedback, tone: 'req', go: 'feedback' });
     if (t.privates) items.push({ ico: 'lock', text: '새 ‘선생님만 보기’ 이야기', n: t.privates, tone: 'req', go: 'stories' });
     if (data.roleTerm) items.push({ ico: 'list-checks', text: data.roleTerm.text, n: '', tone: data.roleTerm.tone, go: 'roles' });
     if (t.reviews) items.push({ ico: 'search-check', text: '점검할 우리반 약속', n: t.reviews, tone: 'wait', go: 'stories' });
