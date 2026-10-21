@@ -331,7 +331,9 @@ export async function renderRoles(root) {
     const name = h('input', { type: 'text', value: cur?.name ?? '', placeholder: '예) 우유 당번' });
     const desc = h('input', { type: 'text', value: cur?.desc ?? '', placeholder: '하는 일 (예) 우유를 나눠 줘요' });
     const points = h('input', { type: 'number', min: '0', value: String(cur?.points ?? 4), style: 'width:80px' });
-    const memberBoxes = students.map((s) => {
+    // 이미 다른 역할을 맡은 학생은 담당 목록에서 뺀다(고치는 중인 역할의 담당은 그대로 보임)
+    const taken = new Set(roles.filter((r) => r.id !== editing).flatMap((r) => r.members ?? []));
+    const memberBoxes = students.filter((s) => !taken.has(s.sid)).map((s) => {
       const cb = h('input', { type: 'checkbox', checked: cur?.members?.includes(s.sid) });
       return { sid: s.sid, cb, el: h('label', { class: 'pick' }, cb, `${s.number} ${s.name}`) };
     });
@@ -356,7 +358,9 @@ export async function renderRoles(root) {
           h('label', { class: 'field' }, h('span', null, '역할 이름'), name),
           h('label', { class: 'field' }, h('span', null, '하는 일'), desc),
           h('label', { class: 'field' }, h('span', null, '포인트'), points),
-          h('div', { class: 'field' }, h('span', null, '담당 (최대 2명 — 2주 교체 때 이 인원만큼 배정해요)'), h('div', { class: 'picks' }, ...memberBoxes.map((m) => m.el))),
+          h('div', { class: 'field' }, h('span', null, '담당 (최대 2명 — 2주 교체 때 이 인원만큼 배정해요)'), memberBoxes.length
+            ? h('div', { class: 'picks' }, ...memberBoxes.map((m) => m.el))
+            : h('p', { class: 'muted', style: 'margin:0' }, '모든 학생이 이미 다른 역할을 맡고 있어요. 위 표에서 다른 역할의 담당을 고친 뒤 골라 주세요.')),
           h('label', { class: 'field' }, h('span', null, '확인 담당'), checker),
           h('div', { class: 'row' }, save, editing ? h('button', { class: 'btn secondary', onclick: () => { editing = null; draw(); } }, '취소') : null)));
   }
