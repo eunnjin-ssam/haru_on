@@ -595,3 +595,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: #c9c1fb
   .char-left, .char-catalog { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; padding-bottom: 12px; scrollbar-gutter: stable; }
   .char-left > * { flex-shrink: 0; } /* 칸이 눌려 작아지지 않게 */
 }
+
+/* 아이템 상점: 보유 중 표시, 가진 색은 못 고름 */
+.ic-badge.own { background: var(--primary); }
+.color-chip.owned { opacity: .55; cursor: not-allowed; background: var(--surface-2, #f4f4f7); }

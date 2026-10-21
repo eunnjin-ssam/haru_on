@@ -266,8 +266,13 @@ export async function renderCharacter(content, student, settings) {
       markSelected();
     }
     function markSelected() { for (const [id, el] of cards) el.classList.toggle('sel', selected.item === id); }
+    // 상점에선 아직 없는 색만 고른다(가진 색은 '내 아이템'에서 입어요).
+    // 아이템을 누르면 안 가진 첫 색으로, 모든 색을 가졌으면 입어 보지 않고 안내만
     function select(item, color) {
-      selected = { item, color: color ?? defaultColorFor(item) };
+      if (color != null && owns(item, color)) return;
+      const c = color ?? Object.keys(colorsOf(item)).find((col) => !owns(item, col));
+      if (!c) { selected = { item, color: defaultColorFor(item), allOwned: true }; refreshPreview(); return; }
+      selected = { item, color: c };
       trying[CATALOG[item].category] = { ...selected };
       refreshPreview();
     }
@@ -293,10 +298,10 @@ export async function renderCharacter(content, student, settings) {
 
       const colorChips = Object.keys(colorsOf(selected.item)).map((col) => {
         const have = owns(selected.item, col);
-        return h('button', { class: `color-chip${selected.color === col ? ' on' : ''}`, onclick: () => select(selected.item, col) },
+        return h('button', { class: `color-chip${selected.color === col ? ' on' : ''}${have ? ' owned' : ''}`, disabled: have, title: have ? '이미 가지고 있어요' : null, onclick: () => select(selected.item, col) },
           h('span', { class: 'cdot', style: `background:${dotHex(selected.item, col)}` }),
           h('span', { class: 'cname' }, col === 'default' ? '기본' : colorLabel(col)),
-          h('span', { class: 'cprice muted' }, have ? '✓' : String(priceOf(selected.item, col))));
+          h('span', { class: 'cprice muted' }, have ? '보유 중' : String(priceOf(selected.item, col))));
       });
 
       fitBox.replaceChildren(
@@ -304,24 +309,27 @@ export async function renderCharacter(content, student, settings) {
           h('div', null, h('div', { class: 'fit-name' }, item.name), h('div', { class: 'fit-cat muted small' }, SECTION[c])),
           h('div', { class: 'fit-price' }, isEquipped ? '입고 있어요' : (isOwned ? '가지고 있어요' : `${price} ${currency}`))),
         h('div', { class: 'fit-actions' }, primary, takeOff),
-        h('p', { class: 'muted small' }, `지갑에 ${wallet} ${currency} 있어요. 눌러 입어 보고 마음에 들면 사기!`),
+        h('p', { class: 'muted small' }, selected.allOwned
+          ? '이 아이템은 모든 색을 가지고 있어요. 다른 색으로 바꿔 입으려면 ‘내 아이템’ 탭에서 골라요.'
+          : `지갑에 ${wallet} ${currency} 있어요. 눌러 입어 보고 마음에 들면 사기! (가진 색은 ‘보유 중’)`),
         h('div', { class: 'fit-colors' }, ...colorChips),
       );
     }
 
     function itemCard(id, it) {
       const colors = Object.keys(colorsOf(id));
-      const prices = colors.map((col) => priceOf(id, col)).filter((n) => typeof n === 'number');
-      const minP = prices.length ? Math.min(...prices) : 0;
       const freeStart = colors.includes('default') && priceOf(id, 'default') === 0;
+      // 가격 줄: 아직 없는 색 중 가장 싼 값(모두 가졌으면 '모든 색 보유')
+      const unownedPrices = colors.filter((col) => !owns(id, col)).map((col) => priceOf(id, col)).filter((n) => typeof n === 'number');
+      const priceLine = !unownedPrices.length ? '모든 색 보유' : (freeStart && !ownsAny(id) ? '무료부터' : `${Math.min(...unownedPrices)} ${currency}~`);
       const equipped = data.equip[it.category]?.item === id;
       const cv = h('canvas', { width: 120, height: 150, class: 'item-canvas' });
       queueMicrotask(() => drawItem(cv, id, firstColor(id)));
       const card = h('button', { class: `item-card${selected.item === id ? ' sel' : ''}`, onclick: () => select(id) },
-        equipped ? h('span', { class: 'ic-badge' }, '착용 중') : null,
+        equipped ? h('span', { class: 'ic-badge' }, '착용 중') : (ownsAny(id) ? h('span', { class: 'ic-badge own' }, '보유 중') : null),
         cv,
         h('div', { class: 'ic-name' }, it.name),
-        h('div', { class: 'ic-price muted small' }, ownsAny(id) && !freeStart ? '가진 색 있음' : (freeStart ? '무료부터' : `${minP} ${currency}~`)),
+        h('div', { class: 'ic-price muted small' }, priceLine),
         h('div', { class: 'swatch-dots' },
           ...colors.slice(0, 7).map((col) => h('span', { class: 'sdot', style: `background:${dotHex(id, col)}` })),
           colors.length > 7 ? h('span', { class: 'sdot-more muted' }, `+${colors.length - 7}`) : null));
