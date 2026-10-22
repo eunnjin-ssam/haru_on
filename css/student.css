@@ -600,3 +600,11 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: #c9c1fb
 /* 아이템 상점: 보유 중 표시, 가진 색은 못 고름 */
 .ic-badge.own { background: var(--primary); }
 .color-chip.owned { opacity: .55; cursor: not-allowed; background: var(--surface-2, #f4f4f7); }
+
+/* 학생 화면 잠금(쉬는시간이 아니거나 선생님이 잠갔을 때) */
+.lock-cover { position: fixed; inset: 0; z-index: 500; background: rgba(246, 245, 253, .97); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.lock-box { background: var(--surface, #fff); border-radius: 22px; padding: 36px 40px; text-align: center; box-shadow: 0 10px 40px rgba(60, 40, 140, .12); max-width: 440px; width: 100%; }
+.lock-box .lock-ico { font-size: 56px; margin-bottom: 6px; }
+.lock-box h2 { margin: 6px 0 8px; font-size: 24px; }
+.lock-box p { margin: 6px 0; font-size: 17px; }
+.lock-box .lock-next { font-weight: 800; color: var(--primary-dark, #5b4bd6); font-size: 19px; margin-top: 14px; }

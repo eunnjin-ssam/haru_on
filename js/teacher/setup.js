@@ -181,6 +181,41 @@ export async function renderSetup(root, { open }) {
         h('div', { class: 'row' }, btn)));
   }
 
+  // ----- 학생 화면 열리는 시간(쉬는시간, 월~금 공통) -----
+  // settings/main.access.enabled·windows. 그 밖의 시간·방과 후·주말은 잠김. 선생님 직접 열기·잠그기는 머리줄 버튼으로.
+  function accessCard() {
+    const acc = s.access ?? {};
+    const on = h('input', { type: 'checkbox', checked: !!acc.enabled });
+    const list = h('div', { class: 'win-list' });
+    const rows = [];
+    const addRow = (w = { start: '', end: '' }) => {
+      const st = h('input', { type: 'time', value: w.start });
+      const en = h('input', { type: 'time', value: w.end });
+      const row = h('div', { class: 'win-row' }, st, h('span', { class: 'muted' }, '~'), en,
+        h('button', { class: 'pc-del', title: '이 시간 빼기', onclick: (e) => { e.preventDefault(); rows.splice(rows.indexOf(item), 1); row.remove(); } }, '✕'));
+      const item = { st, en, row };
+      rows.push(item); list.append(row);
+    };
+    (acc.windows ?? []).forEach(addRow);
+    if (!rows.length) addRow();
+    const btn = h('button', { class: 'btn', onclick: () => {
+      const windows = [];
+      for (const { st, en } of rows) {
+        if (!st.value && !en.value) continue;
+        if (!st.value || !en.value || st.value >= en.value) { toast('시작이 끝보다 빠르게 시간을 모두 넣어 주세요.', 'error'); return; }
+        windows.push({ start: st.value, end: en.value });
+      }
+      windows.sort((a, b) => a.start.localeCompare(b.start));
+      if (on.checked && !windows.length) { toast('열어 둘 쉬는시간을 하나 이상 넣어 주세요.', 'error'); return; }
+      save('main', { 'access.enabled': on.checked, 'access.windows': windows }, on.checked ? '쉬는시간에만 열리게 했어요' : '시간표를 껐어요(늘 열림)');
+    } }, '시간 저장');
+    return fold('학생 화면 열리는 시간 (쉬는시간)',
+      h('p', { class: 'muted small', style: 'margin:0 0 10px' }, '켜 두면 월~금 아래 시간에만 학생 화면이 열리고, 그 밖의 시간·방과 후·주말에는 잠겨요. 학생은 로그인한 채로 잠금 화면을 봐요. 수업 중에 잠깐 열거나 쉬는시간에 잠글 때는 화면 위쪽의 ‘학생 화면’ 버튼을 써요.'),
+      h('label', { class: 'menu-toggle' }, h('span', { class: 'mt-name' }, '쉬는시간에만 열기'), on, h('span', { class: 'switch' })),
+      h('div', { style: 'margin-top:10px' }, list),
+      h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'btn secondary small', onclick: () => addRow() }, '+ 시간 추가'), btn));
+  }
+
   // ----- 쉬는 날(공휴일·재량휴업일): 반 전체가 등교하지 않은 평일 -----
   // attendance/{날짜}.noSchool = true. 살핌판 활동률·1인1역 완료율에서 그날을 아예 뺀다.
   function offDaysCard() {
@@ -221,6 +256,6 @@ export async function renderSetup(root, { open }) {
   root.replaceChildren(
     h('section', { class: 'card' }, h('h2', null, '설정'),
       h('p', { class: 'muted' }, '학생 메뉴·이름·포인트·기준을 바꿀 수 있어요. 각 칸을 고치고 그 칸의 저장 버튼을 누르면 바로 반영돼요.')),
-    menusCard(), namesCard(), pointsCard(), titlesCard(), treeCard(), careCard(), offDaysCard(),
+    menusCard(), accessCard(), namesCard(), pointsCard(), titlesCard(), treeCard(), careCard(), offDaysCard(),
   );
 }

@@ -25,6 +25,7 @@ import { ensureRoleTerms } from './role-terms.js';
 import { ensureItems } from './items-sync.js';
 import { ensureAbsences } from './absences-sync.js';
 import { renderNotices } from './notices.js';
+import { accessControl } from './access-control.js';
 
 const root = document.getElementById('app');
 
@@ -149,10 +150,10 @@ function showApp(user, firstTab) {
     h('div', { class: 't-main' },
       h('header', { class: 't-header' },
         h('div', null, pageTitle, h('div', { class: 't-page-sub' }, today)),
-        h('div', { class: 't-user' },
+        h('div', { class: 't-head-right' }, accessControl(), h('div', { class: 't-user' },
           h('div', { class: 't-avatar' }, name.slice(0, 1).toUpperCase()),
           h('div', null, h('div', { class: 't-user-name' }, `${name} 선생님`), h('div', { class: 't-user-mail' }, user.email ?? '')),
-          h('button', { class: 't-logout', title: '로그아웃', onclick: async () => { if (!confirm('로그아웃할까요?')) return; leaving = true; await signOutTeacher(); start(); } }, icon('log-out', 16)))),
+          h('button', { class: 't-logout', title: '로그아웃', onclick: async () => { if (!confirm('로그아웃할까요?')) return; leaving = true; await signOutTeacher(); start(); } }, icon('log-out', 16))))),
       content)));
   // 반복 과제를 앞으로 2주치 채워 두고 첫 화면을 연다(실패해도 화면은 연다)
   // 1인1역: 시작일이 된 확정 기간을 역할에 반영 / 도감에 새로 생긴 캐릭터 아이템을 상점에 넣기

@@ -14,7 +14,7 @@
 | numbers | 번호 `'7'` | sid (로그인 전 조회용, 한 장씩만 읽기) |
 | studentPins 🔒 | 번호 `'7'` | pin(4자리 문자열), sid, prev(학생이 직접 바꿀 때 넣은 이전 PIN — 규칙이 지금 PIN과 대조) |
 | sessions | 익명 uid | number, sid, pin, at |
-| settings | `main` / `teacher`🔒 | `js/common/defaults.js` 참고 (main.mission.renames: 바꾼 단원 이름 {원래: 새 이름}, main.writingMin: 글마당 최소 글자 수 {summary, thoughts}) |
+| settings | `main` / `teacher`🔒 | `js/common/defaults.js` 참고 (main.mission.renames: 바꾼 단원 이름 {원래: 새 이름}, main.writingMin: 글마당 최소 글자 수 {summary, thoughts}, main.access: 학생 화면 잠금 {enabled, windows:[{start,end}], override:{mode open|locked, day}} — js/common/access.js) |
 | notices | 자동 | title, body, start, end |
 | notices/{id}/reads | 학생 | at |
 | messages | 자동 | to(학생), body, from, at, readAt(처음엔 null) |

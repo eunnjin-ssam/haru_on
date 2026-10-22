@@ -13,6 +13,9 @@ import { renderMyWeek } from './myweek.js';
 import { openFeedback } from './feedback.js';
 import { openPinChange } from './pin.js';
 import { showNotices } from './notice-popup.js';
+import { doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
+import { db } from '../common/firebase.js';
+import { accessState } from '../common/access.js';
 
 export async function renderApp(root, student, onLogout) {
   const settings = await loadSettings();
@@ -45,7 +48,7 @@ export async function renderApp(root, student, onLogout) {
         setTimeout(() => { asking = false; btn.textContent = '나가기'; btn.classList.remove('danger'); }, 3000);
         return;
       }
-      await logoutStudent(); onLogout();
+      stopLock(); await logoutStudent(); onLogout();
     } }, '나가기');
     return btn;
   }
@@ -95,7 +98,35 @@ export async function renderApp(root, student, onLogout) {
         content)));
   }
 
+  let access = settings.access ?? null; let unsub = null; let timer = null; let cover = null; // 잠금 화면 상태
   build();
   open(current);
   showNotices(student); // 새소식 팝업(게시 중이고 아직 확인 안 한 것)
+  startLock();
+
+  // ---- 잠금 화면: 쉬는시간이 아니거나 선생님이 잠갔으면 화면 전체를 덮는다(로그인은 그대로) ----
+  // 선생님이 바꾸면 바로 반영되도록 설정 문서를 지켜보고, 시간이 흐르는 것도 20초마다 다시 본다.
+  function paintLock() {
+    const st = accessState(access);
+    if (!st.locked) { if (cover) { cover.remove(); cover = null; } return; }
+    const msg = st.reason === 'lock' ? '선생님이 잠깐 잠갔어요.' : '지금은 수업 시간이에요.';
+    const next = st.next ? `다음에 열리는 시간: ${st.next}` : '선생님이 열어 주면 다시 쓸 수 있어요.';
+    const box = h('div', { class: 'lock-box' },
+      h('div', { class: 'lock-ico' }, '🔒'),
+      h('h2', null, msg),
+      h('p', null, '쉬는 시간에 다시 만나요!'),
+      h('p', { class: 'lock-next' }, next),
+      h('p', { class: 'muted small' }, `${student.number}번 ${student.name}`));
+    if (!cover) { cover = h('div', { class: 'lock-cover' }); document.body.append(cover); }
+    cover.replaceChildren(box);
+  }
+  function startLock() {
+    paintLock();
+    unsub = onSnapshot(doc(db, 'settings', 'main'), (snap) => { access = snap.data()?.access ?? null; paintLock(); }, (e) => console.error(e));
+    timer = setInterval(paintLock, 20000);
+  }
+  function stopLock() {
+    if (unsub) unsub(); if (timer) clearInterval(timer); if (cover) cover.remove();
+    unsub = null; timer = null; cover = null;
+  }
 }
