@@ -611,3 +611,13 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: #c9c1fb
 
 /* 대시보드 오늘 한 일: 낸 과제(아직 확인 전) */
 .done .got.sent { background: #eef2ff; color: var(--primary-dark, #5b4bd6); }
+
+/* 나의마당 포인트: 날짜별로 열고 접기 */
+.pt-days { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pt-day { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; background: var(--surface); }
+.pt-day > summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-weight: 700; font-size: 15.5px; list-style: none; }
+.pt-day > summary::-webkit-details-marker { display: none; }
+.pt-day > summary::before { content: '▸'; margin-right: 6px; color: var(--muted); transition: transform .15s; }
+.pt-day[open] > summary::before { transform: rotate(90deg); }
+.pt-day > summary > span:first-child { flex: 1; }
+.pt-day .plus { color: var(--ok); } .pt-day .minus { color: var(--danger); }

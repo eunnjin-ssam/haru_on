@@ -4,7 +4,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h } from '../common/ui.js';
-import { weekInfo } from '../common/dates.js';
+import { weekInfo, todayId } from '../common/dates.js';
 import { MOODS } from './mood.js';
 import { isShown } from '../common/task-visible.js';
 import { loadAbsentDays, isAbsentTask } from './absent.js';
@@ -76,15 +76,30 @@ export async function renderMyWeek(content, student, settings) {
     );
   }
 
+  // 포인트 내역: 날짜별로 묶어 최근 날짜가 위. 오늘은 펼쳐 두고 지난 날짜는 접어 둔다(눌러서 열기)
   function pointCard(days) {
-    const pts = pointsInWeek(days).sort((a, b) => (a.at?.toMillis?.() ?? 0) - (b.at?.toMillis?.() ?? 0));
+    const pts = pointsInWeek(days).sort((a, b) => (b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0));
     const got = pts.filter((p) => p.wallet > 0).reduce((s, p) => s + p.wallet, 0);
     const spent = pts.filter((p) => p.wallet < 0).reduce((s, p) => s - p.wallet, 0);
+    const byDay = new Map();
+    for (const p of pts) { const d = todayId(p.at.toDate()); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(p); }
+    const today = todayId();
+    const dayLabel = (d) => {
+      const dt = new Date(Date.UTC(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8)));
+      return `${+d.slice(4, 6)}월 ${+d.slice(6, 8)}일 (${'일월화수목금토'[dt.getUTCDay()]})${d === today ? ' · 오늘' : ''}`;
+    };
+    const signed = (n) => `${n >= 0 ? '+' : ''}${n}`;
+    const groups = [...byDay.entries()].map(([d, list]) => {
+      const sum = list.reduce((s, p) => s + p.wallet, 0);
+      return h('details', { class: 'pt-day', open: d === today },
+        h('summary', null, h('span', null, dayLabel(d)), h('span', { class: sum >= 0 ? 'plus' : 'minus' }, signed(sum))),
+        h('ul', { class: 'mw-list' }, ...list.map((p) => h('li', null,
+          h('span', null, p.reason || p.type),
+          h('span', { class: p.wallet >= 0 ? 'plus' : 'minus' }, signed(p.wallet))))));
+    });
     return h('section', { class: 'card' }, h('h3', null, '포인트'),
       h('p', null, `받은 ${got} · 쓴 ${spent} ${currency}`),
-      pts.length ? h('ul', { class: 'mw-list' }, ...pts.map((p) => h('li', null,
-        h('span', null, p.reason || p.type),
-        h('span', { class: p.wallet >= 0 ? 'plus' : 'minus' }, `${p.wallet >= 0 ? '+' : ''}${p.wallet}`)))) : h('p', { class: 'muted' }, '이번 주 포인트 변화가 없어요.'),
+      groups.length ? h('div', { class: 'pt-days' }, ...groups) : h('p', { class: 'muted' }, '이번 주 포인트 변화가 없어요.'),
     );
   }
 
