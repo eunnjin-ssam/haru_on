@@ -7,7 +7,7 @@ import {
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId } from '../common/dates.js';
-import { isShown, excusedFor } from '../common/task-visible.js';
+import { isShown, excusedFor, isExpiredRepeat } from '../common/task-visible.js';
 import { ensureRepeatTasks, ruleText, whenText, AHEAD } from './repeats.js';
 
 const DOW = [[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [7, '일']];
@@ -431,7 +431,9 @@ export async function renderBoard(root, { open }) {
 
   // 맨 아래 줄: 학생별로 아직 안 끝난 개수(접어 둔 것 포함 전체 기준)
   function leftRow(list, label, notDone) {
-    const counts = students.map((s) => list.filter((t) => needs(t, s.sid) && notDone(subOf(t.id, s.sid)?.status)).length);
+    // 마감이 지나도록 안 낸 반복 과제는 끝난 것이라 세지 않는다(학생 자율)
+    const counts = students.map((s) => list.filter((t) => needs(t, s.sid) && notDone(subOf(t.id, s.sid)?.status)
+      && !isExpiredRepeat(t, subOf(t.id, s.sid))).length);
     return h('tfoot', null, h('tr', { class: 'left-row' },
       h('th', { class: 'stick' }, label),
       ...counts.map((n) => h('td', { class: `num${n ? ' has-left' : ''}` }, n ? String(n) : '·')),
