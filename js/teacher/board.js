@@ -56,9 +56,10 @@ export async function renderBoard(root, { open }) {
       getDocs(collection(db, 'attendance')).catch(() => null),
     ]);
     students = sSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
-    // 반복 과제 중 아직 학생에게 안 보이는 미래 것은 체크판에서도 뺀다. 마감 순.
+    // 반복 과제 중 아직 학생에게 안 보이는 미래 것은 체크판에서도 뺀다.
+    // 최근 것이 위: 마감이 늦은 과제부터(마감이 없으면 맨 위)
     tasks = tSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => isShown(t))
-      .sort((a, b) => (a.dueAt?.toMillis?.() ?? Infinity) - (b.dueAt?.toMillis?.() ?? Infinity));
+      .sort((a, b) => (b.dueAt?.toMillis?.() ?? Infinity) - (a.dueAt?.toMillis?.() ?? Infinity));
     repeats = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
     currency = cfgSnap.data()?.names?.currency ?? '포인트';
