@@ -451,6 +451,17 @@ describe('과제', () => {
     await assertSucceeds(setDoc(doc(db, 'submissions/rp2_s1'), { ...sub, task: 'rp2' }));
     await assertSucceeds(setDoc(doc(db, 'submissions/hw9_s1'), { ...sub, task: 'hw9' })); // 보통 과제는 늦어도 낼 수 있음(0점)
   });
+  it('제출 취소는 확인 전(submitted)인 내 것만, 반복 과제 다시 내기는 마감 전까지만', async () => {
+    const db = await login(env, '1');
+    await setDoc(doc(db, 'submissions/k1_s1'), sub);
+    await assertSucceeds(deleteDoc(doc(db, 'submissions/k1_s1')));
+    await setDoc(doc(db, 'submissions/k1_s1'), sub);
+    await updateDoc(doc(teacher(env), 'submissions/k1_s1'), { status: 'done' });
+    await assertFails(deleteDoc(doc(db, 'submissions/k1_s1')));
+    await setDoc(doc(teacher(env), 'tasks/rp3'), { kind: 'homework', title: '줄넘기', targets: ['s1'], points: 2, repeat: 'r1', dueAt: new Date(Date.now() - 3600000) });
+    await setDoc(doc(teacher(env), 'submissions/rp3_s1'), { task: 'rp3', sid: 's1', status: 'redo', text: '', firstAt: new Date(Date.now() - 7200000), lastAt: new Date(Date.now() - 7200000), comment: '' });
+    await assertFails(updateDoc(doc(db, 'submissions/rp3_s1'), { status: 'submitted', text: '', lastAt: serverTimestamp() }));
+  });
   it('선생님 확인용은 냈다고 누르면 회신(done)이 되고, 과제는 스스로 완료할 수 없다', async () => {
     await setDoc(doc(teacher(env), 'tasks/c1'), { kind: 'check', title: '가정통신문', targets: ['s1'], points: 0 });
     const db = await login(env, '1');

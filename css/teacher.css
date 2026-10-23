@@ -170,6 +170,8 @@ table.board .taskname { vertical-align: top; }
 .cell.done.late { color: #b8860b; }
 .cell.sub .dot { border: 0; background: none; color: var(--primary); font-size: 18px; }
 .cell.sub .redo, .cell .redo { border: 0; background: none; color: var(--muted); font-size: 14px; }
+.cell.sub .cancel-sub { font-size: 12px; padding: 0 2px; }
+.cell.sub .cancel-sub:hover { color: var(--danger); }
 .cell.redo-cell { color: var(--muted); }
 
 /* 글마당 관리 */

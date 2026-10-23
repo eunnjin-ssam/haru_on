@@ -374,7 +374,12 @@ export async function renderBoard(root, { open }) {
     if (st === 'submitted') {
       return h('td', { class: 'cell sub' },
         h('button', { class: 'dot', title: '확인하면 완료 + 포인트', onclick: () => run(() => completeOne(task, s.sid), '완료했어요') }, '●'),
-        h('button', { class: 'redo', title: '다시 해오기', onclick: () => run(() => redoOne(task, s.sid)) }, '↺'));
+        h('button', { class: 'redo', title: '다시 해오기', onclick: () => run(() => redoOne(task, s.sid)) }, '↺'),
+        // 학생이 잘못 누른 제출 취소(제출 기록을 지워 빈칸으로)
+        h('button', { class: 'redo cancel-sub', title: '제출 취소 (잘못 누른 제출)', onclick: () => {
+          if (!confirm(`${s.name}의 ‘${task.title}’ 제출을 취소할까요?\n빈칸으로 돌아가요.`)) return;
+          run(() => deleteDoc(doc(db, 'submissions', `${task.id}_${s.sid}`)), '제출을 취소했어요');
+        } }, '✕'));
     }
     if (st === 'redo') return h('td', { class: 'cell redo-cell', title: '다시 해오기 요청함' }, '↺');
     // 빈칸: 직접 누르면 즉시 완료 + 포인트

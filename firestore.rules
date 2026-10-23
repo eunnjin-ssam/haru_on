@@ -618,6 +618,8 @@ service cloud.firestore {
       allow read: if isStudent() && resource.data.sid == me();
       allow create: if isStudent() && submitOK(id);
       allow update: if isStudent() && resubmitOK();
+      // 잘못 누른 제출 취소: 선생님 확인 전(submitted)인 내 과제만
+      allow delete: if isStudent() && resource.data.sid == me() && resource.data.status == 'submitted';
       allow read, write: if isTeacher();
     }
     function submitOK(id) {
@@ -635,7 +637,10 @@ service cloud.firestore {
         && text(r.text, 5000);
     }
     function resubmitOK() {
+      let task = get(p('tasks', resource.data.task)).data;
       return resource.data.sid == me() && resource.data.status == 'redo'
+        // 반복 과제는 마감이 지나면 다시 낼 수도 없다
+        && (!('repeat' in task) || task.repeat == null || !('dueAt' in task) || task.dueAt == null || request.time <= task.dueAt)
         && onlyChanged(['status', 'text', 'lastAt'])
         && request.resource.data.status == 'submitted'
         && request.resource.data.lastAt == request.time

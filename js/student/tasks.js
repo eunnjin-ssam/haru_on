@@ -1,7 +1,7 @@
 // 과제마당: 선생님이 낸 과제를 보고 제출한다. 제출하면 체크판에 '확인 대기'로 들어간다.
 // 포인트는 선생님이 확인할 때 지급(마감 뒤에 내면 0점). 여기서는 제출만 한다.
 import {
-  collection, doc, getDocs, query, where, setDoc, updateDoc, serverTimestamp,
+  collection, doc, getDocs, query, where, setDoc, updateDoc, deleteDoc, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -95,6 +95,14 @@ export async function renderTasks(content, student, settings) {
         children.push(h('p', { class: 'muted' }, '선생님이 확인했어요. 잘했어요! 🎉'));
       } else if (s === 'submitted') {
         children.push(h('p', { class: 'muted' }, '선생님 확인을 기다리고 있어요.'));
+        // 잘못 눌렀으면 선생님 확인 전까지 취소할 수 있다(반복 과제는 마감이 지나면 다시 낼 수 없어서 알려 줌)
+        const pastDue = t.dueAt?.toMillis && t.dueAt.toMillis() < Date.now();
+        children.push(h('button', { class: 'btn secondary small', onclick: async () => {
+          const warn = t.repeat && pastDue ? '\n마감이 지나서 취소하면 다시 낼 수 없어요.' : '';
+          if (!confirm(`'${t.title}' 제출을 취소할까요?${warn}`)) return;
+          try { await deleteDoc(doc(db, 'submissions', `${t.id}_${sid}`)); toast('제출을 취소했어요'); await reload(); }
+          catch (e) { console.error(e); toast('취소하지 못했어요', 'error'); }
+        } }, '제출 취소'));
       }
       box.replaceChildren(...children.filter(Boolean));
     }
