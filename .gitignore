@@ -1,3 +1,7 @@
 node_modules/
 *-debug.log
 .firebase/
+
+# 학급 데이터 백업 파일(학생 이름·PIN이 들어 있어 GitHub에 올리지 않음)
+우리반-백업-*.json
+*백업*.json
