@@ -2,7 +2,10 @@
 // settings/main.access = {
 //   enabled: 시간표를 쓰는지(false면 늘 열림 — 선생님 직접 잠금은 그래도 됨),
 //   windows: [{ start: 'HH:MM', end: 'HH:MM' }] 쉬는시간(월~금 공통),
-//   override: null | { mode: 'open' | 'locked', day: 'YYYYMMDD' }  선생님이 그날만 직접(다음 날엔 시간표대로)
+//   override: null | { mode: 'open' | 'locked', day: 'YYYYMMDD', until?: 'HH:MM' }  선생님이 직접 열기·잠그기
+//     - 지금 잠그기: 지금 쉬는시간이 끝날 때까지(until)만, 그 뒤엔 시간표대로
+//     - 지금 열기: 다음 쉬는시간이 시작될 때까지(until)만, 그 뒤엔 시간표대로(남은 쉬는시간이 없으면 그날 끝까지)
+//     - until이 없으면 그날 끝까지. 다음 날엔 늘 시간표대로
 // }
 // 방과 후·주말은 잠김. 시각은 한국 시간(기기 시계 기준).
 import { kstNow, todayId } from './dates.js';
@@ -18,12 +21,14 @@ export const sortWindows = (ws) => (ws ?? []).filter((w) => w?.start && w?.end &
 export function accessState(access, now = new Date()) {
   const a = access ?? {};
   const today = todayId(now);
-  if (a.override?.day === today) {
-    if (a.override.mode === 'open') return { locked: false, reason: 'open' };
-    if (a.override.mode === 'locked') return { locked: true, reason: 'lock', next: nextOpen(a, now) };
+  const k = kstNow(now); const dow = k.getUTCDay(); const cur = k.getUTCHours() * 60 + k.getUTCMinutes();
+  const ov = a.override;
+  if (ov?.day === today && (!ov.until || cur < mins(ov.until))) {
+    if (ov.mode === 'open') return { locked: false, reason: 'open', until: ov.until ?? null };
+    // 잠근 쉬는시간이 끝난 뒤 다음에 열리는 때
+    if (ov.mode === 'locked') return { locked: true, reason: 'lock', until: ov.until ?? null, next: nextOpen(a, ov.until ? new Date(now.getTime() + (mins(ov.until) - cur) * 60000) : now) };
   }
   if (!a.enabled) return { locked: false, reason: 'off' };
-  const k = kstNow(now); const dow = k.getUTCDay(); const cur = k.getUTCHours() * 60 + k.getUTCMinutes();
   const ws = sortWindows(a.windows);
   if (dow >= 1 && dow <= 5) {
     const w = ws.find((x) => mins(x.start) <= cur && cur < mins(x.end));
@@ -44,4 +49,18 @@ export function nextOpen(access, now = new Date()) {
   return `${label} ${ws[0].start}`;
 }
 
-export const overrideFor = (mode) => (mode ? { mode, day: todayId() } : null);
+// 선생님이 누른 버튼 → 저장할 override (null이면 시간표대로)
+export function overrideFor(mode, access, now = new Date()) {
+  if (!mode) return null;
+  const a = access ?? {};
+  const day = todayId(now);
+  if (!a.enabled) return mode === 'locked' ? { mode, day } : null; // 시간표를 안 쓰면: 잠그기는 그날 끝까지, 열기는 원래 열림
+  const k = kstNow(now); const dow = k.getUTCDay(); const cur = k.getUTCHours() * 60 + k.getUTCMinutes();
+  const ws = (dow >= 1 && dow <= 5) ? sortWindows(a.windows) : [];
+  if (mode === 'locked') {
+    const w = ws.find((x) => mins(x.start) <= cur && cur < mins(x.end));
+    return w ? { mode, day, until: w.end } : null; // 쉬는시간이 아니면 시간표가 이미 잠가요
+  }
+  const nextBreak = ws.find((x) => mins(x.start) > cur);
+  return nextBreak ? { mode, day, until: nextBreak.start } : { mode, day }; // 남은 쉬는시간이 없으면 그날 끝까지
+}
