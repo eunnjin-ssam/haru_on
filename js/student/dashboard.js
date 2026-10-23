@@ -36,6 +36,7 @@ export async function renderDashboard(content, student, settings, { openMission,
     const absentDays = await loadAbsentDays(sid);
     // 아직 안 낸 과제(제출 전이거나 '다시 해오기'), 마감 빠른 순
     const subs = new Map((subSnap?.docs ?? []).map((d) => [d.id, d.data().status]));
+    const subData = new Map((subSnap?.docs ?? []).map((d) => [d.id, d.data()]));
     const allTasks = (taskSnap?.docs ?? []).map((d) => ({ id: d.id, ...d.data() })).filter((t) => isShown(t));
     // 선생님 확인용(가정통신문 회신 등) 중 '대시보드에 알림'을 켠 것: 아직 회신 안 한 학생에게만
     const checks = allTasks.filter((t) => t.kind === 'check' && t.notify && subs.get(`${t.id}_${sid}`) !== 'done');
@@ -53,6 +54,10 @@ export async function renderDashboard(content, student, settings, { openMission,
       names: new Map(studentsSnap.docs.map((d) => [d.id, d.data().name])),
       tasks,
       checks,
+      // 오늘 낸 과제·확인용(오늘 한 일에 표시)
+      doneToday: allTasks.map((t) => ({ t, sub: subData.get(`${t.id}_${sid}`) }))
+        .filter(({ sub }) => sub && ['submitted', 'done'].includes(sub.status)
+          && todayId((sub.lastAt ?? sub.firstAt)?.toDate?.() ?? new Date(0)) === todayId()),
       wish,
       equip: profSnap?.exists() ? profSnap.data().equip : null,
       goals: goalSnap ?goalSnap.docs.map((d) => ({ id: d.id, ...d.data() })) : [],
@@ -84,7 +89,7 @@ export async function renderDashboard(content, student, settings, { openMission,
     const items = [];
     if (!data.mood.mood) items.push('기분');
     if (data.missionGraded < perDay) items.push('기초미션');
-    for (const { status } of data.roles.mine) if (status !== 'approved') items.push('역할');
+    for (const { status } of data.roles.mine) if (status !== 'approved' && status !== 'requested') items.push('역할'); // 했어요를 누른 건 한 일
     for (const _ of data.tasks) items.push('과제');
     return items;
   }
@@ -129,7 +134,6 @@ export async function renderDashboard(content, student, settings, { openMission,
   function todoRow(icon, label, btn, cls = '') {
     return h('div', { class: `todo ${cls}` }, h('span', { class: 'todo-l' }, h('span', { class: 'todo-ico' }, icon), h('span', null, label)), btn);
   }
-  const doneMark = () => h('span', { class: 'todo-check' }, '✓ 했어요');
 
   // 기분 고르기 → 옆 '오늘 기분' 칸으로 이동해 잠깐 반짝
   function goMood() {
@@ -141,18 +145,13 @@ export async function renderDashboard(content, student, settings, { openMission,
 
   function todoCard() {
     const rows = [];
-    // 기분·기초미션은 매일 늘 보인다(끝나면 ✓)
-    rows.push(data.mood.mood
-      ? todoRow('😊', '기분 고르기', doneMark(), 'is-done')
-      : todoRow('😊', '기분 고르기', h('button', { class: 'btn small', onclick: goMood }, '고르기')));
-    rows.push(data.missionGraded >= perDay
-      ? todoRow('🧮', `기초미션 (${perDay}/${perDay})`, doneMark(), 'is-done')
-      : todoRow('🧮', `기초미션 (${data.missionGraded}/${perDay})`,
-        h('button', { class: 'btn small', onclick: openMission }, data.missionGraded > 0 ? '이어 풀기' : '풀기')));
+    // 아직 안 한 일만(한 일은 아래 '오늘 한 일'로)
+    if (!data.mood.mood) rows.push(todoRow('😊', '기분 고르기', h('button', { class: 'btn small', onclick: goMood }, '고르기')));
+    if (data.missionGraded < perDay) rows.push(todoRow('🧮', `기초미션 (${data.missionGraded}/${perDay})`,
+      h('button', { class: 'btn small', onclick: openMission }, data.missionGraded > 0 ? '이어 풀기' : '풀기')));
     for (const { role, status } of data.roles.mine) {
-      if (status === 'approved') continue;
-      if (status === 'requested') rows.push(todoRow('🧹', role.name, h('span', { class: 'state' }, '확인 기다리는 중…'), 'done-wait'));
-      else if (status === 'redo') rows.push(todoRow('🧹', `${role.name} · 다시 해달래요`, h('button', { class: 'btn small', onclick: () => act(() => requestRole(sid, role.id, true)) }, '다시 했어요')));
+      if (status === 'approved' || status === 'requested') continue;
+      if (status === 'redo') rows.push(todoRow('🧹', `${role.name} · 다시 해달래요`, h('button', { class: 'btn small', onclick: () => act(() => requestRole(sid, role.id, true)) }, '다시 했어요')));
       else rows.push(todoRow('🧹', role.name, h('button', { class: 'btn small', onclick: () => act(() => requestRole(sid, role.id, false)) }, '했어요')));
     }
     // 아직 안 낸 과제 (있을 때만)
@@ -163,6 +162,7 @@ export async function renderDashboard(content, student, settings, { openMission,
           due ? h('span', { class: `todo-due${due.includes('지남') ? ' late' : ''}` }, due) : null),
         openTasks ? h('button', { class: 'btn small', onclick: openTasks }, '하러 가기') : null));
     }
+    if (!rows.length) return h('section', { class: 'card' }, h('h2', null, '오늘 할 일'), h('p', { class: 'empty' }, '오늘 할 일을 모두 했어요! 🎉'));
     return h('section', { class: 'card' }, h('h2', null, '오늘 할 일'), ...rows);
   }
 
@@ -173,8 +173,15 @@ export async function renderDashboard(content, student, settings, { openMission,
       rows.push(h('div', { class: 'done' }, h('span', { class: 'todo-l' }, h('span', { class: 'todo-ico' }, '😊'), h('span', null, `기분 · ${label}`))));
     }
     if (data.missionGraded >= perDay) rows.push(h('div', { class: 'done' }, h('span', { class: 'todo-l' }, h('span', { class: 'todo-ico' }, '🧮'), h('span', null, '기초미션')), h('span', { class: 'got' }, `+${data.missionGot}`)));
+    const doneRow = (ico, label, right) => h('div', { class: 'done' }, h('span', { class: 'todo-l' }, h('span', { class: 'todo-ico' }, ico), h('span', null, label)), right);
     for (const { role, status } of data.roles.mine) {
-      if (status === 'approved') rows.push(h('div', { class: 'done' }, h('span', { class: 'todo-l' }, h('span', { class: 'todo-ico' }, '🧹'), h('span', null, role.name)), h('span', { class: 'got' }, `+${role.points}`)));
+      if (status === 'approved') rows.push(doneRow('🧹', role.name, h('span', { class: 'got' }, `+${role.points}`)));
+      else if (status === 'requested') rows.push(doneRow('🧹', role.name, h('span', { class: 'state' }, '확인 기다리는 중…')));
+    }
+    // 오늘 낸 과제: 냈다는 표시(선생님이 확인했으면 '확인 완료')
+    for (const { t, sub } of data.doneToday) {
+      rows.push(doneRow(t.kind === 'check' ? '📄' : '📋', t.title,
+        sub.status === 'done' ? h('span', { class: 'got' }, '✓ 확인 완료') : h('span', { class: 'got sent' }, '✓ 냈어요')));
     }
     if (rows.length === 0) return h('section', { class: 'card' }, h('h2', null, '오늘 한 일'), h('p', { class: 'empty' }, '아직 없어요. 위에서 하나씩 해봐요!'));
     return h('section', { class: 'card' }, h('h2', null, '오늘 한 일'), ...rows);

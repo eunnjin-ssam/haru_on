@@ -608,3 +608,6 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: #c9c1fb
 .lock-box h2 { margin: 6px 0 8px; font-size: 24px; }
 .lock-box p { margin: 6px 0; font-size: 17px; }
 .lock-box .lock-next { font-weight: 800; color: var(--primary-dark, #5b4bd6); font-size: 19px; margin-top: 14px; }
+
+/* 대시보드 오늘 한 일: 낸 과제(아직 확인 전) */
+.done .got.sent { background: #eef2ff; color: var(--primary-dark, #5b4bd6); }
