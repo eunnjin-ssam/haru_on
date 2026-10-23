@@ -131,7 +131,8 @@ export async function renderToday(root, { open }) {
     // 아직 안 한 역할(요청 없음·다시 해줘): 선생님이 보고 바로 완료 처리할 수 있게
     const todo = mine.filter((r) => data.checks.find((c) => c.role === r.id && c.sid === sid)?.status !== 'approved')
       .map((r) => ({ role: r, check: data.checks.find((c) => c.role === r.id && c.sid === sid) }));
-    return allApproved ? { label: '완료', kind: 'done', requests: [] } : { label: '미완료', kind: 'todo', requests: [], todo };
+    // 완료면 어떤 역할인지 함께: '완료 · 우유 당번'
+    return allApproved ? { label: `완료 · ${mine.map((r) => r.name).join(', ')}`, kind: 'done', requests: [] } : { label: '미완료', kind: 'todo', requests: [], todo };
   }
 
   function taskState(sid) {
