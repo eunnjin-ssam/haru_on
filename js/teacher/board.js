@@ -387,10 +387,12 @@ export async function renderBoard(root, { open }) {
     return `${done}/${targets.length}`;
   }
 
-  // 모두 끝났고 마감이 OLD_DAYS일보다 지난 과제
+  // 마감이 OLD_DAYS일보다 지난 과제(다 끝났든 아니든)는 체크판에서 접어 둔다 — 기록은 그대로
+  // 마감이 없으면 올린 날(postDay)·보이기 시작한 때(showAt)로 본다
   function isOld(t) {
-    if (!t.dueAt?.toMillis || t.dueAt.toMillis() > Date.now() - OLD_DAYS * 86400000) return false;
-    return students.filter((s) => needs(t, s.sid)).every((s) => ['done', 'exempt'].includes(subOf(t.id, s.sid)?.status));
+    const ms = t.dueAt?.toMillis?.() ?? t.showAt?.toMillis?.()
+      ?? (t.postDay ? Date.parse(`${t.postDay.slice(0, 4)}-${t.postDay.slice(4, 6)}-${t.postDay.slice(6, 8)}T23:59:00+09:00`) : null);
+    return ms != null && ms < Date.now() - OLD_DAYS * 86400000;
   }
 
   function homeworkGrid() {
@@ -399,7 +401,7 @@ export async function renderBoard(root, { open }) {
     const oldN = all.filter(isOld).length;
     const list = showOld ? all : all.filter((t) => !isOld(t));
     const foldBtn = oldN ? h('button', { class: 'btn secondary small', style: 'margin-top:8px', onclick: () => { showOld = !showOld; draw(); } },
-      showOld ? '끝난 지난 과제 접기' : `끝난 지난 과제 ${oldN}개 보기`) : null;
+      showOld ? '지난 과제 접기' : `지난 과제 ${oldN}개 보기 (마감 1주일 지남)`) : null;
     return h('div', null, h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
       h('thead', null, h('tr', null,
         h('th', { class: 'stick' }, '과제'),
@@ -417,7 +419,7 @@ export async function renderBoard(root, { open }) {
         ...students.map((s) => absCol(cell(t, s), s)),
         h('td', { class: 'num' }, doneCount(t)),
       ))),
-      leftRow(all, '남은 과제', (st) => !['done', 'exempt'].includes(st)),
+      leftRow(list, '남은 과제', (st) => !['done', 'exempt'].includes(st)), // 보이는 과제만 센다
     )), foldBtn);
   }
 
@@ -447,7 +449,9 @@ export async function renderBoard(root, { open }) {
   }
 
   function checkGrid() {
-    const list = tasks.filter((t) => t.kind === 'check' && (showOld || !isOld(t)));
+    const allChecks = tasks.filter((t) => t.kind === 'check');
+    const oldChecks = allChecks.filter(isOld).length;
+    const list = allChecks.filter((t) => showOld || !isOld(t));
     return h('section', { class: 'card' },
       h('h2', null, '선생님 확인용 (회신 등)'),
       h('p', { class: 'muted' }, '포인트 없이 회신만 표시해요. 과제마당에는 보이지 않아요.'),
@@ -469,8 +473,10 @@ export async function renderBoard(root, { open }) {
             }),
             h('td', { class: 'num' }, doneCount(t)),
           ))),
-          leftRow(tasks.filter((t) => t.kind === 'check'), '미회신', (st) => st !== 'done'),
+          leftRow(list, '미회신', (st) => st !== 'done'),
         )),
+      oldChecks ? h('button', { class: 'btn secondary small', style: 'margin-top:8px', onclick: () => { showOld = !showOld; draw(); } },
+        showOld ? '지난 항목 접기' : `지난 항목 ${oldChecks}개 보기 (마감 1주일 지남)`) : null,
     );
   }
 
