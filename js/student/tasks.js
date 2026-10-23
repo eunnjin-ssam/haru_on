@@ -101,9 +101,17 @@ export async function renderTasks(content, student, settings) {
     return box;
   }
 
+  // 지난 과제는 최근 1주일 것만: 마감(없으면 마지막 제출 시각)이 7일 안이거나 아직 안 된 과제
+  const PAST_DAYS = 7;
+  const recent = (t) => {
+    const ms = t.dueAt?.toMillis?.() ?? t.sub?.lastAt?.toMillis?.() ?? null;
+    return ms == null || ms >= Date.now() - PAST_DAYS * 86400000;
+  };
+
   function listFor(which) {
     return data.tasks.filter((t) => {
       const s = t.sub?.status;
+      if (which === 'past' && !recent(t)) return false;
       if (t.absent) return which === 'past'; // 결석한 날 과제는 지난 과제에 '결석'으로
       if (which === 'todo') return !s || s === 'redo';
       if (which === 'sent') return s === 'submitted';
@@ -126,8 +134,8 @@ export async function renderTasks(content, student, settings) {
           class: `subtab${tab === id ? ' on' : ''}`, onclick: () => { tab = id; draw(); },
         }, counts[id] ? `${label} ${counts[id]}` : label)))),
       list.length === 0
-        ? h('p', { class: 'muted', style: 'padding:20px' }, '여기에는 과제가 없어요.')
-        : h('div', { class: 'feed-grid' }, ...list.map(card)),
+        ? h('p', { class: 'muted', style: 'padding:20px' }, tab === 'past' ? '최근 1주일 동안 끝난 과제가 없어요.' : '여기에는 과제가 없어요.')
+        : h('div', null, tab === 'past' ? h('p', { class: 'muted small', style: 'margin:0 2px 8px' }, '최근 1주일 동안의 과제만 보여요.') : null, h('div', { class: 'feed-grid' }, ...list.map(card))),
     ));
   }
 
