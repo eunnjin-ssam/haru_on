@@ -4,8 +4,10 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { CATALOG, colorLabel, colorHex, COLORS, COLOR_LIST } from '../character/catalog.js';
-import { drawItem } from '../character/voxel2d.js';
+import { CATALOG, colorLabel, colorHex, COLORS, COLOR_LIST, lookOf } from '../character/catalog.js';
+import { drawItem, drawFront } from '../character/voxel2d.js';
+import { renderCharacter3D } from '../character/voxel3d.js';
+import { loadSettings } from '../common/settings.js';
 
 const CAT_LABEL = { hair: '헤어', face: '얼굴', skin: '얼굴 색', top: '상의', bottom: '하의', shoes: '신발', headAcc: '머리 소품', faceAcc: '얼굴 소품', hand: '손 소품', back: '기타 소품', pet: '펫' };
 
@@ -191,8 +193,43 @@ export async function renderCharacterAdmin(root) {
     );
   }
 
-  function draw() { root.replaceChildren(itemsCard(), awardCard()); }
+  // 우리 반 캐릭터: 학생 화면 '우리 반'처럼 반 전체 정면 모습. 누르면 3D로 크게(칭호 함께)
+  let settings = null;
+  function titleOf(p) {
+    const t = p?.title; if (!t) return null;
+    if (t.startsWith('award_')) { const name = (p.awarded ?? [])[Number(t.split('_')[1])]; return name ? { name, color: (settings?.titleColors ?? [])[4] ?? '#f1c40f' } : null; }
+    const [c, i] = t.split('_'); const def = settings?.titles?.[c]?.[Number(i)];
+    return def ? { name: def.name, color: (settings?.titleColors ?? [])[Number(i)] ?? '#ffffff' } : null;
+  }
+  function openStudent(s, p) {
+    const box = h('div', { class: 'char-stage', style: 'height:380px' });
+    let view = null;
+    const close = () => { if (view) view.dispose(); dlg.remove(); };
+    const dlg = h('div', { class: 'sheet' }, h('div', { class: 'sheet-box' },
+      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h3', { style: 'margin:0' }, `${s.number}번 ${s.name}`), h('button', { class: 'btn secondary small', onclick: close }, '닫기')),
+      box, h('p', { class: 'muted small', style: 'margin:0;text-align:center' }, '밀어서 돌려 보세요')));
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) close(); });
+    document.body.append(dlg);
+    const t = titleOf(p);
+    view = renderCharacter3D(box, lookOf(p?.equip), t ? { title: t.name, titleColor: t.color } : {});
+  }
+  function classCard() {
+    const cells = students.map((s) => {
+      const p = profiles.get(s.sid);
+      const cv = h('canvas', { width: 120, height: 150 });
+      queueMicrotask(() => drawFront(cv, lookOf(p?.equip)));
+      const t = titleOf(p);
+      return h('button', { class: 'char-cell', title: '누르면 3D로 크게 봐요', onclick: () => openStudent(s, p) },
+        cv, h('div', { class: 'nm' }, `${s.number} ${s.name}`), t ? h('div', { class: 'tt', style: `color:${t.color === '#fff' || t.color === '#ffffff' ? 'var(--muted)' : t.color}` }, t.name) : null);
+    });
+    return h('details', { class: 'card class-chars', open: true },
+      h('summary', null, h('h2', { style: 'display:inline' }, `우리 반 캐릭터 (${students.length}명)`), h('span', { class: 'muted small', style: 'margin-left:8px' }, '누르면 3D로 크게 봐요')),
+      students.length ? h('div', { class: 'char-grid' }, ...cells) : h('p', { class: 'muted' }, '학생이 없어요.'));
+  }
 
+  function draw() { root.replaceChildren(classCard(), itemsCard(), awardCard()); }
+
+  settings = await loadSettings().catch(() => null);
   await load();
   draw();
 }
