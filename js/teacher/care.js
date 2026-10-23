@@ -7,7 +7,7 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { weekInfo, todayId } from '../common/dates.js';
 import { MOODS, moodLabel } from '../student/mood.js';
-import { isShown, excusedFor } from '../common/task-visible.js';
+import { isShown, excusedFor, isExpiredRepeat } from '../common/task-visible.js';
 import { DEFAULT_TEACHER_SETTINGS } from '../common/defaults.js';
 
 const NEG = ['upset', 'angry', 'tired'];
@@ -109,7 +109,8 @@ export async function renderCare(root) {
       const customN = last5.filter((d) => mp[d] === 'custom').length;
       // 과제가 올라온 날 결석했고 안 낸 과제는 남은 과제에서 뺀다
       const remaining = tasks.filter((t) => (t.targets ?? []).includes(s.sid) && !['done', 'exempt'].includes(subs.get(`${t.id}_${s.sid}`)?.status)
-        && !(!subs.get(`${t.id}_${s.sid}`) && excusedFor(t, s.sid, absentOn))).length;
+        && !(!subs.get(`${t.id}_${s.sid}`) && excusedFor(t, s.sid, absentOn))
+        && !isExpiredRepeat(t, subs.get(`${t.id}_${s.sid}`))).length; // 지난 반복 과제는 안 셈
       const lateOrRedo = tasks.filter((t) => {
         const sub = subs.get(`${t.id}_${s.sid}`);
         if (!sub || !t.dueAt?.toMillis || t.dueAt.toMillis() < since2w) return false;
@@ -176,7 +177,8 @@ export async function renderCare(root) {
         d.writingOn ? h('td', null, d.postBy.get(r.sid)?.[date] ? '✓' : h('span', { class: 'muted' }, '-')) : null);
     });
     const left = d.tasks.filter((t) => (t.targets ?? []).includes(r.sid) && !['done', 'exempt'].includes(d.subs.get(`${t.id}_${r.sid}`)?.status)
-      && !(!d.subs.get(`${t.id}_${r.sid}`) && excusedFor(t, r.sid, d.absentOn)));
+      && !(!d.subs.get(`${t.id}_${r.sid}`) && excusedFor(t, r.sid, d.absentOn))
+      && !isExpiredRepeat(t, d.subs.get(`${t.id}_${r.sid}`)));
     const memo = h('input', { type: 'text', value: r.memo, placeholder: '메모 (선생님만 봐요)', style: 'flex:1' });
     const dlg = h('div', { class: 'sheet' }, h('div', { class: 'sheet-box wide care-detail' },
       h('div', { class: 'row', style: 'justify-content:space-between' }, h('h3', { style: 'margin:0' }, `${r.number}번 ${r.name} · 최근 2주`),

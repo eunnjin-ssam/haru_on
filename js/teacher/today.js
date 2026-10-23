@@ -7,7 +7,7 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId, kstNow, ddayLabel } from '../common/dates.js';
 import { MOODS, moodLabel } from '../student/mood.js';
-import { isShown, excusedFor } from '../common/task-visible.js';
+import { isShown, excusedFor, isExpiredRepeat } from '../common/task-visible.js';
 import { loadSettings } from '../common/settings.js';
 import { renderMyWeek } from '../student/myweek.js';
 import { icon } from '../common/icons.js';
@@ -144,6 +144,8 @@ export async function renderToday(root, { open }) {
       const finished = sub && ['done', 'exempt'].includes(sub.status);
       // 과제가 올라온 날 결석했고 안 냈으면 안 내도 됨
       if (!sub && excusedFor(t, sid, data.absentOn)) continue;
+      // 반복 과제는 마감이 지나도록 안 냈으면 끝(세지 않음)
+      if (isExpiredRepeat(t, sub)) continue;
       if (!finished) {
         left += 1;
         const isLate = !!(t.dueAt?.toMillis && t.dueAt.toMillis() < now);

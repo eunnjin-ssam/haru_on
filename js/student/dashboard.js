@@ -7,7 +7,7 @@ import { h, toast } from '../common/ui.js';
 import { todayId, ddayLabel as dday } from '../common/dates.js';
 import { loadMood, renderMood, moodLabel } from './mood.js';
 import { loadRoles, requestRole, approveRole, redoRole } from './roles.js';
-import { isShown } from '../common/task-visible.js';
+import { isShown, isExpiredRepeat } from '../common/task-visible.js';
 import { lookOf } from '../character/catalog.js';
 import { drawFront } from '../character/voxel2d.js';
 import { celebrateGoal } from './celebrate.js';
@@ -43,7 +43,7 @@ export async function renderDashboard(content, student, settings, { openMission,
     const tasks = allTasks
       .filter((t) => t.kind === 'homework')
       .map((t) => ({ ...t, status: subs.get(`${t.id}_${sid}`) }))
-      .filter((t) => (!t.status || t.status === 'redo') && !isAbsentTask(t, t.status, absentDays)) // 결석한 날 과제는 할 일에서 뺌
+      .filter((t) => (!t.status || t.status === 'redo') && !isAbsentTask(t, t.status, absentDays) && !isExpiredRepeat(t, t.status)) // 결석한 날 과제·지난 반복 과제는 할 일에서 뺌
       .sort((a, b) => (a.dueAt?.toMillis?.() ?? Infinity) - (b.dueAt?.toMillis?.() ?? Infinity));
     data = {
       summary: summarySnap.exists() ? summarySnap.data() : { wallet: 0, total: 0 },

@@ -9,3 +9,7 @@ export const postDayOf = (t) => t.postDay ?? (t.showAt?.toDate ? todayId(t.showA
 // 과제가 올라온 날 결석한 학생은 그 과제를 안 내도 된다(체크판 칸 비활성화, 남은 과제에서 뺌).
 // absentOn: Map(날짜 → Set(학생))
 export const excusedFor = (t, sid, absentOn) => { const d = postDayOf(t); return !!(d && absentOn?.get(d)?.has(sid)); };
+
+// 반복 과제는 학생 자율: 마감이 지나도록 안 냈으면 그걸로 끝(남은 과제·할 일에서 뺀다).
+// sub: 이 학생의 제출 기록(없으면 undefined)
+export const isExpiredRepeat = (t, sub, now = Date.now()) => !!(t.repeat && !sub && t.dueAt?.toMillis && t.dueAt.toMillis() < now);

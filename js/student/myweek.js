@@ -6,7 +6,7 @@ import { db } from '../common/firebase.js';
 import { h } from '../common/ui.js';
 import { weekInfo, todayId } from '../common/dates.js';
 import { MOODS } from './mood.js';
-import { isShown } from '../common/task-visible.js';
+import { isShown, isExpiredRepeat } from '../common/task-visible.js';
 import { loadAbsentDays, isAbsentTask } from './absent.js';
 
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '');
@@ -61,7 +61,8 @@ export async function renderMyWeek(content, student, settings) {
   function taskCard() {
     const now = Date.now();
     // 결석한 날 올라온 과제(아직 안 냄)는 세지 않는다
-    const tasks = base.tasks.filter((t) => !isAbsentTask(t, base.subs.get(`${t.id}_${sid}`), base.absentDays));
+    const tasks = base.tasks.filter((t) => !isAbsentTask(t, base.subs.get(`${t.id}_${sid}`), base.absentDays)
+      && !isExpiredRepeat(t, base.subs.get(`${t.id}_${sid}`))); // 지난 반복 과제(안 냄)도 세지 않음
     const done = tasks.filter((t) => ['done', 'exempt'].includes(base.subs.get(`${t.id}_${sid}`)?.status)).length;
     const total = tasks.length;
     const left = tasks.filter((t) => !['done', 'exempt'].includes(base.subs.get(`${t.id}_${sid}`)?.status))
