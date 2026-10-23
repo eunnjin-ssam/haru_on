@@ -210,7 +210,7 @@ export async function renderSetup(root, { open }) {
       save('main', { 'access.enabled': on.checked, 'access.windows': windows }, on.checked ? '쉬는시간에만 열리게 했어요' : '시간표를 껐어요(늘 열림)');
     } }, '시간 저장');
     return fold('학생 화면 열리는 시간 (쉬는시간)',
-      h('p', { class: 'muted small', style: 'margin:0 0 10px' }, '켜 두면 월~금 아래 시간에만 학생 화면이 열리고, 그 밖의 시간·방과 후·주말에는 잠겨요. 학생은 로그인한 채로 잠금 화면을 봐요. 수업 중에 잠깐 열거나 쉬는시간에 잠글 때는 화면 위쪽의 ‘학생 화면’ 버튼을 써요.'),
+      h('p', { class: 'muted small', style: 'margin:0 0 10px' }, '켜 두면 월~금 아래 시간에만 학생 화면이 열리고, 그 밖의 시간·방과 후·주말에는 잠겨요. 학생은 로그인한 채로 잠금 화면을 봐요. 화면 위쪽의 ‘학생 화면’ 버튼을 한 번 누르면 열림 ↔ 잠김이 바뀌고, 그대로 두면 다음 쉬는시간 전후로 저절로 시간표대로 돌아가요.'),
       h('label', { class: 'menu-toggle' }, h('span', { class: 'mt-name' }, '쉬는시간에만 열기'), on, h('span', { class: 'switch' })),
       h('div', { style: 'margin-top:10px' }, list),
       h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'btn secondary small', onclick: () => addRow() }, '+ 시간 추가'), btn));
