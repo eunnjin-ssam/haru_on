@@ -186,8 +186,10 @@
 
 ## 새 컴퓨터 준비
 1. Node.js, Git 설치
-2. 프로젝트 가져오기 → 폴더에서 `npm install`
-   - 지금은 USB로 옮긴다: `class-app-날짜.zip`(node_modules 제외, .git 포함)을 풀어서 쓴다.
-   - 옮기기 전에 커밋하고, 압축은 바탕화면에 만든다. 두 컴퓨터에서 동시에 고치지 않는다.
+2. 프로젝트 가져오기(GitHub, 2026-10-23부터): `git clone https://github.com/eunnjin-ssam/haru_on.git` → 폴더에서 `npm install`
+   - 저장소는 비공개(Private)로 둔다.
+   - 작업 시작 전 `git pull`, 끝나면 커밋 후 `git push`. 두 컴퓨터에서 동시에 고치지 않는다.
+   - 학급 백업 파일(`*백업*.json`)은 .gitignore로 올리지 않는다(학생 이름·PIN).
+   - 배포(firebase deploy)는 그 컴퓨터에서 `firebase login` 한 번 필요.
 3. 규칙 시험을 돌리려면 Java 21 설치 (`winget install EclipseAdoptium.Temurin.21.JRE`)와 `npm install -g firebase-tools`
 4. 앱 띄우기: `npm run serve` → http://localhost:5500 (진짜 Firebase), 에뮬레이터는 `npm run emu` 후 주소에 `?emu`
