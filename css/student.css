@@ -381,6 +381,9 @@ body { font-size: 17px; }
 .fb-emoji { font-size: 30px; }
 .fb-t { font-size: 18px; font-weight: 700; }
 .sheet-box select, .sheet-box.wide select { padding: 11px; border: 1.5px solid var(--line); border-radius: 10px; width: 100%; }
+.sheet-box .wf { display: flex; flex-direction: column; gap: 6px; }
+.sheet-box .wf > span { font-weight: 600; font-size: 15px; }
+.sheet-box .wf textarea { width: 100%; box-sizing: border-box; padding: 11px; border: 1.5px solid var(--line); border-radius: 10px; min-height: 90px; resize: vertical; font-family: inherit; }
 
 /* PIN 바꾸기 */
 .pin-input { font-size: 24px; letter-spacing: 10px; text-align: center; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; width: 100%; box-sizing: border-box; }
