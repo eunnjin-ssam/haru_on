@@ -148,7 +148,10 @@ export async function renderToday(root, { open }) {
       if (isExpiredRepeat(t, sub)) continue;
       if (!finished) {
         left += 1;
-        const isLate = !!(t.dueAt?.toMillis && t.dueAt.toMillis() < now);
+        // 늦음: 마감까지 안 낸 것(다시 해오기 포함)만. 낸 뒤 선생님 확인을 기다리는 건 늦음 아님.
+        // 반복 과제는 학생 자율이라 늦음으로 세지 않는다
+        const notSent = !sub || sub.status === 'redo';
+        const isLate = !t.repeat && notSent && !!(t.dueAt?.toMillis && t.dueAt.toMillis() < now);
         if (isLate) late += 1;
         list.push({ t, sub, isLate });
       }

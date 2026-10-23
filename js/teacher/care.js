@@ -114,7 +114,7 @@ export async function renderCare(root) {
       const lateOrRedo = tasks.filter((t) => {
         const sub = subs.get(`${t.id}_${s.sid}`);
         if (!sub || !t.dueAt?.toMillis || t.dueAt.toMillis() < since2w) return false;
-        const late = sub.firstAt?.toMillis && sub.firstAt.toMillis() > t.dueAt.toMillis();
+        const late = !t.repeat && sub.firstAt?.toMillis && sub.firstAt.toMillis() > t.dueAt.toMillis(); // 반복 과제는 늦음으로 안 셈
         return late || sub.status === 'redo';
       }).length;
 
