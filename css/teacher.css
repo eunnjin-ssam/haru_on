@@ -98,6 +98,25 @@ textarea.paste { width: 100%; min-height: 140px; padding: 12px; border: 1px soli
 .menu-toggle input:checked + .switch::after { transform: translateX(18px); }
 .menu-toggle input:focus-visible + .switch { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+/* 학생 메뉴: 이름칸 + 보임/숨김 스위치를 한 줄에 */
+.menu-edit-list { display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+.menu-edit-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.menu-edit-row.off { background: var(--bg); }
+.menu-edit-row .mt-label { flex: 0 0 68px; font-size: 13px; color: var(--muted); font-weight: 700; }
+.menu-edit-row input[type=text] { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.menu-edit-row .always-on { flex: 0 0 auto; font-size: 12px; color: var(--muted); }
+.switch-wrap { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; flex: 0 0 auto; }
+.switch-wrap input { position: absolute; opacity: 0; pointer-events: none; }
+.switch-wrap .state { font-size: 13px; font-weight: 700; min-width: 28px; text-align: right; color: var(--primary); }
+.menu-edit-row.off .switch-wrap .state { color: var(--muted); }
+.switch-wrap input:checked + .switch { background: var(--primary); }
+.switch-wrap input:checked + .switch::after { transform: translateX(18px); }
+.switch-wrap input:focus-visible + .switch { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* 기본 설정: 묶음 제목 */
+.setup-group { margin: 26px 0 4px; padding-left: 2px; font-size: 14px; font-weight: 800; letter-spacing: .03em; color: var(--muted); text-transform: none; }
+.setup-group:first-of-type { margin-top: 20px; }
+
 /* 건의함: 처리 끝난 건의는 흐리게 */
 .admin-post.done { opacity: .65; }
 .admin-post.done:hover { opacity: 1; }

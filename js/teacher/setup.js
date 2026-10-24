@@ -50,44 +50,38 @@ export async function renderSetup(root, { open }) {
     catch (e) { console.error(e); toast('저장하지 못했어요', 'error'); }
   }
 
-  // ----- 학생 메뉴 켜기/끄기 (대시보드는 첫 화면이라 항상 켬) -----
+  // ----- 학생 메뉴: 이름 + 보이기/숨기기를 한곳에서 (대시보드는 첫 화면이라 항상 켬) -----
   function menusCard() {
     const hidden = new Set(s.hiddenMenus ?? []);
-    const keys = MENU_KEYS.filter(([k]) => k !== 'dashboard');
-    const boxes = keys.map(([k, label]) => {
-      const cb = h('input', { type: 'checkbox', checked: !hidden.has(k) });
-      const state = h('span', { class: 'mt-state' });
-      const row = h('label', { class: 'menu-toggle' },
-        h('span', { class: 'mt-name' }, s.names.menus?.[k] || label), state, cb, h('span', { class: 'switch' }));
-      const sync = () => { row.classList.toggle('off', !cb.checked); state.textContent = cb.checked ? '보임' : '숨김'; };
-      cb.addEventListener('change', sync);
-      sync();
-      return { k, cb, row };
+    const currency = txtInput(s.names.currency);
+    const rows = MENU_KEYS.map(([k, label]) => {
+      const name = txtInput(s.names.menus?.[k] ?? label);
+      const toggleable = k !== 'dashboard';
+      let cb = null; let row;
+      if (toggleable) {
+        cb = h('input', { type: 'checkbox', checked: !hidden.has(k) });
+        const state = h('span', { class: 'state' });
+        const sw = h('label', { class: 'switch-wrap' }, state, cb, h('span', { class: 'switch' }));
+        row = h('div', { class: 'menu-edit-row' }, h('span', { class: 'mt-label' }, label), name, sw);
+        const sync = () => { row.classList.toggle('off', !cb.checked); state.textContent = cb.checked ? '보임' : '숨김'; };
+        cb.addEventListener('change', sync);
+        sync();
+      } else {
+        row = h('div', { class: 'menu-edit-row' }, h('span', { class: 'mt-label' }, label), name, h('span', { class: 'always-on' }, '항상 보임'));
+      }
+      return { k, name, cb, row };
     });
     const btn = h('button', { class: 'btn', onclick: () => {
-      const hiddenMenus = boxes.filter((b) => !b.cb.checked).map((b) => b.k);
-      save('main', { hiddenMenus }, hiddenMenus.length ? `메뉴 ${hiddenMenus.length}개를 숨겼어요` : '모든 메뉴를 보여 줘요');
-    } }, '메뉴 저장');
-    return fold('학생 메뉴 보이기/숨기기',
-      h('p', { class: 'muted small', style: 'margin:0 0 10px' }, '지금 쓰지 않는 메뉴를 끄면 학생 화면에서 사라져요. 기록은 지워지지 않고, 다시 켜면 그대로 보여요. 학생이 앱을 새로 열면 바뀐 메뉴가 보여요. (대시보드는 첫 화면이라 항상 보여요)'),
-      h('div', { class: 'menu-toggles' }, ...boxes.map((b) => b.row)),
-      h('div', { class: 'row', style: 'margin-top:12px' }, btn));
-  }
-
-  // ----- 이름 -----
-  function namesCard() {
-    const currency = txtInput(s.names.currency);
-    const menus = MENU_KEYS.map(([k]) => txtInput(s.names.menus?.[k]));
-    const btn = h('button', { class: 'btn', onclick: () => {
       const data = { 'names.currency': currency.value.trim() || '포인트' };
-      MENU_KEYS.forEach(([k], i) => { data[`names.menus.${k}`] = menus[i].value.trim() || k; });
-      save('main', data, '이름을 바꿨어요');
-    } }, '이름 저장');
-    return fold('이름',
-      h('div', { class: 'role-form' },
-        field('화폐 이름 (예: 포인트, 별, 우리반 코인)', currency),
-        ...MENU_KEYS.map(([k, label], i) => field(`메뉴 이름: ${label}`, menus[i])),
-        h('div', { class: 'row' }, btn)));
+      rows.forEach(({ k, name }) => { data[`names.menus.${k}`] = name.value.trim() || k; });
+      data.hiddenMenus = rows.filter((r) => r.cb && !r.cb.checked).map((r) => r.k);
+      save('main', data, '학생 메뉴를 저장했어요');
+    } }, '학생 메뉴 저장');
+    return fold('학생 메뉴 (이름 · 보이기/숨기기)',
+      h('p', { class: 'muted small', style: 'margin:0 0 12px' }, '메뉴마다 이름을 바꾸고, 지금 쓰지 않는 메뉴는 스위치를 꺼서 학생 화면에서 숨길 수 있어요. 기록은 지워지지 않고, 다시 켜면 그대로 보여요. 학생이 앱을 새로 열면 바뀐 메뉴가 보여요. (대시보드는 첫 화면이라 항상 보여요)'),
+      h('div', { class: 'role-form', style: 'margin-bottom:14px' }, field('화폐 이름 (예: 포인트, 별, 우리반 코인)', currency)),
+      h('div', { class: 'menu-edit-list' }, ...rows.map((r) => r.row)),
+      h('div', { class: 'row', style: 'margin-top:14px' }, btn));
   }
 
   // ----- 포인트·기간 -----
@@ -253,9 +247,15 @@ export async function renderSetup(root, { open }) {
       h('div', { style: 'margin-top:12px' }, list));
   }
 
+  const groupHead = (title) => h('h2', { class: 'setup-group' }, title);
   root.replaceChildren(
     h('section', { class: 'card' }, h('h2', null, '설정'),
       h('p', { class: 'muted' }, '학생 메뉴·이름·포인트·기준을 바꿀 수 있어요. 각 칸을 고치고 그 칸의 저장 버튼을 누르면 바로 반영돼요.')),
-    menusCard(), accessCard(), namesCard(), pointsCard(), titlesCard(), treeCard(), careCard(), offDaysCard(),
+    groupHead('학생 화면'),
+    menusCard(), accessCard(),
+    groupHead('포인트·성장 기준'),
+    pointsCard(), titlesCard(), treeCard(),
+    groupHead('살핌·운영'),
+    careCard(), offDaysCard(),
   );
 }
