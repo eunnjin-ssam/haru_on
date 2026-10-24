@@ -102,17 +102,21 @@ export async function renderSetup(root, { open }) {
       storyAgendaLikes: num(agenda),
       'writingMin.summary': num(minSummary), 'writingMin.thoughts': num(minThoughts),
     }, '포인트·기준을 바꿨어요') }, '포인트 저장');
+    const group = (title, ...fields) => h('div', { class: 'points-group' },
+      h('h3', null, title), h('div', { class: 'role-form' }, ...fields));
     return fold('포인트·기준',
-      h('div', { class: 'role-form' },
-        field('기초미션 하루 문제 수', perDay),
-        field('기초미션 1문제 점수', mission),
-        field('글마당 점수 (하루 1회)', writing),
-        field('글마당 주간 보너스 점수', bonus),
-        field('글마당 줄거리 최소 글자 수 (띄어쓰기 빼고, 0이면 제한 없음)', minSummary),
-        field('글마당 생각과 느낌 최소 글자 수 (띄어쓰기 빼고, 0이면 제한 없음)', minThoughts),
+      group('기초미션',
+        field('하루 문제 수 (1~5문제)', perDay),
+        field('1문제 맞히면 받는 점수', mission)),
+      group('글마당',
+        field('글 하나에 주는 점수 (하루 1회)', writing),
+        field('주간 보너스 점수', bonus),
         field('주간 보너스 기준 일수', bonusDays),
-        field('약속마당 회의 안건 공감 기준 수', agenda),
-        h('div', { class: 'row' }, btn)));
+        field('줄거리 최소 글자 수 (띄어쓰기 빼고, 0이면 제한 없음)', minSummary),
+        field('생각과 느낌 최소 글자 수 (띄어쓰기 빼고, 0이면 제한 없음)', minThoughts)),
+      group('약속마당',
+        field('회의 안건이 되는 공감 수', agenda)),
+      h('div', { class: 'row', style: 'margin-top:4px' }, btn));
   }
 
   // ----- 칭호 기준 -----

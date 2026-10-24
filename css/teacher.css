@@ -117,6 +117,10 @@ textarea.paste { width: 100%; min-height: 140px; padding: 12px; border: 1px soli
 .setup-group { margin: 26px 0 4px; padding-left: 2px; font-size: 14px; font-weight: 800; letter-spacing: .03em; color: var(--muted); text-transform: none; }
 .setup-group:first-of-type { margin-top: 20px; }
 
+/* 포인트·기준: 메뉴별 소그룹 */
+.points-group + .points-group { margin-top: 20px; }
+.points-group > h3 { margin: 0 0 10px; font-size: 15px; }
+
 /* 건의함: 처리 끝난 건의는 흐리게 */
 .admin-post.done { opacity: .65; }
 .admin-post.done:hover { opacity: 1; }
