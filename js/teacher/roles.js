@@ -249,6 +249,8 @@ export async function renderRoles(root) {
   }
 
   function prevRanksOf() { return currentTerm(terms)?.ranks ?? {}; }
+  // 지난 기간에 희망을 낸 학생들(희망을 냈는데 못 받은 학생을 다음번에 먼저 배정하려고)
+  function prevWishedOf() { return new Set((wishes.get(currentTerm(terms)?.id) ?? new Map()).keys()); }
 
   function wishPanel(t, w) {
     const missing = students.filter((s) => !w.has(s.sid));
@@ -260,7 +262,7 @@ export async function renderRoles(root) {
       h('div', { class: 'row' },
         h('button', { class: 'btn', onclick: () => {
           if (missing.length && !confirm(`${missing.length}명이 아직 희망을 안 냈어요. 희망 받기를 닫고 자동 배정할까요?`)) return;
-          const res = autoAssign({ students, roles, wishes: Object.fromEntries(w), prevRanks: prevRanksOf() });
+          const res = autoAssign({ students, roles, wishes: Object.fromEntries(w), prevRanks: prevRanksOf(), prevWished: prevWishedOf() });
           run(() => updateDoc(doc(db, 'roleTerms', t.id), { wishOpen: false, status: 'assigned', ...res }), '자동 배정했어요. 확인하고 고쳐 주세요');
         } }, '희망 받기 닫고 자동 배정')));
   }
@@ -308,7 +310,7 @@ export async function renderRoles(root) {
       h('div', { class: 'row', style: 'margin-top:10px' },
         h('button', { class: 'btn secondary', onclick: () => { draft.checkers = pickCheckers(students, roles, draft.plan); draw(); } }, '확인 담당 다시 고르기'),
         h('button', { class: 'btn secondary', onclick: () => {
-          const res = autoAssign({ students, roles, wishes: Object.fromEntries(w), prevRanks: prevRanksOf() });
+          const res = autoAssign({ students, roles, wishes: Object.fromEntries(w), prevRanks: prevRanksOf(), prevWished: prevWishedOf() });
           draft = { id: t.id, ...res }; draw();
         } }, '처음부터 다시 배정'),
         h('button', { class: 'btn', onclick: () => {

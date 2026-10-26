@@ -41,18 +41,21 @@ function shuffle(arr) {
 
 // 자동 배정
 //  - 역할마다 자리 수 = 지금 담당 수(최소 1, 최대 2)
-//  - 지난 기간에 2·3지망을 받은 학생 먼저(3지망이 더 먼저), 나머지는 무작위 순서
+//  - 지난 기간에 희망을 냈는데 하나도 못 받은 학생(남은 역할) 맨 먼저, 그다음 3지망·2지망을 받은 학생, 나머지는 무작위 순서
 //  - 1지망 → 2지망 → 3지망 차례로 돌며 빈자리에 넣는다. 지금 하는 역할은 연속으로 맡지 않는다
 //  - 희망을 안 냈거나 못 들어간 학생은 남은 역할에(가능하면 지금 역할 피해서)
 //  - 확인 담당: 그 역할을 맡지 않은 학생 중 확인 담당을 덜 맡은 학생
-export function autoAssign({ students, roles, wishes, prevRanks = {} }) {
+export function autoAssign({ students, roles, wishes, prevRanks = {}, prevWished = new Set() }) {
   const cap = new Map(roles.map((r) => [r.id, Math.min(2, Math.max(1, (r.members ?? []).length || 1))]));
   const nowRole = new Map();
   for (const r of roles) for (const sid of r.members ?? []) nowRole.set(sid, r.id);
+  // 지난번에 희망을 냈는데 1~3지망을 하나도 못 받은 학생(희망을 안 낸 학생은 빼고)
+  const missed = (s) => prevRanks[s.sid] === 0 && prevWished.has(s.sid);
   const order = [
-    ...shuffle(students.filter((s) => prevRanks[s.sid] === 3)),
-    ...shuffle(students.filter((s) => prevRanks[s.sid] === 2)),
-    ...shuffle(students.filter((s) => prevRanks[s.sid] !== 2 && prevRanks[s.sid] !== 3)),
+    ...shuffle(students.filter(missed)),
+    ...shuffle(students.filter((s) => !missed(s) && prevRanks[s.sid] === 3)),
+    ...shuffle(students.filter((s) => !missed(s) && prevRanks[s.sid] === 2)),
+    ...shuffle(students.filter((s) => !missed(s) && prevRanks[s.sid] !== 2 && prevRanks[s.sid] !== 3)),
   ].map((s) => s.sid);
   const plan = {}; const ranks = {};
   const take = (sid, rid, rank) => { plan[sid] = rid; ranks[sid] = rank; cap.set(rid, cap.get(rid) - 1); };
