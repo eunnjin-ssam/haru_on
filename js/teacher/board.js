@@ -11,7 +11,7 @@ import { isShown, excusedFor, isExpiredRepeat } from '../common/task-visible.js'
 import { ensureRepeatTasks, ruleText, whenText, AHEAD } from './repeats.js';
 
 const DOW = [[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [7, '일']];
-const OLD_DAYS = 7; // 모두 끝나고 마감이 이만큼 지난 과제는 접어 둔다
+const OLD_DAYS = 7; // 마감이 없는 과제는 올린 지 이만큼 지나면 접어 둔다
 // 'YYYYMMDD' ↔ <input type=date> 값
 const idToInput = (id) => (id ? `${id.slice(0, 4)}-${id.slice(4, 6)}-${id.slice(6, 8)}` : '');
 const inputToId = (v) => (v ? v.replaceAll('-', '') : '');
@@ -393,10 +393,17 @@ export async function renderBoard(root, { open }) {
     return `${done}/${targets.length}`;
   }
 
-  // 마감이 OLD_DAYS일보다 지난 과제(다 끝났든 아니든)는 체크판에서 접어 둔다 — 기록은 그대로
-  // 마감이 없으면 올린 날(postDay)·보이기 시작한 때(showAt)로 본다
+  // 마감이 지난 과제는 체크판에서 접어 둔다(기록은 그대로, '지난 과제 보기'로 펼침).
+  // 단, 학생이 내고 선생님 확인(●)을 기다리는 학생이 있으면 늦게라도 확인해 포인트를 줄 수 있게 계속 보인다.
+  // 마감이 없는 과제는 올린 날(postDay)·보이기 시작한 때(showAt)부터 OLD_DAYS일이 지나면 접는다.
   function isOld(t) {
-    const ms = t.dueAt?.toMillis?.() ?? t.showAt?.toMillis?.()
+    const due = t.dueAt?.toMillis?.();
+    if (due != null) {
+      if (due >= Date.now()) return false;
+      const waiting = t.kind === 'homework' && students.some((s) => isTarget(t, s.sid) && subOf(t.id, s.sid)?.status === 'submitted');
+      return !waiting;
+    }
+    const ms = t.showAt?.toMillis?.()
       ?? (t.postDay ? Date.parse(`${t.postDay.slice(0, 4)}-${t.postDay.slice(4, 6)}-${t.postDay.slice(6, 8)}T23:59:00+09:00`) : null);
     return ms != null && ms < Date.now() - OLD_DAYS * 86400000;
   }
@@ -407,7 +414,7 @@ export async function renderBoard(root, { open }) {
     const oldN = all.filter(isOld).length;
     const list = showOld ? all : all.filter((t) => !isOld(t));
     const foldBtn = oldN ? h('button', { class: 'btn secondary small', style: 'margin-top:8px', onclick: () => { showOld = !showOld; draw(); } },
-      showOld ? '지난 과제 접기' : `지난 과제 ${oldN}개 보기 (마감 1주일 지남)`) : null;
+      showOld ? '지난 과제 접기' : `지난 과제 ${oldN}개 보기 (마감 지남)`) : null;
     return h('div', null, h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
       h('thead', null, h('tr', null,
         h('th', { class: 'stick' }, '과제'),
@@ -484,7 +491,7 @@ export async function renderBoard(root, { open }) {
           leftRow(list, '미회신', (st) => st !== 'done'),
         )),
       oldChecks ? h('button', { class: 'btn secondary small', style: 'margin-top:8px', onclick: () => { showOld = !showOld; draw(); } },
-        showOld ? '지난 항목 접기' : `지난 항목 ${oldChecks}개 보기 (마감 1주일 지남)`) : null,
+        showOld ? '지난 항목 접기' : `지난 항목 ${oldChecks}개 보기 (마감 지남)`) : null,
     );
   }
 
