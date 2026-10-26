@@ -23,19 +23,23 @@ export async function renderCharacter(content, student, settings) {
   let trying = {};     // 칸(category)별로 입어 보는 중인 { item, color } — 여러 칸을 함께 입어 볼 수 있다
   let data;
 
+  // 상점 아이템 목록(items, 100개가 넘음)은 이 화면을 열 때 한 번만 읽는다.
+  // 사기·입기마다 다시 읽으면 Firestore 무료 한도(하루 읽기 5만)를 금방 넘는다.
+  let itemsCache = null;
   async function load() {
-    const [profSnap, ownedSnap, sumSnap, itemsSnap] = await Promise.all([
+    const [profSnap, ownedSnap, sumSnap, items] = await Promise.all([
       getDoc(doc(db, 'profiles', sid)),
       getDocs(query(collection(db, 'ownedItems'), where('sid', '==', sid))),
       getDoc(doc(db, 'summaries', sid)).catch(() => null),
-      getDocs(collection(db, 'items')),
+      itemsCache ?? getDocs(collection(db, 'items')).then((s) => new Map(s.docs.map((d) => [d.id, d.data()]))),
     ]);
+    itemsCache = items;
     const profile = profSnap.exists() ? profSnap.data() : { equip: { ...EMPTY }, title: null, awarded: [] };
     data = {
       profile,
       equip: profile.equip ?? { ...EMPTY },
       owned: new Map(ownedSnap.docs.map((d) => [d.id, d.data()])),
-      items: new Map(itemsSnap.docs.map((d) => [d.id, d.data()])),
+      items,
       summary: sumSnap?.exists() ? sumSnap.data() : { wallet: 0 },
     };
   }
@@ -99,7 +103,11 @@ export async function renderCharacter(content, student, settings) {
       if (!owns(item, color)) { if (!(await buy(item, color))) return; }
       await updateDoc(doc(db, 'profiles', sid), { [`equip.${CATALOG[item].category}`]: { owned: ownedId(item, color), item, color } });
       await load(); draw();
-    } catch (e) { console.error(e); toast('안 됐어요. 다시 해 주세요.', 'error'); }
+    } catch (e) {
+      console.error(e); toast('안 됐어요. 다시 해 주세요.', 'error');
+      // 사기는 됐는데 입기에서 실패했을 수 있다: 다시 읽어 산 아이템이 '가지고 있어요'로 보이게
+      load().then(draw).catch(() => {});
+    }
   }
   const act = (fn) => fn().then(() => load()).then(draw).catch((e) => { console.error(e); toast('안 됐어요.', 'error'); });
 
@@ -142,9 +150,13 @@ export async function renderCharacter(content, student, settings) {
           ...titles.map((t) => h('button', { class: `title-chip${worn === t.id ? ' on' : ''}`, style: `color:${t.color}`, onclick: () => act(() => updateDoc(doc(db, 'profiles', sid), { title: t.id })) }, t.name))));
   }
 
+  // 우리 반 격자: 탭을 오갈 때마다 다시 읽지 않고 이 화면을 연 동안 한 번만 읽는다(읽기 한도)
+  let classCache = null;
   async function classGrid() {
-    const [profSnap, stuSnap] = await Promise.all([getDocs(collection(db, 'profiles')), getDocs(collection(db, 'students'))]);
+    classCache ??= await Promise.all([getDocs(collection(db, 'profiles')), getDocs(collection(db, 'students'))]);
+    const [profSnap, stuSnap] = classCache;
     const profiles = new Map(profSnap.docs.map((d) => [d.id, d.data()]));
+    profiles.set(sid, data.profile); // 내 모습은 방금 바꾼 것까지
     const students = stuSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
     const grid = h('div', { class: 'char-grid' });
     for (const s of students) {

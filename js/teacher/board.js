@@ -2,7 +2,7 @@
 // 선생님 확인용(가정통신문 회신 등)은 아래 구역에 따로, 포인트 없음.
 import {
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  writeBatch, increment, serverTimestamp, Timestamp, arrayUnion,
+  query, where, writeBatch, increment, serverTimestamp, Timestamp, arrayUnion,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -67,9 +67,17 @@ export async function renderBoard(root, { open }) {
     absentToday = absentOn.get(todayId()) ?? new Set();
   }
 
-  async function run(task, done) {
+  // taskId를 주면 그 과제의 제출 기록만 다시 읽는다(칸 하나 누를 때마다 반 전체를 다시 읽으면
+  // Firestore 무료 한도(하루 읽기 5만)를 금방 넘는다). 없으면 전체를 다시 읽는다.
+  async function run(task, done, taskId) {
     try { await task(); if (done) toast(done); } catch (e) { console.error(e); toast('안 됐어요. 다시 해 주세요.', 'error'); }
-    await load(); draw();
+    if (taskId) await reloadTask(taskId); else await load();
+    draw();
+  }
+  async function reloadTask(taskId) {
+    const snap = await getDocs(query(collection(db, 'submissions'), where('task', '==', taskId)));
+    for (const [id, sub] of subs) if (sub.task === taskId) subs.delete(id);
+    for (const d of snap.docs) subs.set(d.id, d.data());
   }
 
   const subOf = (taskId, sid) => subs.get(`${taskId}_${sid}`);
@@ -369,22 +377,22 @@ export async function renderBoard(root, { open }) {
     if (st === 'done') {
       const late = isLateSub(task, sub);
       return h('td', { class: `cell done${late ? ' late' : ''}`, title: `${late ? '늦게 냄(0점)' : '완료'} — 누르면 취소`,
-        onclick: async () => { if (await undoComplete(task, s.sid).catch((e) => { console.error(e); toast('안 됐어요.', 'error'); return false; })) { toast('완료를 취소했어요'); await load(); draw(); } } }, late ? '✓늦' : '✓');
+        onclick: async () => { if (await undoComplete(task, s.sid).catch((e) => { console.error(e); toast('안 됐어요.', 'error'); return false; })) { toast('완료를 취소했어요'); await reloadTask(task.id); draw(); } } }, late ? '✓늦' : '✓');
     }
     if (st === 'exempt') return h('td', { class: 'cell' }, '면');
     if (st === 'submitted') {
       return h('td', { class: 'cell sub' },
-        h('button', { class: 'dot', title: '확인하면 완료 + 포인트', onclick: () => run(() => completeOne(task, s.sid), '완료했어요') }, '●'),
-        h('button', { class: 'redo', title: '다시 해오기', onclick: () => run(() => redoOne(task, s.sid)) }, '↺'),
+        h('button', { class: 'dot', title: '확인하면 완료 + 포인트', onclick: () => run(() => completeOne(task, s.sid), '완료했어요', task.id) }, '●'),
+        h('button', { class: 'redo', title: '다시 해오기', onclick: () => run(() => redoOne(task, s.sid), null, task.id) }, '↺'),
         // 학생이 잘못 누른 제출 취소(제출 기록을 지워 빈칸으로)
         h('button', { class: 'redo cancel-sub', title: '제출 취소 (잘못 누른 제출)', onclick: () => {
           if (!confirm(`${s.name}의 ‘${task.title}’ 제출을 취소할까요?\n빈칸으로 돌아가요.`)) return;
-          run(() => deleteDoc(doc(db, 'submissions', `${task.id}_${s.sid}`)), '제출을 취소했어요');
+          run(() => deleteDoc(doc(db, 'submissions', `${task.id}_${s.sid}`)), '제출을 취소했어요', task.id);
         } }, '✕'));
     }
     if (st === 'redo') return h('td', { class: 'cell redo-cell', title: '다시 해오기 요청함' }, '↺');
     // 빈칸: 직접 누르면 즉시 완료 + 포인트
-    return h('td', { class: 'cell blank', title: '누르면 완료 + 포인트', onclick: () => run(() => completeOne(task, s.sid), '완료했어요') }, '');
+    return h('td', { class: 'cell blank', title: '누르면 완료 + 포인트', onclick: () => run(() => completeOne(task, s.sid), '완료했어요', task.id) }, '');
   }
 
   function doneCount(task) {
@@ -425,7 +433,7 @@ export async function renderBoard(root, { open }) {
           h('button', { class: 'linkish', onclick: () => { editing = t.id; editingRepeat = null; showForm = true; draw(); } }, `${t.repeat ? '🔁 ' : ''}${t.title}`),
           h('div', { class: 'muted small' }, `${t.subject ? t.subject + ' · ' : ''}${dueLabel(t.dueAt)} · ${t.points}${currency}`),
           h('div', { class: 'row', style: 'margin-top:4px' },
-            h('button', { class: 'btn secondary tiny', onclick: () => run(() => completeAll(t), '모두 완료했어요') }, '모두 완료'),
+            h('button', { class: 'btn secondary tiny', onclick: () => run(() => completeAll(t), '모두 완료했어요', t.id) }, '모두 완료'),
             h('button', { class: 'btn secondary tiny', onclick: () => { prefill = { ...t, title: `${t.title} (복사)`, id: undefined }; editing = null; editingRepeat = null; showForm = true; draw(); } }, '복사'),
             h('button', { class: 'btn danger tiny', onclick: () => deleteTask(t) }, '삭제')),
         ),
@@ -484,7 +492,7 @@ export async function renderBoard(root, { open }) {
               if (!isTarget(t, s.sid)) return h('td', { class: 'cell off' }, '');
               const done = subOf(t.id, s.sid)?.status === 'done';
               return absCol(h('td', { class: `cell ${done ? 'done' : 'blank'}`, title: done ? '회신함 (눌러 취소)' : '누르면 회신 표시',
-                onclick: () => run(() => markReturn(t, s.sid, !done)) }, done ? '✓' : ''), s);
+                onclick: () => run(() => markReturn(t, s.sid, !done), null, t.id) }, done ? '✓' : ''), s);
             }),
             h('td', { class: 'num' }, doneCount(t)),
           ))),
