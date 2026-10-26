@@ -586,3 +586,7 @@ tr.row-absent td { background: #fafafb; color: var(--muted, #8a8f98); }
 .char-cell .nm { font-weight: 700; font-size: 13.5px; margin-top: 4px; }
 .char-cell .tt { font-size: 12px; font-weight: 700; margin-top: 2px; }
 .char-stage { width: 100%; display: flex; justify-content: center; align-items: center; cursor: grab; }
+
+/* 체크판: 학생 칸 사이마다 얇고 연한 세로선(학생 구분) */
+table.board th.stu, table.board td.cell, table.board tfoot .left-row td { border-left: 1px solid #eceef3; }
+table.board tr > :last-child { border-right: 1px solid #eceef3; }
