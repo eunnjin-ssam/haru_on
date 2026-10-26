@@ -496,6 +496,9 @@ export async function renderBoard(root, { open }) {
   }
 
   function draw() {
+    // 다시 그려도 표의 옆 스크롤(뒷번호 학생 쪽)과 화면 위치가 처음으로 돌아가지 않게
+    const wraps = [...root.querySelectorAll('.table-wrap')].map((el) => [el.scrollLeft, el.scrollTop]);
+    const pageY = window.scrollY;
     root.replaceChildren(...[
       h('section', { class: 'card' },
         h('div', { class: 'row', style: 'justify-content:space-between' },
@@ -508,6 +511,8 @@ export async function renderBoard(root, { open }) {
       repeatList(),
       checkGrid(),
     ].filter(Boolean));
+    root.querySelectorAll('.table-wrap').forEach((el, i) => { if (wraps[i]) [el.scrollLeft, el.scrollTop] = wraps[i]; });
+    window.scrollTo(window.scrollX, pageY);
   }
 
   await load();
