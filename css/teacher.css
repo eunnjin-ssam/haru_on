@@ -557,6 +557,10 @@ tr.row-absent td { background: #fafafb; color: var(--muted, #8a8f98); }
 .board .stu-abs { margin-top: 2px; font-size: 11px; font-weight: 700; color: #c0392b; }
 .board td.absent-col { background-color: #fbf6f6; }
 .board td.cell.excused { color: var(--muted, #8a8f98); font-size: 12px; cursor: default; }
+/* 체크판 결석 표시 모드: 누를 수 있는 칸을 연한 빨강으로 */
+.absent-mode-note { margin: 4px 0 8px; padding: 8px 12px; border-radius: 8px; background: #fdecec; color: #c0392b; font-size: 14px; font-weight: 600; }
+.board td.cell.absent-pick { cursor: pointer; background-color: #fff7f7; }
+.board td.cell.absent-pick:hover { background-color: #fbdcdc; }
 
 /* 캐릭터·칭호: 아이템 이름 바꾸기 */
 .item-name-cell { min-width: 150px; }

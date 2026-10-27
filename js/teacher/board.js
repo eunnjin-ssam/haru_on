@@ -7,7 +7,7 @@ import {
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId } from '../common/dates.js';
-import { isShown, excusedFor, isExpiredRepeat } from '../common/task-visible.js';
+import { isShown, excusedFor, isExpiredRepeat, isAbsentMark } from '../common/task-visible.js';
 import { ensureRepeatTasks, ruleText, whenText, AHEAD } from './repeats.js';
 
 const DOW = [[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [7, '일']];
@@ -45,6 +45,7 @@ export async function renderBoard(root, { open }) {
   let showForm = false;
   let prefill = null;
   let showOld = false; // 접어 둔 지난 과제 펼치기
+  let absentMode = false; // 결석 표시 모드: 칸을 누르면 완료 대신 '결석'(안 내도 됨)으로
 
   async function load() {
     const [sSnap, tSnap, subSnap, cfgSnap, rSnap, attSnap] = await Promise.all([
@@ -83,7 +84,9 @@ export async function renderBoard(root, { open }) {
   const subOf = (taskId, sid) => subs.get(`${taskId}_${sid}`);
   const isTarget = (t, sid) => (t.targets ?? []).includes(sid);
   // 과제가 올라온 날 결석했고 아직 아무것도 안 냈으면 그 학생은 안 내도 된다(칸 비활성화, 숫자에서 뺌)
-  const excused = (t, sid) => t.kind === 'homework' && !subOf(t.id, sid) && excusedFor(t, sid, absentOn);
+  // 선생님이 체크판에서 직접 '결석'으로 표시한 칸도 같다(전날 결석해 못 하는 반복 과제 등)
+  const excused = (t, sid) => t.kind === 'homework'
+    && (isAbsentMark(subOf(t.id, sid)) || (!subOf(t.id, sid) && excusedFor(t, sid, absentOn)));
   const needs = (t, sid) => isTarget(t, sid) && !excused(t, sid);
 
   // 학생이 마감 뒤에 처음 냈으면 0점(완료 표시만). 선생님이 빈칸을 눌러 바로 완료한 것은
@@ -157,6 +160,21 @@ export async function renderBoard(root, { open }) {
   async function redoOne(task, sid) {
     const comment = prompt('다시 해오기 메모 (학생에게 보여요)', '') ?? '';
     await updateDoc(doc(db, 'submissions', `${task.id}_${sid}`), { status: 'redo', comment, lastAt: serverTimestamp() });
+  }
+
+  // 결석 표시: 제출 기록을 '면제(사유 결석)'로. 포인트 없음, 학생은 고칠 수 없다(보안 규칙).
+  // 다시 해오기 중이던 칸은 되돌릴 때 그 상태로 돌아가게 prev에 적어 둔다.
+  async function markAbsent(task, sid) {
+    const sub = subOf(task.id, sid);
+    await setDoc(doc(db, 'submissions', `${task.id}_${sid}`), {
+      task: task.id, sid, status: 'exempt', reason: 'absent', comment: '결석', prev: sub?.status ?? null, lastAt: serverTimestamp(),
+    }, { merge: true });
+  }
+  async function unmarkAbsent(task, sid) {
+    const sub = subOf(task.id, sid);
+    const ref = doc(db, 'submissions', `${task.id}_${sid}`);
+    if (sub?.prev) await updateDoc(ref, { status: sub.prev, reason: null, comment: '', prev: null, lastAt: serverTimestamp() });
+    else await deleteDoc(ref);
   }
 
   // 선생님 확인용: 회신 표시(포인트 없음) / 되돌리기
@@ -371,9 +389,20 @@ export async function renderBoard(root, { open }) {
   // ---- 격자 ----
   function cell(task, s) {
     if (!isTarget(task, s.sid)) return h('td', { class: 'cell off' }, '');
-    if (excused(task, s.sid)) return h('td', { class: 'cell off excused', title: '과제가 올라온 날 결석 — 안 내도 돼요' }, '결');
     const sub = subOf(task.id, s.sid);
     const st = sub?.status;
+    if (isAbsentMark(sub)) {
+      // 선생님이 표시한 결석: 결석 표시 모드에서 누르면 취소
+      return h('td', { class: `cell off excused${absentMode ? ' absent-pick' : ''}`,
+        title: absentMode ? '누르면 결석 표시 취소' : '선생님이 결석으로 표시함 — 안 내도 돼요',
+        onclick: absentMode ? () => run(() => unmarkAbsent(task, s.sid), '결석 표시를 취소했어요', task.id) : null }, '결');
+    }
+    if (excused(task, s.sid)) return h('td', { class: 'cell off excused', title: '과제가 올라온 날 결석 — 안 내도 돼요' }, '결');
+    // 결석 표시 모드: 아직 안 냈거나 다시 해오기 중인 칸을 누르면 '결석'(포인트 없음)
+    if (absentMode && (!st || st === 'redo') && task.kind === 'homework') {
+      return h('td', { class: `cell absent-pick${st === 'redo' ? ' redo-cell' : ' blank'}`, title: '누르면 결석으로 표시 (안 내도 됨)',
+        onclick: () => run(() => markAbsent(task, s.sid), `${s.name}: 결석으로 표시했어요`, task.id) }, st === 'redo' ? '↺' : '');
+    }
     if (st === 'done') {
       const late = isLateSub(task, sub);
       return h('td', { class: `cell done${late ? ' late' : ''}`, title: `${late ? '늦게 냄(0점)' : '완료'} — 누르면 취소`,
@@ -511,9 +540,14 @@ export async function renderBoard(root, { open }) {
       h('section', { class: 'card' },
         h('div', { class: 'row', style: 'justify-content:space-between' },
           h('h2', null, '체크판'),
-          showForm ? null : h('button', { class: 'btn', onclick: () => { editing = null; editingRepeat = null; prefill = null; showForm = true; draw(); } }, '+ 새 과제')),
+          h('div', { class: 'row' },
+            h('button', { class: `btn ${absentMode ? 'absent-on' : 'secondary'}`, onclick: () => { absentMode = !absentMode; draw(); } },
+              absentMode ? '결석 표시 끝내기' : '결석 표시'),
+            showForm ? null : h('button', { class: 'btn', onclick: () => { editing = null; editingRepeat = null; prefill = null; showForm = true; draw(); } }, '+ 새 과제'))),
+        absentMode ? h('p', { class: 'absent-mode-note' },
+          '결석 표시 중이에요. 결석해서 할 수 없는 학생의 빈칸을 누르면 ‘결’(안 내도 됨, 포인트 없음)이 돼요. ‘결’을 다시 누르면 취소돼요.') : null,
         homeworkGrid(),
-        h('p', { class: 'muted' }, '빈칸을 누르면 바로 완료 + 포인트예요. 파란 점(●)은 학생이 제출한 것 — 누르면 완료, ↺는 다시 해오기.'),
+        h('p', { class: 'muted' }, '빈칸을 누르면 바로 완료 + 포인트예요. 파란 점(●)은 학생이 제출한 것 — 누르면 완료, ↺는 다시 해오기. 결석해서 못 하는 과제는 ‘결석 표시’를 눌러 칸을 ‘결’로 바꿔요.'),
       ),
       showForm ? taskForm() : null,
       repeatList(),

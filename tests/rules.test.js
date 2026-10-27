@@ -469,6 +469,14 @@ describe('과제', () => {
     await assertFails(setDoc(doc(db, 'submissions/c1_s1'), { ...sub, task: 'c1', status: 'done', text: '글' }));
     await assertSucceeds(setDoc(doc(db, 'submissions/c1_s1'), { ...sub, task: 'c1', status: 'done' }));
   });
+  it('선생님이 결석으로 표시한 과제는 학생이 내거나 고치거나 지울 수 없다', async () => {
+    await assertSucceeds(setDoc(doc(teacher(env), 'submissions/k1_s1'), { task: 'k1', sid: 's1', status: 'exempt', reason: 'absent', comment: '결석', prev: null, lastAt: serverTimestamp() }, { merge: true }));
+    const db = await login(env, '1');
+    await assertSucceeds(getDoc(doc(db, 'submissions/k1_s1')));
+    await assertFails(setDoc(doc(db, 'submissions/k1_s1'), sub));
+    await assertFails(updateDoc(doc(db, 'submissions/k1_s1'), { status: 'submitted', text: '', lastAt: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(db, 'submissions/k1_s1')));
+  });
 });
 
 // ---------------------------------------------------------------

@@ -2,12 +2,12 @@
 // 결석한 날 올라온 과제는 안 내도 돼서 '결석'으로 보여 준다(아직 아무것도 안 냈을 때만).
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
-import { postDayOf } from '../common/task-visible.js';
+import { postDayOf, isAbsentMark } from '../common/task-visible.js';
 
 export async function loadAbsentDays(sid) {
   const snap = await getDoc(doc(db, 'absences', sid)).catch(() => null);
   return new Set(snap?.exists() ? snap.data().days ?? [] : []);
 }
 
-// sub: 이 과제의 내 제출 기록(없으면 undefined)
-export const isAbsentTask = (t, sub, days) => !sub && days.has(postDayOf(t));
+// sub: 이 과제의 내 제출 기록(없으면 undefined). 선생님이 체크판에서 '결석'으로 표시한 과제도 결석.
+export const isAbsentTask = (t, sub, days) => isAbsentMark(sub) || (!sub && days.has(postDayOf(t)));
