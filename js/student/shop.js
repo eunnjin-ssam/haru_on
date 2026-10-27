@@ -10,6 +10,7 @@ import { todayId, weekId, monthId } from '../common/dates.js';
 import { celebrateGoal } from './celebrate.js';
 import { isExemptCoupon } from '../common/coupons.js';
 import { isShown } from '../common/task-visible.js';
+import { cached, MIN } from '../common/read-cache.js';
 
 const STATUS_LABEL = { pending: '구매 승인 대기', useRequested: '사용 승인 대기' };
 
@@ -90,8 +91,8 @@ export async function renderShop(content, student, settings) {
   // 과제 면제권: 면제받을 과제(아직 안 낸 것)를 고른다. 취소하면 null
   async function pickTask() {
     const [tSnap, sSnap] = await Promise.all([
-      getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))),
-      getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))),
+      cached(`myTasks:${sid}`, () => getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))), 3 * MIN),
+      cached(`mySubs:${sid}`, () => getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))), 3 * MIN),
     ]);
     const subs = new Map(sSnap.docs.map((d) => [d.id, d.data().status]));
     const list = tSnap.docs.map((d) => ({ id: d.id, ...d.data() }))

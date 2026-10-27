@@ -1,6 +1,6 @@
 // 새소식 팝업: 게시 기간인 새소식 중 아직 '확인했어요'를 안 누른 것을 하나씩 띄운다.
 import {
-  collection, doc, getDoc, getDocs, setDoc, serverTimestamp,
+  collection, doc, getDoc, getDocs, setDoc, serverTimestamp, query, where,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -10,7 +10,8 @@ export async function showNotices(student) {
   const today = todayId();
   let list;
   try {
-    const snap = await getDocs(collection(db, 'notices'));
+    // 끝나지 않은 새소식만 읽는다(지난 새소식은 쌓이기만 하므로)
+    const snap = await getDocs(query(collection(db, 'notices'), where('end', '>=', today)));
     const live = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
       .filter((n) => n.start <= today && today <= n.end)
       .sort((a, b) => (a.start ?? '').localeCompare(b.start ?? ''));

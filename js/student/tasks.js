@@ -8,6 +8,7 @@ import { h, toast } from '../common/ui.js';
 import { ddayLabel as dday } from '../common/dates.js';
 import { isShown, isExpiredRepeat } from '../common/task-visible.js';
 import { loadAbsentDays, isAbsentTask } from './absent.js';
+import { cached, forget, MIN } from '../common/read-cache.js';
 
 export async function renderTasks(content, student, settings) {
   const sid = student.sid;
@@ -17,8 +18,8 @@ export async function renderTasks(content, student, settings) {
 
   async function load() {
     const [taskSnap, subSnap, absentDays] = await Promise.all([
-      getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))),
-      getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))),
+      cached(`myTasks:${sid}`, () => getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))), 3 * MIN),
+      cached(`mySubs:${sid}`, () => getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))), 3 * MIN),
       loadAbsentDays(sid),
     ]);
     const subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
@@ -29,7 +30,8 @@ export async function renderTasks(content, student, settings) {
     data = { tasks };
   }
 
-  async function reload() { await load(); draw(); }
+  // 내가 내거나 취소한 뒤에는 제출 기록을 새로 읽는다
+  async function reload() { forget(`mySubs:${sid}`); await load(); draw(); }
 
   async function submit(t, text) {
     const subId = `${t.id}_${sid}`;

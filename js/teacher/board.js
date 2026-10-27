@@ -9,6 +9,7 @@ import { h, toast } from '../common/ui.js';
 import { todayId } from '../common/dates.js';
 import { isShown, excusedFor, isExpiredRepeat, isAbsentMark } from '../common/task-visible.js';
 import { ensureRepeatTasks, ruleText, whenText, AHEAD } from './repeats.js';
+import { studentsSnap, tasksSnap, subsMap, attendanceSnap } from './class-data.js';
 
 const DOW = [[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [7, '일']];
 const OLD_DAYS = 7; // 마감이 없는 과제는 올린 지 이만큼 지나면 접어 둔다
@@ -47,14 +48,15 @@ export async function renderBoard(root, { open }) {
   let showOld = false; // 접어 둔 지난 과제 펼치기
   let absentMode = false; // 결석 표시 모드: 칸을 누르면 완료 대신 '결석'(안 내도 됨)으로
 
-  async function load() {
-    const [sSnap, tSnap, subSnap, cfgSnap, rSnap, attSnap] = await Promise.all([
-      getDocs(collection(db, 'students')),
-      getDocs(collection(db, 'tasks')),
-      getDocs(collection(db, 'submissions')),
+  // 처음 열 때는 오늘 현황·살핌판과 함께 기억한 것(2분)을 쓰고, 과제를 만들거나 고친 뒤에는 fresh로 새로 읽는다
+  async function load(fresh = false) {
+    const [sSnap, tSnap, subMap, cfgSnap, rSnap, attSnap] = await Promise.all([
+      studentsSnap(fresh),
+      tasksSnap(fresh),
+      subsMap(fresh),
       getDoc(doc(db, 'settings', 'main')),
       getDocs(collection(db, 'taskRepeats')),
-      getDocs(collection(db, 'attendance')).catch(() => null),
+      attendanceSnap(fresh).catch(() => null),
     ]);
     students = sSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
     // 반복 과제 중 아직 학생에게 안 보이는 미래 것은 체크판에서도 뺀다.
@@ -62,7 +64,7 @@ export async function renderBoard(root, { open }) {
     tasks = tSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => isShown(t))
       .sort((a, b) => (b.dueAt?.toMillis?.() ?? Infinity) - (a.dueAt?.toMillis?.() ?? Infinity));
     repeats = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
+    subs = subMap; // 함께 쓰는 Map — reloadTask가 고치면 다른 탭도 같은 내용을 본다
     currency = cfgSnap.data()?.names?.currency ?? '포인트';
     absentOn = new Map((attSnap?.docs ?? []).map((d) => [d.id, new Set(d.data().absent ?? [])]));
     absentToday = absentOn.get(todayId()) ?? new Set();
@@ -72,7 +74,7 @@ export async function renderBoard(root, { open }) {
   // Firestore 무료 한도(하루 읽기 5만)를 금방 넘는다). 없으면 전체를 다시 읽는다.
   async function run(task, done, taskId) {
     try { await task(); if (done) toast(done); } catch (e) { console.error(e); toast('안 됐어요. 다시 해 주세요.', 'error'); }
-    if (taskId) await reloadTask(taskId); else await load();
+    if (taskId) await reloadTask(taskId); else await load(true);
     draw();
   }
   async function reloadTask(taskId) {
@@ -367,7 +369,7 @@ export async function renderBoard(root, { open }) {
             try { await saveTask({ ...f, title: f.title.trim(), targets }); toast(msg); }
             catch (e) { console.error(e); toast('안 됐어요. 다시 해 주세요.', 'error'); }
             editing = null; editingRepeat = null; showForm = false; prefill = null;
-            await load(); draw();
+            await load(true); draw();
           } }, editing || editingRepeat ? '고치기' : '만들기'),
           h('button', { class: 'btn secondary', onclick: () => { editing = null; editingRepeat = null; showForm = false; prefill = null; draw(); } }, '취소'),
         ),

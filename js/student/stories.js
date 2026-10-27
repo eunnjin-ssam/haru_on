@@ -7,6 +7,7 @@ import {
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId } from '../common/dates.js';
+import { cached, MIN } from '../common/read-cache.js';
 
 const REPORT_REASONS = [['tease', '놀리는 말'], ['swear', '욕설'], ['etc', '기타']];
 const EFF_LABEL = { story: '🌱 이야기 중', agenda: '🍲 회의 안건', promise: '✅ 우리가 정한 것', hold: '보류' };
@@ -34,21 +35,23 @@ export async function renderStories(content, student, settings) {
     return 'story';
   }
 
+  const likedOf = new Map(); // 이야기 id → 내가 공감했는지
   async function load() {
     const [storySnap, stuSnap] = await Promise.all([
       getDocs(query(collection(db, 'stories'), where('hidden', '==', false))),
-      getDocs(collection(db, 'students')),
+      cached('students', () => getDocs(collection(db, 'students')), 30 * MIN),
     ]);
     const stories = storySnap.docs.map((d) => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0));
     const names = new Map(stuSnap.docs.map((d) => [d.id, d.data().name]));
     // 내 공감 여부 + 공개 댓글
     const [likeSnaps, commentSnaps] = await Promise.all([
-      Promise.all(stories.map((s) => getDoc(doc(db, 'stories', s.id, 'likes', sid)).catch(() => null))),
+      // 내가 공감했는지는 한 번 확인한 이야기는 다시 묻지 않는다(나만 바꾸므로)
+      Promise.all(stories.map((s) => (likedOf.has(s.id) ? null : getDoc(doc(db, 'stories', s.id, 'likes', sid)).catch(() => null)))),
       Promise.all(stories.map((s) => getDocs(query(collection(db, 'stories', s.id, 'comments'), where('status', '==', 'public'))).catch(() => null))),
     ]);
     const liked = new Set();
-    stories.forEach((s, i) => { if (likeSnaps[i]?.exists()) liked.add(s.id); });
+    stories.forEach((s, i) => { if (likeSnaps[i]) likedOf.set(s.id, likeSnaps[i].exists()); if (likedOf.get(s.id)) liked.add(s.id); });
     const comments = new Map();
     stories.forEach((s, i) => { comments.set(s.id, (commentSnaps[i]?.docs ?? []).map((d) => ({ id: d.id, ...d.data() }))); });
     data = { stories, names, liked, comments, classNames: [...names.values()] };
@@ -226,7 +229,7 @@ export async function renderStories(content, student, settings) {
         progress,
         h('div', { class: 'sc-foot' },
           h('button', { class: `like${liked ? ' on' : ''}`, disabled: (s.author === sid) || liked, onclick: async () => {
-            try { await like(s); await reload(); } catch (e) { console.error(e); toast('공감은 한 번만 할 수 있어요', 'error'); }
+            try { await like(s); likedOf.set(s.id, true); await reload(); } catch (e) { console.error(e); toast('공감은 한 번만 할 수 있어요', 'error'); }
           } }, `🫶 공감 ${likes}`),
           commentToggle),
         commentBox,

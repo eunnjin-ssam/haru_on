@@ -3,7 +3,7 @@ import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-
 import { auth, db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { icon } from '../common/icons.js';
-import { kstNow } from '../common/dates.js';
+import { kstNow, todayId } from '../common/dates.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js';
 import { signInTeacher, signOutTeacher, isTeacher } from '../common/teacher-auth.js';
 import { renderRoster } from './roster.js';
@@ -163,7 +163,16 @@ function showApp(user, firstTab) {
     stop();
     showSignIn('로그인이 끝나서 다시 로그인이 필요해요.');
   });
-  Promise.all([ensureRepeatTasks(), ensureRoleTerms(), ensureItems(), ensureAbsences()].map((p) => p.catch((e) => console.error(e)))).finally(() => open(firstTab));
+  // 반복 과제 채우기·결석부 맞추기는 이 컴퓨터에서 하루 한 번만(앞으로 2주치를 미리 만들어 두므로 충분하다).
+  // 예전엔 선생님 화면을 열 때마다 과제·결석부를 다 읽어 읽기 한도를 썼다.
+  Promise.all([daily('repeatSync', ensureRepeatTasks), ensureRoleTerms(), ensureItems(), daily('absenceSync', ensureAbsences)].map((p) => p.catch((e) => console.error(e)))).finally(() => open(firstTab));
 }
 
 start();
+
+// 이 컴퓨터에서 오늘 아직 안 했으면 fn을 하고, 잘 끝나면 오늘 했다고 적어 둔다
+async function daily(key, fn) {
+  try { if (localStorage.getItem(key) === todayId()) return; } catch { /* 저장소를 못 쓰면 그냥 한다 */ }
+  await fn();
+  try { localStorage.setItem(key, todayId()); } catch { /* 다음에 다시 하면 된다 */ }
+}

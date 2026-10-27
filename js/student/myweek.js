@@ -8,6 +8,7 @@ import { weekInfo, todayId } from '../common/dates.js';
 import { MOODS } from './mood.js';
 import { isShown, isExpiredRepeat } from '../common/task-visible.js';
 import { loadAbsentDays, isAbsentTask } from './absent.js';
+import { cached, MIN } from '../common/read-cache.js';
 
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '');
 const WD = ['월', '화', '수', '목', '금'];
@@ -23,8 +24,8 @@ export async function renderMyWeek(content, student, settings) {
   // 학생별로 안 바뀌는 것(과제·제출·전체 거래/풀이/글)은 한 번만 읽는다
   async function loadBase() {
     const [taskSnap, subSnap, ptSnap, attSnap, postSnap, absentDays] = await Promise.all([
-      getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))),
-      getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))),
+      cached(`myTasks:${sid}`, () => getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))), 3 * MIN),
+      cached(`mySubs:${sid}`, () => getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))), 3 * MIN),
       getDocs(query(collection(db, 'points'), where('sid', '==', sid))),
       getDocs(query(collection(db, 'missionAttempts'), where('sid', '==', sid))),
       getDocs(query(collection(db, 'posts'), where('author', '==', sid))),

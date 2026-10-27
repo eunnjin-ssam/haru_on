@@ -1,7 +1,7 @@
 // 살핌판: 자기관리 현황 표(살펴볼 점: 마음·과제·활동·갑작스러운 변화, 열 눌러 정렬, 이름 눌러 2주 상세·메모)
 // + 쪽지/포인트(지급·지급취소·차감). 기준은 settings/teacher.care. 학생에게 보이지 않음.
 import {
-  collection, doc, getDoc, getDocs, setDoc, writeBatch, increment, serverTimestamp,
+  collection, doc, getDoc, getDocs, setDoc, writeBatch, increment, serverTimestamp, query, where, Timestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -9,6 +9,7 @@ import { weekInfo, todayId } from '../common/dates.js';
 import { MOODS, moodLabel } from '../student/mood.js';
 import { isShown, excusedFor, isExpiredRepeat } from '../common/task-visible.js';
 import { DEFAULT_TEACHER_SETTINGS } from '../common/defaults.js';
+import { studentsSnap as loadStudents, tasksSnap as loadTasks, subsMap as loadSubs, attendanceSnap as loadAttendance } from './class-data.js';
 
 const NEG = ['upset', 'angry', 'tired'];
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '·');
@@ -16,33 +17,63 @@ const WD = ['월', '화', '수', '목', '금'];
 const pct = (x) => (x == null ? '-' : `${Math.round(x * 100)}%`);
 const md = (id) => `${Number(id.slice(4, 6))}/${Number(id.slice(6, 8))}`;
 
+// 기초미션 날짜별 집계: Map(학생 → { 날짜: { n: 채점한 수, ok: 맞힌 수 } }).
+// 기초미션 기록은 학생마다 하루 5건씩 쌓여 4주면 반 전체 수천 건이다. 지난날 기록은 다시 바뀌지 않으니
+// 날짜별 '푼 수·맞힌 수'만 이 컴퓨터에 저장해 두고(학생 글·기분은 저장하지 않음) 오늘과 처음 보는 날만 읽는다.
+const MISS_KEY = (d) => `careMission:${d}`;
+async function missionByDay(days, today) {
+  const saved = new Map(); // 날짜 → { sid: {n, ok} }
+  for (const d of days) {
+    if (d >= today) continue;
+    try { const v = localStorage.getItem(MISS_KEY(d)); if (v) saved.set(d, JSON.parse(v)); } catch { /* 저장소를 못 쓰면 읽는다 */ }
+  }
+  const need = days.filter((d) => !saved.has(d));
+  const fresh = new Map(need.map((d) => [d, {}]));
+  for (let i = 0; i < need.length; i += 30) {
+    const snap = await getDocs(query(collection(db, 'missionAttempts'), where('date', 'in', need.slice(i, i + 30))));
+    for (const doc_ of snap.docs) {
+      const a = doc_.data(); if (!('correct' in a)) continue;
+      const day = fresh.get(a.date); const c = day[a.sid] ?? { n: 0, ok: 0 };
+      c.n += 1; if (a.correct) c.ok += 1; day[a.sid] = c;
+    }
+  }
+  for (const [d, v] of fresh) if (d < today) { try { localStorage.setItem(MISS_KEY(d), JSON.stringify(v)); } catch { /* 다음에 다시 읽으면 된다 */ } }
+  const by = new Map();
+  for (const [d, v] of [...saved, ...fresh]) for (const [sid, c] of Object.entries(v)) { const o = by.get(sid) ?? {}; o[d] = c; by.set(sid, o); }
+  return by;
+}
+
 export async function renderCare(root) {
   let data;
   const selected = new Set();
   let sortKey = 'number'; let sortDir = 1;
 
-  async function load() {
+  async function load(fresh = false) {
     const today = todayId();
     const weeks = [weekInfo(0), weekInfo(1), weekInfo(2), weekInfo(3)]; // 이번 주, 1~3주 전
     const past = (days) => days.filter((d) => d <= today);
     const recent = past([...weeks[1].days, ...weeks[0].days]); // 최근 2주 평일(오늘까지)
     const last5 = recent.slice(-5);
     const closed = recent.filter((d) => d < today); // 끝난 날(오늘은 아직 진행 중이라 완료율에서 뺌)
-    const [stuSnap, sumSnap, moodSnap, noteSnap, attSnap, subSnap, taskSnap, careSnap, tcfgSnap, cfgSnap, roleSnap, checkSnap, postSnap, absSnap] = await Promise.all([
-      getDocs(collection(db, 'students')),
+    // 날짜별 기록은 살핌판이 실제로 쓰는 기간만 읽는다(예전엔 학기 처음부터 전부 읽어 날이 갈수록 늘었다).
+    //  기분·직접 쓴 기분: 최근 2주 / 글마당: 3주(지난 두 주 + 이번 주) / 1인1역·기초미션: 4주(갑작스러운 변화)
+    const from = (name, day) => getDocs(query(collection(db, name), where('date', '>=', day)));
+    const atOf = (day) => Timestamp.fromDate(new Date(`${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}T00:00:00+09:00`));
+    const [stuSnap, sumSnap, moodSnap, noteSnap, missBy, subMap, taskSnap, careSnap, tcfgSnap, cfgSnap, roleSnap, checkSnap, postSnap, absSnap] = await Promise.all([
+      loadStudents(fresh),
       getDocs(collection(db, 'summaries')),
-      getDocs(collection(db, 'moods')),
-      getDocs(collection(db, 'moodNotes')),
-      getDocs(collection(db, 'missionAttempts')),
-      getDocs(collection(db, 'submissions')),
-      getDocs(collection(db, 'tasks')),
+      from('moods', weeks[1].days[0]),
+      from('moodNotes', weeks[1].days[0]),
+      missionByDay([...weeks[3].days, ...weeks[2].days, ...weeks[1].days, ...weeks[0].days].filter((d) => d <= today), today),
+      loadSubs(fresh),
+      loadTasks(fresh),
       getDocs(collection(db, 'careNotes')),
       getDoc(doc(db, 'settings', 'teacher')),
       getDoc(doc(db, 'settings', 'main')),
       getDocs(collection(db, 'roles')),
-      getDocs(collection(db, 'roleChecks')),
-      getDocs(collection(db, 'posts')),
-      getDocs(collection(db, 'attendance')),
+      from('roleChecks', weeks[3].days[0]),
+      getDocs(query(collection(db, 'posts'), where('at', '>=', atOf(weeks[2].days[0])))),
+      loadAttendance(fresh),
     ]);
     const students = stuSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
     const sums = new Map(sumSnap.docs.map((d) => [d.id, d.data()]));
@@ -56,14 +87,10 @@ export async function renderCare(root) {
 
     // 학생별 날짜 → 값
     const by = () => new Map();
-    const moodBy = by(); const noteBy = by(); const missBy = by(); const roleBy = by(); const postBy = by();
+    const moodBy = by(); const noteBy = by(); const roleBy = by(); const postBy = by();
     const put = (m, sid, date, v) => { const o = m.get(sid) ?? {}; o[date] = v; m.set(sid, o); };
     for (const d of moodSnap.docs) { const m = d.data(); put(moodBy, m.sid, m.date, m.mood); }
     for (const d of noteSnap.docs) { const m = d.data(); put(noteBy, m.sid, m.date, m.text); }
-    for (const d of attSnap.docs) {
-      const a = d.data(); if (!('correct' in a)) continue;
-      const o = missBy.get(a.sid) ?? {}; const c = o[a.date] ?? { n: 0, ok: 0 }; c.n += 1; if (a.correct) c.ok += 1; o[a.date] = c; missBy.set(a.sid, o);
-    }
     for (const d of checkSnap.docs) { const c = d.data(); if (c.status === 'approved') put(roleBy, c.sid, c.date, true); }
     for (const d of postSnap.docs) { const p = d.data(); const date = d.id.slice(d.id.lastIndexOf('_') + 1); put(postBy, p.author, date, p.title ?? true); }
     // 결석한 날은 완료율 계산에서 뺀다(attendance/{날짜}.absent)
@@ -73,7 +100,7 @@ export async function renderCare(root) {
     const present = (sid, days) => days.filter((d) => !noSchool.has(d) && !absentOn.get(d)?.has(sid));
     const roleHolders = new Set(roleSnap.docs.flatMap((d) => d.data().members ?? []));
 
-    const subs = new Map(subSnap.docs.map((d) => [d.id, d.data()]));
+    const subs = subMap; // 오늘 현황·체크판과 함께 쓰는 Map
     const tasks = taskSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.kind === 'homework' && isShown(t));
     const since2w = Date.now() - 14 * 86400000;
 
@@ -138,7 +165,7 @@ export async function renderCare(root) {
 
   async function run(task, done) {
     try { await task(); if (done) toast(done); } catch (e) { console.error(e); toast('안 됐어요.', 'error'); }
-    await load(); draw();
+    await load(); draw(); // 쪽지·메모만 바꾸므로 함께 쓰는 과제·제출 기록은 다시 읽지 않는다
   }
 
   async function sendMessage(body) {

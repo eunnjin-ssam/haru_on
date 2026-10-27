@@ -7,6 +7,7 @@ import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId, weekId, kstNow } from '../common/dates.js';
 import { writingMinOf, charCount } from '../common/defaults.js';
+import { cached, MIN } from '../common/read-cache.js';
 
 const REPORT_REASONS = [['tease', '놀리는 말'], ['swear', '욕설'], ['etc', '기타']];
 const STATUS_LABEL = { hidden: '선생님이 숨긴 글', reported: '신고되어 숨겨진 글' };
@@ -23,6 +24,9 @@ export async function renderWriting(content, student, settings) {
   let view = 'feed';
   let onlyMine = false;
   let data;
+  // 글마다 내가 공감했는지: 한 번 확인한 글은 다시 묻지 않는다(공감은 나만 바꾸므로 그대로 맞다).
+  // 예전엔 글마당을 열거나 공감할 때마다 모든 글에 하나씩 물어봐서 글 수만큼 읽었다.
+  const likedOf = new Map(); // 글 id → true/false
 
   async function load() {
     const [myTodaySnap, draftSnap, publicSnap, mineSnap, studentsSnap] = await Promise.all([
@@ -30,20 +34,21 @@ export async function renderWriting(content, student, settings) {
       getDoc(doc(db, 'drafts', sid)).catch(() => null),
       getDocs(query(collection(db, 'posts'), where('status', '==', 'public'))),
       getDocs(query(collection(db, 'posts'), where('author', '==', sid))),
-      getDocs(collection(db, 'students')),
+      cached('students', () => getDocs(collection(db, 'students')), 30 * MIN),
     ]);
     const map = new Map();
     for (const d of [...publicSnap.docs, ...mineSnap.docs]) map.set(d.id, { id: d.id, ...d.data() });
     const posts = [...map.values()].sort((a, b) => (b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0));
-    const likeSnaps = await Promise.all(posts.map((p) => getDoc(doc(db, 'posts', p.id, 'likes', sid)).catch(() => null)));
-    const likedIds = new Set();
-    posts.forEach((p, i) => { if (likeSnaps[i]?.exists()) likedIds.add(p.id); });
+    // 남의 글만, 아직 모르는 글만 공감 여부를 확인한다(내 글은 공감할 수 없음)
+    const unknown = posts.filter((p) => p.author !== sid && !likedOf.has(p.id));
+    const likeSnaps = await Promise.all(unknown.map((p) => getDoc(doc(db, 'posts', p.id, 'likes', sid)).catch(() => null)));
+    unknown.forEach((p, i) => { if (likeSnaps[i]) likedOf.set(p.id, likeSnaps[i].exists()); });
     data = {
       postedToday: !!myTodaySnap?.exists(),
       draft: draftSnap?.exists() ? draftSnap.data() : null,
       posts,
       names: new Map(studentsSnap.docs.map((d) => [d.id, d.data().name])),
-      liked: likedIds,
+      liked: new Set(posts.filter((p) => likedOf.get(p.id)).map((p) => p.id)),
     };
   }
 
@@ -194,7 +199,8 @@ export async function renderWriting(content, student, settings) {
 
       const actions = h('div', { class: 'pc-actions' },
         h('button', { class: `like${liked ? ' on' : ''}`, disabled: mine || liked, onclick: async () => {
-          try { await like(p); toast('공감했어요'); await reload(); } catch (e) { console.error(e); toast('안 됐어요', 'error'); }
+          // 공감 뒤에는 다시 읽지 않고 이 글만 화면에서 고친다
+          try { await like(p); toast('공감했어요'); likedOf.set(p.id, true); data.liked.add(p.id); p.likes = (p.likes ?? 0) + 1; draw(); } catch (e) { console.error(e); toast('안 됐어요', 'error'); }
         } }, `♥ ${p.likes ?? 0}`),
         h('button', { class: 'linkish', onclick: () => { expanded = !expanded; fill(); } }, expanded ? '접기' : '더 보기'),
         mine ? null : h('button', { class: 'linkish report', onclick: () => reportMenu(p) }, '신고'),

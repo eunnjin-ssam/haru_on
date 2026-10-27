@@ -4,6 +4,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
+import { forgetClass } from './class-data.js';
 import { DEFAULT_SETTINGS, DEFAULT_TEACHER_SETTINGS, writingMinOf } from '../common/defaults.js';
 
 const MENU_KEYS = [['dashboard', '대시보드'], ['writing', '글마당'], ['stories', '약속마당'], ['tasks', '과제마당'], ['myweek', '나의마당'], ['character', '내 캐릭터'], ['shop', '상점']];
@@ -240,7 +241,7 @@ export async function renderSetup(root, { open }) {
         ? ids.map((id) => h('span', { class: 'offday' }, `${id.slice(0, 4)}년 ${label(id)}`,
           h('button', { class: 'pc-del', title: '쉬는 날에서 빼기', onclick: async () => {
             try { await updateDoc(doc(db, 'attendance', id), { noSchool: deleteField() }); toast('뺐어요'); } catch (e) { console.error(e); toast('안 됐어요', 'error'); }
-            refresh();
+            forgetClass('attendance'); refresh();
           } }, '✕')))
         : [h('p', { class: 'muted', style: 'margin:0' }, '아직 없어요.')]));
     }
@@ -251,7 +252,7 @@ export async function renderSetup(root, { open }) {
       if (dow === 0 || dow === 6) { toast('토·일요일은 원래 계산에 안 들어가요. 평일을 골라 주세요.', 'error'); return; }
       try { await setDoc(doc(db, 'attendance', id), { noSchool: true }, { merge: true }); toast(`${label(id)}을 쉬는 날로 넣었어요`); date.value = ''; }
       catch (e) { console.error(e); toast('안 됐어요', 'error'); }
-      refresh();
+      forgetClass('attendance'); refresh();
     } }, '쉬는 날 넣기');
     refresh().catch((e) => console.error(e));
     return fold('쉬는 날',

@@ -5,6 +5,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
+import { forgetClass } from './class-data.js';
 import { isExemptCoupon } from '../common/coupons.js';
 
 // 한 학생이 살 수 있는 횟수: 고르는 칸 → (buyPeriod, buyLimit). 'year'는 buyPeriod 'none' + 횟수(학년 끝까지 통틀어).
@@ -36,6 +37,7 @@ export async function renderPointsAdmin(root) {
 
   async function run(task, done) {
     try { await task(); if (done) toast(done); } catch (e) { console.error(e); toast('안 됐어요.', 'error'); }
+    forgetClass('submissions'); // 면제권 사용 완료가 오늘 현황·체크판에 바로 보이게
     await load(); draw();
   }
 

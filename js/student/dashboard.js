@@ -14,6 +14,7 @@ import { celebrateGoal } from './celebrate.js';
 import { loadWish, wishCard } from './role-wish.js';
 import { treeCard } from './tree.js';
 import { loadAbsentDays, isAbsentTask } from './absent.js';
+import { cached, forget, MIN } from '../common/read-cache.js';
 
 export async function renderDashboard(content, student, settings, { openMission, openTasks }) {
   const sid = student.sid;
@@ -25,11 +26,11 @@ export async function renderDashboard(content, student, settings, { openMission,
     const [summarySnap, mood, roles, attemptSnaps, studentsSnap, goalSnap, msgSnap, taskSnap, subSnap, profSnap] = await Promise.all([
       getDoc(doc(db, 'summaries', sid)), loadMood(sid), loadRoles(sid),
       Promise.all(Array.from({ length: perDay }, (_, i) => getDoc(doc(db, 'missionAttempts', `${sid}_${todayId()}_${i + 1}`)).catch(() => null))),
-      getDocs(collection(db, 'students')),
+      cached('students', () => getDocs(collection(db, 'students')), 30 * MIN),
       getDocs(query(collection(db, 'goals'), where('status', 'in', ['open', 'done']))).catch(() => null),
       getDocs(query(collection(db, 'messages'), where('to', '==', sid))).catch(() => null),
-      getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))).catch(() => null),
-      getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))).catch(() => null),
+      cached(`myTasks:${sid}`, () => getDocs(query(collection(db, 'tasks'), where('targets', 'array-contains', sid))), 3 * MIN).catch(() => null),
+      cached(`mySubs:${sid}`, () => getDocs(query(collection(db, 'submissions'), where('sid', '==', sid))), 3 * MIN).catch(() => null),
       getDoc(doc(db, 'profiles', sid)).catch(() => null),
     ]);
     const wish = await loadWish(sid).catch(() => null);
@@ -68,6 +69,7 @@ export async function renderDashboard(content, student, settings, { openMission,
   async function refresh() { await load(); draw(); }
   async function act(fn) {
     try { await fn(); } catch (e) { console.error(e); toast('안 됐어요. 다시 해 주세요.', 'error'); }
+    forget(`mySubs:${sid}`); // 제출함 등 내가 바꾼 것은 바로 보이게
     await refresh();
   }
 

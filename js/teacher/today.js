@@ -12,6 +12,7 @@ import { loadSettings } from '../common/settings.js';
 import { renderMyWeek } from '../student/myweek.js';
 import { icon } from '../common/icons.js';
 import { loadTerms, currentTerm, nextTerm, daysLeft } from './role-terms.js';
+import { studentsSnap as loadStudents, tasksSnap as loadTasks, subsMap as loadSubs, attendanceSnap as loadAttendance } from './class-data.js';
 
 const NEGATIVE = ['upset', 'angry', 'tired'];
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '');
@@ -26,22 +27,23 @@ export async function renderToday(root, { open }) {
   let onlyTodo = false;
   let data;
 
-  async function load() {
+  // 처음 열 때는 체크판·살핌판과 함께 기억한 학생·과제·제출 기록·결석부(2분)를 쓰고, 여기서 바꾼 뒤에는 fresh로 새로
+  async function load(fresh = false) {
     const today = todayId();
     const recent = [today, dayIdOffset(1), dayIdOffset(2)];
     const [
       studentsSnap, settingsSnap, moodsSnap, notesSnap, attemptsSnap,
       rolesSnap, checksSnap, tasksSnap, subsSnap, recentMoodsSnap,
     ] = await Promise.all([
-      getDocs(collection(db, 'students')),
+      loadStudents(fresh),
       getDoc(doc(db, 'settings', 'main')),
       getDocs(query(collection(db, 'moods'), where('date', '==', today))),
       getDocs(query(collection(db, 'moodNotes'), where('date', '==', today))),
       getDocs(query(collection(db, 'missionAttempts'), where('date', '==', today))),
       getDocs(collection(db, 'roles')),
       getDocs(query(collection(db, 'roleChecks'), where('date', '==', today))),
-      getDocs(collection(db, 'tasks')),
-      getDocs(collection(db, 'submissions')),
+      loadTasks(fresh),
+      loadSubs(fresh),
       getDocs(query(collection(db, 'moods'), where('date', 'in', recent))),
     ]);
 
@@ -67,9 +69,9 @@ export async function renderToday(root, { open }) {
 
     // 과제: 학생별 남은 과제(늦음 포함), 확인 대기 수
     const tasks = tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.kind === 'homework' && isShown(t));
-    const subs = new Map(subsSnap.docs.map((d) => [d.id, d.data()]));
+    const subs = subsSnap; // 함께 쓰는 Map(문서 id → 내용)
     let waiting = 0;
-    for (const s of subsSnap.docs) if (s.data().status === 'submitted') waiting += 1;
+    for (const s of subs.values()) if (s.status === 'submitted') waiting += 1;
 
     // 3일 연속 부정 기분
     const byStudentDay = new Map(); // sid -> {date -> mood}
@@ -92,7 +94,7 @@ export async function renderToday(root, { open }) {
       getDocs(query(collection(db, 'couponUses'), where('status', '==', 'requested'))).catch(() => null),
       getDocs(collection(db, 'privateStories')).catch(() => null),
       loadTerms().catch(() => []),
-      getDocs(collection(db, 'attendance')).catch(() => null),
+      loadAttendance(fresh).catch(() => null),
       getDocs(collection(db, 'roleWishes')).catch(() => null),
       getDocs(collection(db, 'couponIdeas')).catch(() => null), // 상점에 올리거나 지우기 전까지 남아 있음
       getDocs(query(collection(db, 'feedback'), where('status', '==', 'new'))).catch(() => null), // '확인함' 누르기 전
@@ -178,7 +180,7 @@ export async function renderToday(root, { open }) {
 
   async function run(task) {
     try { await task(); } catch (e) { console.error(e); toast('안 됐어요. 다시 해 주세요.', 'error'); }
-    await load(); draw();
+    await load(true); draw();
   }
 
   function statCard(ico, label, done, total, tone) {

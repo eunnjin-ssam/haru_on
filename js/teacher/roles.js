@@ -1,7 +1,7 @@
 // 1인1역 관리: 오늘(상태·대신 승인, 결석 표시는 오늘 현황) / 기록(학생×요일·역할별 완료율·확인 담당 처리 속도) /
 // 2주 교체(희망 받기 → 자동 배정 → 조정 → 확정) / 역할 설정(이름·하는 일·담당 2명·확인 담당·포인트).
 import {
-  collection, doc, getDocs, setDoc, deleteDoc, updateDoc, addDoc, writeBatch, increment, serverTimestamp,
+  collection, doc, getDocs, setDoc, deleteDoc, updateDoc, addDoc, writeBatch, increment, serverTimestamp, query, where,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -25,10 +25,14 @@ export async function renderRoles(root) {
   let editing = null; let weekOffset = 0;
   let draft = null; // 교체 조정 중인 { plan, ranks, checkers }
 
+  // 1인1역 확인 기록은 하루 최대 반 인원만큼 쌓인다. 기록 탭이 보는 주(기본 최근 3주)부터만 읽고,
+  // '◀ 지난주'로 더 앞을 보면 그때 그 주부터 다시 읽는다.
+  let loadedSince = null;
   async function load() {
+    loadedSince = weekInfo(Math.max(2, weekOffset)).days[0];
     const [sSnap, rSnap, cSnap, aSnap, wSnap] = await Promise.all([
       getDocs(collection(db, 'students')), getDocs(collection(db, 'roles')),
-      getDocs(collection(db, 'roleChecks')), getDocs(collection(db, 'attendance')), getDocs(collection(db, 'roleWishes')),
+      getDocs(query(collection(db, 'roleChecks'), where('date', '>=', loadedSince))), getDocs(collection(db, 'attendance')), getDocs(collection(db, 'roleWishes')),
     ]);
     students = sSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
     roles = rSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'ko'));
@@ -150,7 +154,7 @@ export async function renderRoles(root) {
         h('div', { class: 'row', style: 'justify-content:space-between' },
           h('h2', null, `${weekOffset === 0 ? '이번 주' : `${weekOffset}주 전`} 1인1역 (${md(days[0])}~${md(days[4])})`),
           h('div', { class: 'row' },
-            h('button', { class: 'btn secondary small', onclick: () => { weekOffset += 1; draw(); } }, '◀ 지난주'),
+            h('button', { class: 'btn secondary small', onclick: async () => { weekOffset += 1; if (weekInfo(weekOffset).days[0] < loadedSince) await load(); draw(); } }, '◀ 지난주'),
             weekOffset > 0 ? h('button', { class: 'btn secondary small', onclick: () => { weekOffset -= 1; draw(); } }, '다음 주 ▶') : null)),
         h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '✓ 완료 · … 요청중 · ↺ 다시 해줘 · 결 결석 · 쉼 쉬는 날 · · 안 함'),
         h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
@@ -169,7 +173,7 @@ export async function renderRoles(root) {
               h('td', null, need ? h('div', { class: 'mini-bar' }, h('div', { style: `width:${Math.round((ok / need) * 100)}%` }), h('span', null, `${Math.round((ok / need) * 100)}%`)) : '-')))))),
       h('section', { class: 'card' },
         h('h2', null, '확인 담당 처리 속도'),
-        h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '친구가 ‘했어요’를 누른 뒤 확인 담당이 승인(또는 다시 해줘)하기까지 걸린 평균 시간이에요.'),
+        h('p', { class: 'muted small', style: 'margin:-2px 0 8px' }, '친구가 ‘했어요’를 누른 뒤 확인 담당이 승인(또는 다시 해줘)하기까지 걸린 평균 시간이에요(최근 3주).'),
         checkerRows.length === 0 ? h('p', { class: 'muted' }, '확인 담당이 없어요.')
           : h('table', null, h('thead', null, h('tr', null, h('th', null, '확인 담당'), h('th', null, '처리한 수'), h('th', null, '평균 시간'), h('th', null, '지금 대기'))),
             h('tbody', null, ...checkerRows.map((x) => h('tr', null,

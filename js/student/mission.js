@@ -17,11 +17,13 @@ async function loadAttempts(sid, perDay) {
   return snaps.map((s, i) => (s?.exists() ? { n: i + 1, ...s.data() } : null));
 }
 
+// 고른 단원 문제만 읽는다(단원이 30개 이하면 'in' 한 번, 넘으면 30개씩). 문제은행 전체를 읽지 않게.
 async function loadQuestions(units) {
-  const snap = await getDocs(collection(db, 'missionQuestions'));
-  return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((q) => units.includes(q.unit));
+  if (!units.length) return [];
+  const chunks = [];
+  for (let i = 0; i < units.length; i += 30) chunks.push(units.slice(i, i + 30));
+  const snaps = await Promise.all(chunks.map((c) => getDocs(query(collection(db, 'missionQuestions'), where('unit', 'in', c)))));
+  return snaps.flatMap((s) => s.docs.map((d) => ({ id: d.id, ...d.data() })));
 }
 
 // 최근 2주 정답률(채점된 문제가 LOW_MIN개 이상일 때만). 계속 낮으면 그날 첫 문제를 기초로 낸다.
@@ -72,9 +74,12 @@ export async function renderMission(root, student, settings, onBack) {
   let attempts = [];
   let startBasic = false;
 
-  async function reload() {
+  // 문제·최근 정답률은 이 화면을 열 때 한 번만 읽고, 문제를 풀 때마다는 오늘 푼 기록만 다시 읽는다
+  // (예전엔 1문제마다 문제은행 전체와 지금까지 푼 기록 전체를 다시 읽어 읽기 한도를 금방 넘었다)
+  async function loadAll() {
     [questions, attempts, startBasic] = await Promise.all([loadQuestions(units), loadAttempts(sid, perDay), loadRecentLow(sid)]);
   }
+  async function reload() { attempts = await loadAttempts(sid, perDay); }
 
   // 정답이라 가정하고 포인트까지 한 묶음으로 시도. 거부되면 오답 처리. 맞았으면 true.
   async function grade(a) {
@@ -230,7 +235,7 @@ export async function renderMission(root, student, settings, onBack) {
     showResult(a.n, correct);
   }
 
-  await reload();
+  await loadAll();
   if (units.length === 0 || questions.length === 0) {
     shell(h('p', { class: 'banner' }, '아직 기초미션이 준비되지 않았어요. 선생님이 단원과 문제를 준비하면 열려요.'));
     return;

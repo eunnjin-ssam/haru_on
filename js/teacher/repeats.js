@@ -1,7 +1,7 @@
 // 반복 과제: taskRepeats 규칙(매일·요일)으로 tasks/{규칙id}_{날짜}를 미리 만든다.
 // Cloud Functions 없이 돌리려고, 선생님 화면을 열 때마다 오늘부터 AHEAD일치를 채운다(이미 있으면 건너뜀).
 import {
-  collection, doc, getDocs, query, where, writeBatch, Timestamp,
+  collection, doc, getDoc, getDocs, query, where, writeBatch, Timestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { todayId, addDaysId, dowOfId, kstDate } from '../common/dates.js';
@@ -38,17 +38,18 @@ function instance(r, id) {
 export async function ensureRepeatTasks() {
   const repSnap = await getDocs(query(collection(db, 'taskRepeats'), where('active', '==', true)));
   if (repSnap.empty) return 0;
-  const existing = new Set((await getDocs(collection(db, 'tasks'))).docs.map((d) => d.id));
   const today = todayId();
-  const toMake = [];
+  // 만들 차례인 날짜의 과제만 하나씩 있는지 본다(과제 전체를 읽으면 날이 갈수록 읽는 양이 는다)
+  const want = [];
   for (const d of repSnap.docs) {
     const r = { id: d.id, ...d.data() };
     for (let i = 0; i < AHEAD; i++) {
       const id = addDaysId(today, i);
-      const tid = `${r.id}_${id}`;
-      if (occursOn(r, id) && !existing.has(tid)) toMake.push([tid, instance(r, id)]);
+      if (occursOn(r, id)) want.push([`${r.id}_${id}`, r, id]);
     }
   }
+  const have = await Promise.all(want.map(([tid]) => getDoc(doc(db, 'tasks', tid)).then((s) => s.exists())));
+  const toMake = want.filter((_, i) => !have[i]).map(([tid, r, id]) => [tid, instance(r, id)]);
   for (let i = 0; i < toMake.length; i += 400) {
     const b = writeBatch(db);
     for (const [tid, data] of toMake.slice(i, i + 400)) b.set(doc(db, 'tasks', tid), data);

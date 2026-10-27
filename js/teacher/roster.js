@@ -4,6 +4,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
+import { forgetClass } from './class-data.js';
 
 const MANY_DEVICES = 3; // 로그인 기기가 이만큼 넘으면 PIN 유출을 의심해 빨갛게 표시
 const EMPTY_EQUIP ={ hair: null, face: null, top: null, bottom: null, shoes: null, headAcc: null, faceAcc: null };
@@ -81,6 +82,7 @@ export async function renderRoster(root) {
     try {
       await task();
       if (done) toast(done);
+      forgetClass('students'); // 학생 이름·전학 등이 오늘 현황·체크판에 바로 보이게
     } catch (e) {
       console.error(e);
       toast('저장하지 못했어요. 다시 해 주세요.', 'error');

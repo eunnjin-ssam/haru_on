@@ -12,7 +12,19 @@ import { CATALOG } from '../character/catalog.js';
 // 아이템 → 나중에 추가한 색 (2026-10-21: 왕관·천사 링 은색)
 const NEW_COLORS = { crown: ['silver'], halo: ['silver'] };
 
+// 도감에서 상점 맞추기에 쓰는 부분(id·이름·판매 그만둠·나중 색)을 짧은 글자로. 이게 지난번과 같으면
+// 맞출 것이 없으니 상점(items, 100개 넘음)을 읽지 않는다 — 예전엔 선생님 화면을 열 때마다 다 읽었다.
+function catalogSig() {
+  const s = JSON.stringify([Object.entries(CATALOG).map(([id, it]) => [id, it.name, !!it.retired]), NEW_COLORS]);
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) | 0;
+  return `${s.length}:${hash}`;
+}
+const SIG_KEY = 'itemsSyncSig';
+
 export async function ensureItems() {
+  const sig = catalogSig();
+  try { if (localStorage.getItem(SIG_KEY) === sig) return 0; } catch { /* 저장소를 못 쓰면 그냥 맞춘다 */ }
   const snap = await getDocs(collection(db, 'items'));
   if (snap.empty) return 0; // 아직 ‘기본 아이템 넣기’를 안 했으면 선생님이 직접 하도록 둔다
   const have = new Map(snap.docs.map((d) => [d.id, d.data()]));
@@ -32,5 +44,6 @@ export async function ensureItems() {
     if (Object.keys(upd).length) { b.update(doc(db, 'items', id), upd); n += 1; }
   }
   if (n) await b.commit();
+  try { localStorage.setItem(SIG_KEY, sig); } catch { /* 다음에 다시 맞추면 된다 */ }
   return n;
 }
