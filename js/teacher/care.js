@@ -10,6 +10,7 @@ import { MOODS, moodLabel } from '../student/mood.js';
 import { isShown, excusedFor, isExpiredRepeat } from '../common/task-visible.js';
 import { DEFAULT_TEACHER_SETTINGS } from '../common/defaults.js';
 import { studentsSnap as loadStudents, tasksSnap as loadTasks, subsMap as loadSubs, attendanceSnap as loadAttendance } from './class-data.js';
+import { cached, forget, MIN } from '../common/read-cache.js';
 
 const NEG = ['upset', 'angry', 'tired'];
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '·');
@@ -59,20 +60,24 @@ export async function renderCare(root) {
     //  기분·직접 쓴 기분: 최근 2주 / 글마당: 3주(지난 두 주 + 이번 주) / 1인1역·기초미션: 4주(갑작스러운 변화)
     const from = (name, day) => getDocs(query(collection(db, name), where('date', '>=', day)));
     const atOf = (day) => Timestamp.fromDate(new Date(`${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}T00:00:00+09:00`));
+    // 살핌판 전용 읽기도 2분 동안은 다시 쓴다(탭을 다시 열 때 안 읽음). 학생 글·기분·기록은
+    // 선생님 살핌판 동작으로 바뀌지 않으니 캐시가 안전하다. summaries·careNotes는 포인트·메모를
+    // 줄 때 forget으로 지워, 다음에 열면 새로 읽는다.
+    const cache = (key, loader) => cached(`care:${key}`, loader, 2 * MIN, { fresh });
     const [stuSnap, sumSnap, moodSnap, noteSnap, missBy, subMap, taskSnap, careSnap, tcfgSnap, cfgSnap, roleSnap, checkSnap, postSnap, absSnap] = await Promise.all([
       loadStudents(fresh),
-      getDocs(collection(db, 'summaries')),
-      from('moods', weeks[1].days[0]),
-      from('moodNotes', weeks[1].days[0]),
-      missionByDay([...weeks[3].days, ...weeks[2].days, ...weeks[1].days, ...weeks[0].days].filter((d) => d <= today), today),
+      cache('summaries', () => getDocs(collection(db, 'summaries'))),
+      cache('moods', () => from('moods', weeks[1].days[0])),
+      cache('moodNotes', () => from('moodNotes', weeks[1].days[0])),
+      cache('missBy', () => missionByDay([...weeks[3].days, ...weeks[2].days, ...weeks[1].days, ...weeks[0].days].filter((d) => d <= today), today)),
       loadSubs(fresh),
       loadTasks(fresh),
-      getDocs(collection(db, 'careNotes')),
+      cache('careNotes', () => getDocs(collection(db, 'careNotes'))),
       getDoc(doc(db, 'settings', 'teacher')),
       getDoc(doc(db, 'settings', 'main')),
-      getDocs(collection(db, 'roles')),
-      from('roleChecks', weeks[3].days[0]),
-      getDocs(query(collection(db, 'posts'), where('at', '>=', atOf(weeks[2].days[0])))),
+      cache('roles', () => getDocs(collection(db, 'roles'))),
+      cache('roleChecks', () => from('roleChecks', weeks[3].days[0])),
+      cache('posts', () => getDocs(query(collection(db, 'posts'), where('at', '>=', atOf(weeks[2].days[0]))))),
       loadAttendance(fresh),
     ]);
     const students = stuSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
@@ -163,9 +168,20 @@ export async function renderCare(root) {
     data = { rows, recent, perDay, moodBy, noteBy, missBy, roleBy, postBy, roleHolders, tasks, subs, writingOn, noSchool, absentOn };
   }
 
-  async function run(task, done) {
-    try { await task(); if (done) toast(done); } catch (e) { console.error(e); toast('안 됐어요.', 'error'); }
-    await load(); draw(); // 쪽지·메모만 바꾸므로 함께 쓰는 과제·제출 기록은 다시 읽지 않는다
+  // 쪽지·포인트·메모는 전체를 다시 읽지 않고, 바뀐 값만 화면 데이터(data.rows)에 바로 고쳐 다시 그린다.
+  // (예전엔 동작마다 moods·roleChecks·posts·summaries… 약 1000건 넘게 다시 읽었다.)
+  async function run(task, done, after) {
+    try { await task(); if (after) after(); if (done) toast(done); }
+    catch (e) { console.error(e); toast('안 됐어요.', 'error'); }
+    draw();
+  }
+
+  // 포인트를 준 학생들의 지갑·누적을 화면에서 바로 반영(지급: 둘 다 +, 지급취소: 둘 다 −, 차감: 지갑만 −)
+  function applyPoints(kind, amount) {
+    const wd = kind === 'give' ? amount : -amount;
+    const td = kind === 'give' ? amount : (kind === 'cancel' ? -amount : 0);
+    for (const r of data.rows) if (selected.has(r.sid)) r.summary = { ...r.summary, wallet: (r.summary.wallet ?? 0) + wd, total: (r.summary.total ?? 0) + td };
+    forget('care:summaries'); // 다음에 살핌판을 열면 새로 읽어 정확히
   }
 
   async function sendMessage(body) {
@@ -186,7 +202,10 @@ export async function renderCare(root) {
     await b.commit();
   }
 
-  const saveMemo = (sid, memo) => run(() => setDoc(doc(db, 'careNotes', sid), { memo }, { merge: true }), '메모를 저장했어요');
+  const saveMemo = (sid, memo) => run(() => setDoc(doc(db, 'careNotes', sid), { memo }, { merge: true }), '메모를 저장했어요', () => {
+    const r = data.rows.find((x) => x.sid === sid); if (r) r.memo = memo;
+    forget('care:careNotes'); // 다음에 열면 새로 읽어 정확히
+  });
 
   // 이름 → 최근 2주 상세(날짜별 기분·기초미션·1인1역·글마당(숨기지 않았을 때)) + 남은 과제 + 메모
   function openDetail(r) {
@@ -229,13 +248,14 @@ export async function renderCare(root) {
     const reason = h('input', { type: 'text', placeholder: '사유(필수)', style: 'flex:1' });
     const needReason = () => { if (!reason.value.trim()) { toast('사유를 써 주세요.', 'error'); return false; } return true; };
     const amount = () => Math.max(1, Number(amt.value) || 0);
+    const doPoints = (kind, done) => { if (!needReason()) return; const a = amount(); const rs = reason.value.trim(); run(() => givePoints(kind, a, rs), done, () => applyPoints(kind, a)); };
     return h('section', { class: 'card care-toolbar' },
       h('h3', null, `${selected.size}명 선택됨`),
       h('div', { class: 'row' }, msg, h('button', { class: 'btn', onclick: () => { if (!msg.value.trim()) { toast('쪽지 내용을 써 주세요.', 'error'); return; } run(() => sendMessage(msg.value.trim()), '쪽지를 보냈어요'); } }, '쪽지 보내기')),
       h('div', { class: 'row' }, h('span', { class: 'muted small' }, '포인트'), amt, reason,
-        h('button', { class: 'btn small', onclick: () => { if (needReason()) run(() => givePoints('give', amount(), reason.value.trim()), '지급했어요'); } }, '지급'),
-        h('button', { class: 'btn secondary small', onclick: () => { if (needReason()) run(() => givePoints('cancel', amount(), reason.value.trim()), '지급 취소했어요'); } }, '지급 취소'),
-        h('button', { class: 'btn danger small', onclick: () => { if (needReason()) run(() => givePoints('deduct', amount(), reason.value.trim()), '차감했어요'); } }, '차감')),
+        h('button', { class: 'btn small', onclick: () => doPoints('give', '지급했어요') }, '지급'),
+        h('button', { class: 'btn secondary small', onclick: () => doPoints('cancel', '지급 취소했어요') }, '지급 취소'),
+        h('button', { class: 'btn danger small', onclick: () => doPoints('deduct', '차감했어요') }, '차감')),
     );
   }
 
