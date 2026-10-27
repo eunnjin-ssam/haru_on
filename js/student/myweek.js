@@ -91,11 +91,22 @@ export async function renderMyWeek(content, student, settings) {
       return `${+d.slice(4, 6)}월 ${+d.slice(6, 8)}일 (${'일월화수목금토'[dt.getUTCDay()]})${d === today ? ' · 오늘' : ''}`;
     };
     const signed = (n) => `${n >= 0 ? '+' : ''}${n}`;
+    // 기초미션은 맞힌 문제마다 +1씩 쌓이니, 하루치를 '기초미션 +N' 한 줄로 합쳐 보여 준다
+    const combineMission = (list) => {
+      const out = []; let mission = null;
+      for (const p of list) {
+        if (p.type === 'mission') {
+          if (!mission) { mission = { reason: '기초미션', type: 'mission', wallet: 0 }; out.push(mission); }
+          mission.wallet += p.wallet ?? 0;
+        } else out.push(p);
+      }
+      return out;
+    };
     const groups = [...byDay.entries()].map(([d, list]) => {
       const sum = list.reduce((s, p) => s + p.wallet, 0);
       return h('details', { class: 'pt-day', open: d === today },
         h('summary', null, h('span', null, dayLabel(d)), h('span', { class: sum >= 0 ? 'plus' : 'minus' }, signed(sum))),
-        h('ul', { class: 'mw-list' }, ...list.map((p) => h('li', null,
+        h('ul', { class: 'mw-list' }, ...combineMission(list).map((p) => h('li', null,
           h('span', null, p.reason || p.type),
           h('span', { class: p.wallet >= 0 ? 'plus' : 'minus' }, signed(p.wallet))))));
     });
