@@ -203,6 +203,9 @@ body { font-size: 17px; }
 
 /* 카드 피드: 넓은 화면에서 여러 열, 좁으면 한 열 */
 .feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+/* 지난 과제: 날짜별 묶음 */
+.task-daygroup { margin-bottom: 20px; }
+.task-dayhead { font-size: 15px; font-weight: 800; color: var(--text); margin: 0 2px 10px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
 .writing, .stories, .tasks { display: flex; flex-direction: column; gap: 18px; }
 .screen > .writing, .screen > .stories, .screen > .tasks, .screen > .myweek { max-width: 1180px; }
 

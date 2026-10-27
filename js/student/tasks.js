@@ -5,7 +5,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
-import { ddayLabel as dday } from '../common/dates.js';
+import { ddayLabel as dday, todayId } from '../common/dates.js';
 import { isShown, isExpiredRepeat } from '../common/task-visible.js';
 import { loadAbsentDays, isAbsentTask } from './absent.js';
 import { cached, forget, MIN } from '../common/read-cache.js';
@@ -130,6 +130,23 @@ export async function renderTasks(content, student, settings) {
     });
   }
 
+  // 지난 과제는 날짜별로 묶어 보여 준다(마감 날짜 기준, 최근 날짜가 위). 날짜 없는 과제는 맨 아래.
+  function pastGroups(list) {
+    const dayOf = (t) => { const ms = t.dueAt?.toMillis?.() ?? t.sub?.lastAt?.toMillis?.() ?? null; return ms == null ? null : todayId(new Date(ms)); };
+    const byDay = new Map();
+    for (const t of list) { const d = dayOf(t); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(t); }
+    const keys = [...byDay.keys()].filter((d) => d != null).sort((a, b) => b.localeCompare(a));
+    if (byDay.has(null)) keys.push(null);
+    const today = todayId();
+    const dayLabel = (d) => {
+      const dt = new Date(Date.UTC(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8)));
+      return `${+d.slice(4, 6)}월 ${+d.slice(6, 8)}일 (${'일월화수목금토'[dt.getUTCDay()]})${d === today ? ' · 오늘' : ''}`;
+    };
+    return keys.map((d) => h('div', { class: 'task-daygroup' },
+      h('div', { class: 'task-dayhead' }, d == null ? '날짜 미정' : dayLabel(d)),
+      h('div', { class: 'feed-grid' }, ...byDay.get(d).map(card))));
+  }
+
   function draw() {
     const TABS = [['todo', '해야 할 과제'], ['sent', '제출한 과제'], ['past', '지난 과제']];
     const counts = { todo: listFor('todo').length, sent: listFor('sent').length, past: listFor('past').length };
@@ -146,7 +163,11 @@ export async function renderTasks(content, student, settings) {
         }, counts[id] ? `${label} ${counts[id]}` : label)))),
       list.length === 0
         ? h('p', { class: 'muted', style: 'padding:20px' }, tab === 'past' ? '최근 1주일 동안 끝난 과제가 없어요.' : '여기에는 과제가 없어요.')
-        : h('div', null, tab === 'past' ? h('p', { class: 'muted small', style: 'margin:0 2px 8px' }, '최근 1주일 동안의 과제만 보여요.') : null, h('div', { class: 'feed-grid' }, ...list.map(card))),
+        : tab === 'past'
+          ? h('div', null,
+            h('p', { class: 'muted small', style: 'margin:0 2px 8px' }, '최근 1주일 동안의 과제만 보여요.'),
+            ...pastGroups(list))
+          : h('div', { class: 'feed-grid' }, ...list.map(card)),
     ));
   }
 
