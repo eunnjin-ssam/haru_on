@@ -13,6 +13,7 @@ import { renderMyWeek } from '../student/myweek.js';
 import { icon } from '../common/icons.js';
 import { loadTerms, currentTerm, nextTerm, daysLeft } from './role-terms.js';
 import { studentsSnap as loadStudents, tasksSnap as loadTasks, subsMap as loadSubs, attendanceSnap as loadAttendance } from './class-data.js';
+import { cached, forget, MIN } from '../common/read-cache.js';
 
 const NEGATIVE = ['upset', 'angry', 'tired'];
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '');
@@ -31,20 +32,22 @@ export async function renderToday(root, { open }) {
   async function load(fresh = false) {
     const today = todayId();
     const recent = [today, dayIdOffset(1), dayIdOffset(2)];
+    // 오늘 현황 전용 읽기도 2분 동안은 다시 쓴다(탭을 다시 열 때 안 읽음). 동작을 하면 바뀐 것만 forget으로 비운다.
+    const C = (key, loader) => cached(`today:${key}`, loader, 2 * MIN, { fresh });
     const [
       studentsSnap, settingsSnap, moodsSnap, notesSnap, attemptsSnap,
       rolesSnap, checksSnap, tasksSnap, subsSnap, recentMoodsSnap,
     ] = await Promise.all([
       loadStudents(fresh),
-      getDoc(doc(db, 'settings', 'main')),
-      getDocs(query(collection(db, 'moods'), where('date', '==', today))),
-      getDocs(query(collection(db, 'moodNotes'), where('date', '==', today))),
-      getDocs(query(collection(db, 'missionAttempts'), where('date', '==', today))),
-      getDocs(collection(db, 'roles')),
-      getDocs(query(collection(db, 'roleChecks'), where('date', '==', today))),
+      C('settings', () => getDoc(doc(db, 'settings', 'main'))),
+      C('moods', () => getDocs(query(collection(db, 'moods'), where('date', '==', today)))),
+      C('moodNotes', () => getDocs(query(collection(db, 'moodNotes'), where('date', '==', today)))),
+      C('missions', () => getDocs(query(collection(db, 'missionAttempts'), where('date', '==', today)))),
+      C('roles', () => getDocs(collection(db, 'roles'))),
+      C('roleChecks', () => getDocs(query(collection(db, 'roleChecks'), where('date', '==', today)))),
       loadTasks(fresh),
       loadSubs(fresh),
-      getDocs(query(collection(db, 'moods'), where('date', 'in', recent))),
+      C('recentMoods', () => getDocs(query(collection(db, 'moods'), where('date', 'in', recent)))),
     ]);
 
     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
@@ -87,17 +90,25 @@ export async function renderToday(root, { open }) {
     });
 
     // 처리할 일: 신고(글·댓글), 쿠폰 요청(구매·사용), 쿠폰 제안, 새 건의, 새 선생님만 보기 이야기
-    const [repPosts, storiesSnap, buyReq, useReq, privSnap, terms, attSnap, wishSnap, ideaSnap, fbSnap] = await Promise.all([
-      getDocs(query(collection(db, 'posts'), where('status', '==', 'reported'))).catch(() => null),
-      getDocs(collection(db, 'stories')).catch(() => null),
-      getDocs(query(collection(db, 'coupons'), where('status', '==', 'pending'))).catch(() => null),
-      getDocs(query(collection(db, 'couponUses'), where('status', '==', 'requested'))).catch(() => null),
-      getDocs(collection(db, 'privateStories')).catch(() => null),
-      loadTerms().catch(() => []),
+    // 처리할 일 배지(이야기·선생님만보기·희망·쿠폰 제안 등)도 2분 캐시 — 열 때마다 컬렉션 전체를 다시 읽지 않게.
+    // 이야기 신고 댓글 수는 이야기마다 조회라 함께 한 번에 세어 캐시한다(storiesInfo).
+    const [repPosts, storiesInfo, buyReq, useReq, privSnap, terms, attSnap, wishSnap, ideaSnap, fbSnap] = await Promise.all([
+      C('repPosts', () => getDocs(query(collection(db, 'posts'), where('status', '==', 'reported'))).catch(() => null)),
+      C('storiesInfo', async () => {
+        const ss = await getDocs(collection(db, 'stories')).catch(() => null);
+        const docs = ss?.docs ?? [];
+        const reviews = docs.filter((d) => d.data().stage === 'promise' && d.data().reviewAt && d.data().reviewAt <= today).length;
+        const counts = await Promise.all(docs.map((d) => getDocs(query(collection(db, 'stories', d.id, 'comments'), where('status', '==', 'reported'))).then((x) => x.size).catch(() => 0)));
+        return { reviews, reportedComments: counts.reduce((a, b) => a + b, 0) };
+      }),
+      C('buyReq', () => getDocs(query(collection(db, 'coupons'), where('status', '==', 'pending'))).catch(() => null)),
+      C('useReq', () => getDocs(query(collection(db, 'couponUses'), where('status', '==', 'requested'))).catch(() => null)),
+      C('priv', () => getDocs(collection(db, 'privateStories')).catch(() => null)),
+      C('terms', () => loadTerms().catch(() => [])),
       loadAttendance(fresh).catch(() => null),
-      getDocs(collection(db, 'roleWishes')).catch(() => null),
-      getDocs(collection(db, 'couponIdeas')).catch(() => null), // 상점에 올리거나 지우기 전까지 남아 있음
-      getDocs(query(collection(db, 'feedback'), where('status', '==', 'new'))).catch(() => null), // '확인함' 누르기 전
+      C('wishes', () => getDocs(collection(db, 'roleWishes')).catch(() => null)),
+      C('ideas', () => getDocs(collection(db, 'couponIdeas')).catch(() => null)), // 상점에 올리거나 지우기 전까지 남아 있음
+      C('feedback', () => getDocs(query(collection(db, 'feedback'), where('status', '==', 'new'))).catch(() => null)), // '확인함' 누르기 전
     ]);
     // 1인1역 교체: 희망 받는 중 / 확정 남음 / 끝나기 3일 전인데 다음 기간 없음
     const cur = currentTerm(terms); const next = nextTerm(terms);
@@ -107,16 +118,14 @@ export async function renderToday(root, { open }) {
     else if (!next && cur && daysLeft(cur) <= 3) roleTerm = { text: `1인1역이 ${daysLeft(cur) < 0 ? '끝났어요' : `${daysLeft(cur)}일 뒤 끝나요`} — 희망 받기를 열까요?`, tone: 'req' };
     const absentOn = new Map((attSnap?.docs ?? []).map((d) => [d.id, new Set(d.data().absent ?? [])]));
     const absent = absentOn.get(today) ?? new Set();
-    const repComments = await Promise.all((storiesSnap?.docs ?? []).map((d) =>
-      getDocs(query(collection(db, 'stories', d.id, 'comments'), where('status', '==', 'reported'))).then((x) => x.size).catch(() => 0)));
     const todo = {
       reportedPosts: repPosts?.size ?? 0,
-      reportedComments: repComments.reduce((a, b) => a + b, 0),
+      reportedComments: storiesInfo.reportedComments,
       coupons: (buyReq?.size ?? 0) + (useReq?.size ?? 0),
       ideas: ideaSnap?.size ?? 0,
       feedback: fbSnap?.size ?? 0,
       privates: (privSnap?.docs ?? []).filter((d) => !d.data().seenAt).length,
-      reviews: (storiesSnap?.docs ?? []).filter((d) => d.data().stage === 'promise' && d.data().reviewAt && d.data().reviewAt <= today).length,
+      reviews: storiesInfo.reviews,
     };
 
     data = { today, perDay, settings, students, moods, notes, mission, roles, checks, tasks, subs, waiting, streak, todo, roleTerm, absent, absentOn };
@@ -178,9 +187,11 @@ export async function renderToday(root, { open }) {
     await b.commit();
   }
 
-  async function run(task) {
-    try { await task(); } catch (e) { console.error(e); toast('안 됐어요. 다시 해 주세요.', 'error'); }
-    await load(true); draw();
+  // 전체를 다시 읽지 않고, 동작이 바꾼 캐시만 비운 뒤 다시 읽는다(나머지는 캐시 그대로).
+  async function run(task, ...forgetKeys) {
+    try { await task(); } catch (e) { console.error(e); toast('안 됐어요. 다시 해 주세요.', 'error'); return; }
+    forget(...forgetKeys);
+    await load(); draw();
   }
 
   function statCard(ico, label, done, total, tone) {
@@ -247,11 +258,11 @@ export async function renderToday(root, { open }) {
 
     const roleCell = rs.kind === 'req'
       ? h('td', null, ...rs.requests.map(({ role, check }) =>
-        h('button', { class: 'btn small', title: '대신 승인', onclick: () => run(() => approveFor(s.sid, { role, check })) }, `승인: ${role.name}`)))
+        h('button', { class: 'btn small', title: '대신 승인', onclick: () => run(() => approveFor(s.sid, { role, check }), 'today:roleChecks') }, `승인: ${role.name}`)))
       : rs.kind === 'todo'
         ? h('td', null, ...rs.todo.map(({ role, check }) => h('button', {
           class: 'btn secondary small', title: '학생이 안 눌렀어도 선생님이 보고 완료 처리 (+포인트)',
-          onclick: () => { if (confirm(`${s.name}의 ‘${role.name}’을 완료 처리할까요? (+${role.points})`)) run(() => approveFor(s.sid, { role, check })); },
+          onclick: () => { if (confirm(`${s.name}의 ‘${role.name}’을 완료 처리할까요? (+${role.points})`)) run(() => approveFor(s.sid, { role, check }), 'today:roleChecks'); },
         }, `완료 처리: ${role.name}`)))
         : h('td', { class: `role-${rs.kind}` }, rs.label);
 
@@ -274,7 +285,7 @@ export async function renderToday(root, { open }) {
         b.set(doc(db, 'attendance', data.today), { absent: op(s.sid) }, { merge: true });
         b.set(doc(db, 'absences', s.sid), { days: op(data.today) }, { merge: true });
         await b.commit();
-      }),
+      }, 't:attendance'),
     }, isAbs ? '결석 취소' : '결석'));
     const nameCell = h('td', null, h('button', { class: 'linkish', title: '이 학생의 나의마당 보기', onclick: () => openMyWeek(s) }, s.name));
     if (isAbs) {
