@@ -9,6 +9,8 @@ import { todayId, weekInfo } from '../common/dates.js';
 import {
   loadTerms, currentTerm, nextTerm, nextMonday, twoWeeksFrom, daysLeft, autoAssign, pickCheckers, summary, applyTerm,
 } from './role-terms.js';
+import { studentsSnap as loadStudents, attendanceSnap as loadAttendance } from './class-data.js';
+import { cached, forget, MIN } from '../common/read-cache.js';
 
 const TABS = [['today', '오늘'], ['record', '기록'], ['term', '2주 교체'], ['setup', '역할 설정']];
 const WD = ['월', '화', '수', '목', '금'];
@@ -28,18 +30,24 @@ export async function renderRoles(root) {
   // 1인1역 확인 기록은 하루 최대 반 인원만큼 쌓인다. 기록 탭이 보는 주(기본 최근 3주)부터만 읽고,
   // '◀ 지난주'로 더 앞을 보면 그때 그 주부터 다시 읽는다.
   let loadedSince = null;
+  // 학생·결석부는 오늘 현황·체크판·살핌판과 함께 쓰는 캐시(class-data)를, 역할·확인·희망·기간은 1인1역 전용
+  // 캐시(roles:, 2분)를 쓴다. 탭을 다시 열 때 안 읽고, 동작을 하면 run()이 roles: 캐시를 비워 새로 읽는다.
   async function load() {
     loadedSince = weekInfo(Math.max(2, weekOffset)).days[0];
+    const C = (key, loader) => cached(`roles:${key}`, loader, 2 * MIN);
     const [sSnap, rSnap, cSnap, aSnap, wSnap] = await Promise.all([
-      getDocs(collection(db, 'students')), getDocs(collection(db, 'roles')),
-      getDocs(query(collection(db, 'roleChecks'), where('date', '>=', loadedSince))), getDocs(collection(db, 'attendance')), getDocs(collection(db, 'roleWishes')),
+      loadStudents(),
+      C('roles', () => getDocs(collection(db, 'roles'))),
+      C(`checks:${loadedSince}`, () => getDocs(query(collection(db, 'roleChecks'), where('date', '>=', loadedSince)))),
+      loadAttendance(),
+      C('wishes', () => getDocs(collection(db, 'roleWishes'))),
     ]);
     students = sSnap.docs.map((d) => ({ sid: d.id, ...d.data() })).filter((s) => s.active).sort((a, b) => a.number - b.number);
     roles = rSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'ko'));
     checks = cSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     absent = new Map(aSnap.docs.map((d) => [d.id, new Set(d.data().absent ?? [])]));
     noSchool = new Set(aSnap.docs.filter((d) => d.data().noSchool === true).map((d) => d.id)); // 쉬는 날(반 전체)
-    terms = await loadTerms();
+    terms = await C('terms', () => loadTerms());
     wishes = new Map();
     for (const d of wSnap.docs) {
       const w = d.data();
@@ -47,7 +55,8 @@ export async function renderRoles(root) {
     }
   }
   async function run(task, done) {
-    try { await task(); if (done) toast(done); } catch (e) { console.error(e); toast('저장하지 못했어요.', 'error'); }
+    try { await task(); if (done) toast(done); } catch (e) { console.error(e); toast('저장하지 못했어요.', 'error'); return; }
+    forget('roles:'); // 역할·확인·희망·기간을 바꿨으니 1인1역 캐시를 비워 새로 읽는다
     await load(); draw();
   }
 
