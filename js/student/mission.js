@@ -18,23 +18,45 @@ async function loadAttempts(sid, perDay) {
 }
 
 // 고른 단원 문제만 읽는다(단원이 30개 이하면 'in' 한 번, 넘으면 30개씩). 문제은행 전체를 읽지 않게.
+// 문제 내용은 거의 안 바뀌니, 같은 단원 묶음은 이 컴퓨터에 저장해 두고 다시 안 읽는다.
+// (선생님이 단원을 바꾸면 묶음이 달라져 새로 읽는다. 문제은행을 다시 가져와 내용을 바꿨다면 그 기기에서 저장소를 지워야 새로 읽힌다.)
 async function loadQuestions(units) {
   if (!units.length) return [];
+  const key = `missQ:${units.slice().sort().join(',')}`;
+  try { const v = localStorage.getItem(key); if (v) return JSON.parse(v); } catch { /* 저장소를 못 쓰면 읽는다 */ }
   const chunks = [];
   for (let i = 0; i < units.length; i += 30) chunks.push(units.slice(i, i + 30));
   const snaps = await Promise.all(chunks.map((c) => getDocs(query(collection(db, 'missionQuestions'), where('unit', 'in', c)))));
-  return snaps.flatMap((s) => s.docs.map((d) => ({ id: d.id, ...d.data() })));
+  const questions = snaps.flatMap((s) => s.docs.map((d) => ({ id: d.id, ...d.data() })));
+  try { localStorage.setItem(key, JSON.stringify(questions)); } catch { /* 너무 크면 저장 안 하고 넘어간다 */ }
+  return questions;
 }
 
 // 최근 2주 정답률(채점된 문제가 LOW_MIN개 이상일 때만). 계속 낮으면 그날 첫 문제를 기초로 낸다.
+// 예전엔 그 학생의 기초미션 기록을 전부 읽어 학기가 쌓일수록 커졌다. 지난날 기록은 다시 바뀌지 않으니
+// 날짜별 '푼 수·맞힌 수'만 이 컴퓨터에 저장하고, 처음 보는 날만 그날 풀이(최대 perDay건)를 읽는다.
 const LOW_MIN = 10; const LOW_RATE = 0.5;
-async function loadRecentLow(sid) {
+const DAY_KEY = (sid, d) => `missDay:${sid}:${d}`;
+async function loadRecentLow(sid, perDay) {
   try {
-    const since = addDaysId(todayId(), -14);
-    const snap = await getDocs(query(collection(db, 'missionAttempts'), where('sid', '==', sid)));
-    const graded = snap.docs.map((d) => d.data()).filter((a) => a.date >= since && a.date < todayId() && 'correct' in a);
-    if (graded.length < LOW_MIN) return false;
-    return graded.filter((a) => a.correct).length / graded.length < LOW_RATE;
+    const today = todayId();
+    const days = Array.from({ length: 14 }, (_, i) => addDaysId(today, -(i + 1))); // 어제 ~ 14일 전
+    const counts = new Map(); const need = [];
+    for (const d of days) {
+      try { const v = localStorage.getItem(DAY_KEY(sid, d)); if (v) { counts.set(d, JSON.parse(v)); continue; } } catch { /* 저장소를 못 쓰면 읽는다 */ }
+      need.push(d);
+    }
+    for (const d of need) {
+      const snaps = await Promise.all(Array.from({ length: perDay }, (_, i) => getDoc(doc(db, 'missionAttempts', `${sid}_${d}_${i + 1}`)).catch(() => null)));
+      let n = 0; let ok = 0;
+      for (const s of snaps) { if (s?.exists()) { const a = s.data(); if ('correct' in a) { n += 1; if (a.correct) ok += 1; } } }
+      const v = { n, ok }; counts.set(d, v);
+      try { localStorage.setItem(DAY_KEY(sid, d), JSON.stringify(v)); } catch { /* 다음에 다시 읽으면 된다 */ }
+    }
+    let graded = 0; let correct = 0;
+    for (const v of counts.values()) { graded += v.n; correct += v.ok; }
+    if (graded < LOW_MIN) return false;
+    return correct / graded < LOW_RATE;
   } catch { return false; }
 }
 
@@ -77,7 +99,7 @@ export async function renderMission(root, student, settings, onBack) {
   // 문제·최근 정답률은 이 화면을 열 때 한 번만 읽고, 문제를 풀 때마다는 오늘 푼 기록만 다시 읽는다
   // (예전엔 1문제마다 문제은행 전체와 지금까지 푼 기록 전체를 다시 읽어 읽기 한도를 금방 넘었다)
   async function loadAll() {
-    [questions, attempts, startBasic] = await Promise.all([loadQuestions(units), loadAttempts(sid, perDay), loadRecentLow(sid)]);
+    [questions, attempts, startBasic] = await Promise.all([loadQuestions(units), loadAttempts(sid, perDay), loadRecentLow(sid, perDay)]);
   }
   async function reload() { attempts = await loadAttempts(sid, perDay); }
 
