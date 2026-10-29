@@ -633,6 +633,20 @@ describe('캐릭터·칭호', () => {
     await assertSucceeds(b.commit());
     await assertFails(setDoc(doc(db, 'ownedItems/s1_crown_gold2'), own));
   });
+  it('색이 기본 하나뿐인 파는 아이템(표정 등)은 _default로 사고 입는다(_free는 안 됨)', async () => {
+    await setDoc(doc(teacher(env), 'items/faceWink'), { category: 'face', name: '윙크', prices: { default: 15 }, onSale: true, starter: false });
+    const db = await login(env, '1');
+    const own = { sid: 's1', item: 'faceWink', category: 'face', color: 'default', at: serverTimestamp() };
+    const free = writeBatch(db);
+    free.set(doc(db, 'ownedItems/s1_faceWink_free'), own);
+    addTx(free, db, 'item_s1_faceWink_free', tx('s1', 'item', -15, 0, 's1_faceWink_free'));
+    await assertFails(free.commit());
+    const b = writeBatch(db);
+    b.set(doc(db, 'ownedItems/s1_faceWink_default'), own);
+    addTx(b, db, 'item_s1_faceWink_default', tx('s1', 'item', -15, 0, 's1_faceWink_default'));
+    await assertSucceeds(b.commit());
+    await assertSucceeds(updateDoc(doc(db, 'profiles/s1'), { 'equip.face': { owned: 's1_faceWink_default', item: 'faceWink', color: 'default' } }));
+  });
   it('가진 아이템만 착용할 수 있다', async () => {
     const db = await login(env, '1');
     await setDoc(doc(db, 'ownedItems/s1_hairBasic_free'), free);

@@ -62,7 +62,9 @@ export async function renderCharacter(content, student, settings) {
     if (Object.keys(fill).length) { await updateDoc(doc(db, 'profiles', sid), fill); await load(); }
   }
 
-  const ownedId = (item, color) => (color === 'default' ? `${sid}_${item}_free` : `${sid}_${item}_${color}`);
+  // 처음부터 주는 기본 아이템의 '기본' 색만 _free. 표정·반창고처럼 색이 '기본' 하나뿐인 파는 아이템은
+  // 산 것이라 _default로 저장해야 보안 규칙(ownItemOK)이 받아 준다(예전엔 _free로 써서 구매가 막혔다).
+  const ownedId = (item, color) => (color === 'default' && CATALOG[item]?.starter ? `${sid}_${item}_free` : `${sid}_${item}_${color}`);
   const owns = (item, color) => data.owned.has(ownedId(item, color));
   const colorsOf = (item) => data.items.get(item)?.prices ?? CATALOG[item].prices;
   const priceOf = (item, color) => colorsOf(item)[color];
