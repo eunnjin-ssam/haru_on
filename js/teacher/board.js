@@ -447,13 +447,28 @@ export async function renderBoard(root, { open }) {
     return ms != null && ms < Date.now() - OLD_DAYS * 86400000;
   }
 
+  // 과제의 기준 시각(마감 → 없으면 보이기 시작한 때 → 올린 날 23:59)
+  function taskMs(t) {
+    const due = t.dueAt?.toMillis?.();
+    if (due != null) return due;
+    return t.showAt?.toMillis?.()
+      ?? (t.postDay ? Date.parse(`${t.postDay.slice(0, 4)}-${t.postDay.slice(4, 6)}-${t.postDay.slice(6, 8)}T23:59:00+09:00`) : null);
+  }
+
+  // '지난 과제 보기'로 펼쳐도 최근 1주일치만 보여 준다(더 오래된 건 접은 채로 둔다)
+  function isRecentOld(t) {
+    if (!isOld(t)) return false;
+    const ms = taskMs(t);
+    return ms != null && ms >= Date.now() - 7 * 86400000;
+  }
+
   function homeworkGrid() {
     const all = tasks.filter((t) => t.kind === 'homework');
     if (all.length === 0) return h('p', { class: 'muted' }, '아직 과제가 없어요. 아래 ‘새 과제’로 만들어 주세요.');
-    const oldN = all.filter(isOld).length;
-    const list = showOld ? all : all.filter((t) => !isOld(t));
+    const oldN = all.filter(isRecentOld).length;
+    const list = all.filter((t) => !isOld(t) || (showOld && isRecentOld(t)));
     const foldBtn = oldN ? h('button', { class: 'btn secondary small', style: 'margin-top:8px', onclick: () => { showOld = !showOld; draw(); } },
-      showOld ? '지난 과제 접기' : `지난 과제 ${oldN}개 보기 (마감 지남)`) : null;
+      showOld ? '지난 과제 접기' : `지난 과제 ${oldN}개 보기 (최근 1주일)`) : null;
     return h('div', null, h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
       h('thead', null, h('tr', null,
         h('th', { class: 'stick' }, '과제'),
@@ -504,8 +519,8 @@ export async function renderBoard(root, { open }) {
 
   function checkGrid() {
     const allChecks = tasks.filter((t) => t.kind === 'check');
-    const oldChecks = allChecks.filter(isOld).length;
-    const list = allChecks.filter((t) => showOld || !isOld(t));
+    const oldChecks = allChecks.filter(isRecentOld).length;
+    const list = allChecks.filter((t) => !isOld(t) || (showOld && isRecentOld(t)));
     return h('section', { class: 'card' },
       h('h2', null, '선생님 확인용 (회신 등)'),
       h('p', { class: 'muted' }, '포인트 없이 회신만 표시해요. 과제마당에는 보이지 않아요.'),
@@ -530,7 +545,7 @@ export async function renderBoard(root, { open }) {
           leftRow(list, '미회신', (st) => st !== 'done'),
         )),
       oldChecks ? h('button', { class: 'btn secondary small', style: 'margin-top:8px', onclick: () => { showOld = !showOld; draw(); } },
-        showOld ? '지난 항목 접기' : `지난 항목 ${oldChecks}개 보기 (마감 지남)`) : null,
+        showOld ? '지난 항목 접기' : `지난 항목 ${oldChecks}개 보기 (최근 1주일)`) : null,
     );
   }
 
