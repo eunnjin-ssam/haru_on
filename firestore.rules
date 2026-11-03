@@ -354,6 +354,8 @@ service cloud.firestore {
       allow read: if isStudent();
       allow create: if isStudent() && roleRequestOK(id);
       allow update: if isStudent() && (roleReRequestOK() || roleDecideOK(id));
+      // 잘못 누른 '했어요' 취소: 아직 승인 전(requested)인 내 요청만. 포인트는 승인 때 생기므로 되돌릴 게 없다.
+      allow delete: if isStudent() && resource.data.sid == me() && resource.data.status == 'requested';
       allow read, write: if isTeacher();
     }
     function roleRequestOK(id) {

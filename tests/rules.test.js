@@ -294,6 +294,24 @@ describe('1인1역', () => {
     await assertSucceeds(updateDoc(doc(db1, `roleChecks/${rid()}`), { status: 'requested', by: 's1', at: serverTimestamp() }));
     await assertSucceeds(approve(db2, 's2'));
   });
+  it('잘못 누른 요청(requested)은 본인이 취소(삭제)할 수 있다', async () => {
+    const db1 = await login(env, '1');
+    await request(db1);
+    await assertSucceeds(deleteDoc(doc(db1, `roleChecks/${rid()}`)));
+  });
+  it('남의 요청은 지울 수 없다', async () => {
+    const db1 = await login(env, '1');
+    await request(db1);
+    const db3 = await login(env, '3');
+    await assertFails(deleteDoc(doc(db3, `roleChecks/${rid()}`)));
+  });
+  it('승인된 요청은 학생이 지울 수 없다', async () => {
+    const db1 = await login(env, '1');
+    await request(db1);
+    const db2 = await login(env, '2');
+    await assertSucceeds(approve(db2, 's2'));
+    await assertFails(deleteDoc(doc(db1, `roleChecks/${rid()}`)));
+  });
   it('희망은 받기 기간에만 낼 수 있다', async () => {
     const db1 = await login(env, '1');
     await assertSucceeds(setDoc(doc(db1, 'roleWishes/term1_s1'), { sid: 's1', term: 'term1', picks: ['r1'], at: serverTimestamp() }));

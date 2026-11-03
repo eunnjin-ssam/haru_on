@@ -79,7 +79,9 @@ body { font-size: 17px; }
 .card h2 + .todo, .card h2 + .done, .card h2 + .request-row { border-top: 0; }
 .todo-l { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .todo-ico { width: 34px; height: 34px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 18px; flex: 0 0 auto; }
-.todo .state { color: var(--muted); font-size: 15px; }
+.todo .state, .done .state { color: var(--muted); font-size: 15px; }
+/* '오늘 한 일'에서 상태 글자 옆에 취소 버튼을 나란히 */
+.done-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .done .got { color: var(--ok); font-weight: 800; background: var(--ok-soft); border-radius: 999px; padding: 3px 12px; }
 .done-wait .todo-ico { opacity: .55; }
 .todo.is-done .todo-l { color: var(--muted); }

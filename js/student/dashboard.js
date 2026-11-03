@@ -1,12 +1,12 @@
 // 학생 대시보드: 지갑과 오늘 할 일을 먼저, 아래에 공동 목표 보태기까지.
 import {
-  doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, writeBatch, increment, serverTimestamp,
+  doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, deleteDoc, writeBatch, increment, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
 import { todayId, ddayLabel as dday } from '../common/dates.js';
 import { loadMood, renderMood, moodLabel } from './mood.js';
-import { loadRoles, requestRole, approveRole, redoRole } from './roles.js';
+import { loadRoles, requestRole, approveRole, redoRole, cancelRole } from './roles.js';
 import { isShown, isExpiredRepeat } from '../common/task-visible.js';
 import { lookOf } from '../character/catalog.js';
 import { drawFront } from '../character/voxel2d.js';
@@ -178,12 +178,30 @@ export async function renderDashboard(content, student, settings, { openMission,
     const doneRow = (ico, label, right) => h('div', { class: 'done' }, h('span', { class: 'todo-l' }, h('span', { class: 'todo-ico' }, ico), h('span', null, label)), right);
     for (const { role, status } of data.roles.mine) {
       if (status === 'approved') rows.push(doneRow('🧹', role.name, h('span', { class: 'got' }, `+${role.points}`)));
-      else if (status === 'requested') rows.push(doneRow('🧹', role.name, h('span', { class: 'state' }, '확인 기다리는 중…')));
+      // 잘못 눌렀으면 승인 전까지 취소할 수 있다(다시 '했어요' 상태로)
+      else if (status === 'requested') rows.push(doneRow('🧹', role.name, h('span', { class: 'done-right' },
+        h('span', { class: 'state' }, '확인 기다리는 중…'),
+        h('button', { class: 'btn secondary small', onclick: () => {
+          if (!confirm(`'${role.name}' 요청을 취소할까요?`)) return;
+          act(() => cancelRole(sid, role.id));
+        } }, '취소'))));
     }
-    // 오늘 낸 과제: 냈다는 표시(선생님이 확인했으면 '확인 완료')
+    // 오늘 낸 과제: 냈다는 표시(선생님이 확인했으면 '확인 완료'). 확인 전이면 잘못 누른 제출을 여기서도 취소
     for (const { t, sub } of data.doneToday) {
-      rows.push(doneRow(t.kind === 'check' ? '📄' : '📋', t.title,
-        sub.status === 'done' ? h('span', { class: 'got' }, '✓ 확인 완료') : h('span', { class: 'got sent' }, '✓ 냈어요')));
+      const canCancel = t.kind === 'homework' && sub.status === 'submitted';
+      const right = sub.status === 'done'
+        ? h('span', { class: 'got' }, '✓ 확인 완료')
+        : canCancel
+          ? h('span', { class: 'done-right' },
+            h('span', { class: 'got sent' }, '✓ 냈어요'),
+            h('button', { class: 'btn secondary small', onclick: () => {
+              const pastDue = t.dueAt?.toMillis && t.dueAt.toMillis() < Date.now();
+              const warn = t.repeat && pastDue ? '\n마감이 지나서 취소하면 다시 낼 수 없어요.' : '';
+              if (!confirm(`'${t.title}' 제출을 취소할까요?${warn}`)) return;
+              act(() => deleteDoc(doc(db, 'submissions', `${t.id}_${sid}`)));
+            } }, '취소'))
+          : h('span', { class: 'got sent' }, '✓ 냈어요');
+      rows.push(doneRow(t.kind === 'check' ? '📄' : '📋', t.title, right));
     }
     if (rows.length === 0) return h('section', { class: 'card' }, h('h2', null, '오늘 한 일'), h('p', { class: 'empty' }, '아직 없어요. 위에서 하나씩 해봐요!'));
     return h('section', { class: 'card' }, h('h2', null, '오늘 한 일'), ...rows);
