@@ -190,6 +190,12 @@ table.board thead .stick { background: var(--bg); }
 table.board .taskname { vertical-align: top; }
 .small { font-size: 12px; }
 .cell { width: 34px; height: 40px; padding: 0; }
+/* 체크판: 본문 너비 제한(1120px)을 풀어 넓은 화면에선 옆으로 밀지 않고 반 전체가 보이게 */
+.content.wide { max-width: none; }
+/* 학생이 낸 칸(● ↺ ✕): 가로로 늘어놓으면 칸이 넓어져서 ●는 위, ↺ ✕는 아래 줄로 */
+table.board td.cell.sub { white-space: normal; line-height: 1; padding: 2px 0; }
+table.board td.cell.sub .dot { display: block; margin: 0 auto; padding: 0; line-height: 1.1; }
+table.board td.cell.sub .redo { padding: 0 1px; font-size: 12px; }
 .cell.blank { cursor: pointer; }
 .cell.blank:hover { background: var(--primary-soft); }
 .cell.off { background: var(--bg); }

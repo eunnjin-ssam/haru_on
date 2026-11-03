@@ -116,6 +116,7 @@ function showApp(user, firstTab) {
 
   async function open(id) {
     for (const [tid, btn] of tabButtons) btn.classList.toggle('on', tid === id);
+    content.classList.toggle('wide', id === 'board'); // 체크판은 학생 열이 많아 화면 너비를 다 쓴다
     pageTitle.textContent = TABS.find((t) => t.id === id)?.label ?? '';
     content.replaceChildren(h('p', { class: 'muted' }, '불러오는 중…'));
     try {
