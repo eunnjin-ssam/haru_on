@@ -209,6 +209,8 @@ export const CATALOG = {
         b(-0.35, 23.0, -0.35, 0.7, 1.4, 0.7, Y), b(-0.9, 23.35, -0.35, 1.8, 0.7, 0.7, Y), // 정수리 큰 별(십자)
       ];
     } },
+  // 대머리: 머리카락을 아예 안 씌운다 → 고른 피부색 그대로의 민머리. 색 선택 없음.
+  hairBald: { category: 'hair', name: '대머리', starter: false, defColor: SKIN, prices: { default: 15 }, boxes: () => [] },
   // 얼굴 (눈·입·볼, 머리 앞면에 또렷이 붙는다. 색은 고정)
   faceSmile: { category: 'face', name: '웃는 눈', starter: true, prices: { default: 0 },
     boxes: () => [
