@@ -48,8 +48,8 @@ export function drawItem(canvas, item, color) {
   if (it.category === 'face' || it.category === 'faceAcc') boxes = [HEAD, ...boxes];
   // 얼굴 색은 모양이 없으니 그 색 얼굴(웃는 눈)로 보여 준다
   if (it.category === 'skin') boxes = [{ ...HEAD, color: it.tone }, ...CATALOG.faceSmile.boxes()];
-  // 대머리처럼 모양이 없는 머리: 민머리 + 웃는 눈으로 보여 준다
-  if (it.category === 'hair' && !boxes.length) boxes = [HEAD, ...CATALOG.faceSmile.boxes()];
+  // 대머리: 머리 + 피부색 정수리 돔 + 웃는 눈으로 보여 준다
+  if (it.bald) boxes = [HEAD, ...boxes, ...CATALOG.faceSmile.boxes()];
   if (!boxes.length) return;
 
   let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity;

@@ -209,8 +209,14 @@ export const CATALOG = {
         b(-0.35, 23.0, -0.35, 0.7, 1.4, 0.7, Y), b(-0.9, 23.35, -0.35, 1.8, 0.7, 0.7, Y), // 정수리 큰 별(십자)
       ];
     } },
-  // 대머리: 머리카락을 아예 안 씌운다 → 고른 피부색 그대로의 민머리. 색 선택 없음.
-  hairBald: { category: 'hair', name: '대머리', starter: false, defColor: SKIN, prices: { default: 15 }, boxes: () => [] },
+  // 대머리: 머리카락 없이 피부색 그대로의 민머리. 정수리는 피부색(SKIN) 돔 블록을 얹어 둥글게 —
+  // buildBoxes가 SKIN 블록을 고른 피부색으로 바꿔 주므로 피부색을 따라간다. 색 선택 없음.
+  hairBald: { category: 'hair', name: '대머리', starter: false, bald: true, defColor: SKIN, prices: { default: 15 },
+    boxes: () => [
+      b(-4.0, 21.3, -3.0, 8.0, 0.7, 6.0, SKIN), // 머리 위 1단(모서리 둥글게)
+      b(-3.0, 22.0, -2.0, 6.0, 0.7, 4.0, SKIN), // 2단
+      b(-1.8, 22.7, -0.8, 3.6, 0.6, 1.6, SKIN), // 정수리 꼭대기
+    ] },
   // 얼굴 (눈·입·볼, 머리 앞면에 또렷이 붙는다. 색은 고정)
   faceSmile: { category: 'face', name: '웃는 눈', starter: true, prices: { default: 0 },
     boxes: () => [
