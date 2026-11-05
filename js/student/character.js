@@ -76,7 +76,9 @@ export async function renderCharacter(content, student, settings) {
   const CAT_ORDER = new Map(Object.keys(CATALOG).map((id, i) => [id, i]));
   const byPrice = (a, b) => basePrice(a) - basePrice(b) || CAT_ORDER.get(a) - CAT_ORDER.get(b);
   const dotHex = (item, c) => (c === 'default' ? (CATALOG[item].defColor ?? COLORS.default) : colorHex(c));
-  const onSaleOf = (id) => { const m = data.items.get(id); return m ? m.onSale !== false : true; };
+  // 상점(items)에 아직 없는 새 아이템은 보이지 않는다 — 선생님 화면을 열어 상점에 넣기 전에는
+  // 보안 규칙이 가격을 확인할 수 없어 사려고 해도 '안 됐어요'만 떴다(예: 새로 넣은 대머리)
+  const onSaleOf = (id) => { const m = data.items.get(id); return !!m && m.onSale !== false; };
   const ownsAny = (id) => Object.keys(colorsOf(id)).some((c) => owns(id, c));
   function firstColor(item) {
     const cs = Object.keys(colorsOf(item));
