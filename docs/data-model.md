@@ -48,7 +48,7 @@
 | taskRepeats 🔒 | 자동 | 반복 규칙: kind, title, desc, subject, submitType, points, targets, notify, mode(daily/days), days[1=월…7=일], dueTime('HH:MM'), leadDays, startDate, endDate, skip[날짜], active, createdAt. 선생님 화면을 열 때 오늘부터 2주치 tasks를 미리 만든다 |
 | submissions | 과제_학생 | task, sid, status(submitted/done/redo/exempt), text, firstAt, lastAt (+교사: comment) |
 | shopItems | 자동 | name, desc, price, instant, buyLimit(0=무제한), buyPeriod(week/month/none), dailyUse(0=무제한), onSale, order |
-| coupons | 학생_쿠폰_기간_번호 | sid, coupon, period, n, status(pending/owned/useRequested/used/rejected), price, use, at |
+| coupons | 학생_쿠폰_기간_번호 (선생님 선물: gift_학생_쿠폰_시각) | sid, coupon, period, n, status(pending/owned/useRequested/used/rejected), price, use, at. 선물은 period 'gift', n 0, price 0, gift, reason, name, dailyUse, exempt 추가 |
 | couponUses | 쿠폰_날짜_1~한도 / u_쿠폰id | sid, coupon, type, date, n, task, status, at |
 | couponIdeas | 학생_주_1~2 | sid, week, n, what, price, why, at |
 | goals | 자동 | title, target, reward, raised, donors, status(open/done/closed), lastTx |

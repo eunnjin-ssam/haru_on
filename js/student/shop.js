@@ -114,7 +114,9 @@ export async function renderShop(content, student, settings) {
   }
 
   async function use(coupon) {
-    const item = data.items.find((i) => i.id === coupon.coupon) ?? { dailyUse: 0, name: coupon.coupon };
+    // 선생님이 선물한 쿠폰은 상점에서 내린 것이어도 쓸 수 있게 쿠폰에 적힌 이름 등을 쓴다
+    const item = data.items.find((i) => i.id === coupon.coupon)
+      ?? { id: coupon.coupon, dailyUse: coupon.dailyUse ?? 0, name: coupon.name ?? coupon.coupon, exempt: coupon.exempt };
     let task = null;
     if (isExemptCoupon(item)) { task = await pickTask(); if (!task) return; }
     try {
@@ -157,7 +159,7 @@ export async function renderShop(content, student, settings) {
   function myCoupons() {
     const owned = data.coupons.filter((c) => c.status === 'owned');
     const waiting = data.coupons.filter((c) => c.status === 'pending' || c.status === 'useRequested');
-    const nameOf = (c) => data.items.find((i) => i.id === c.coupon)?.name ?? c.coupon;
+    const nameOf = (c) => (data.items.find((i) => i.id === c.coupon)?.name ?? c.name ?? c.coupon) + (c.gift ? ' 🎁' : '');
     if (owned.length === 0 && waiting.length === 0) return h('p', { class: 'muted' }, '아직 가진 쿠폰이 없어요.');
     return h('div', null,
       ...owned.map((c) => h('div', { class: 'shop-item' },

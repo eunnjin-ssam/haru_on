@@ -541,6 +541,17 @@ describe('상점', () => {
     await assertSucceeds(buyDay(1));
     await assertFails(buyDay(2));
   });
+  it('선생님이 선물한 쿠폰은 쓸 수 있지만, 학생이 선물 쿠폰을 스스로 만들 수는 없다', async () => {
+    await setDoc(doc(teacher(env), 'shopItems/c4'), { name: '선물권', price: 50, instant: false, buyLimit: 1, buyPeriod: 'none', dailyUse: 0, onSale: false });
+    const gift = { sid: 's1', coupon: 'c4', period: 'gift', n: 0, status: 'owned', price: 0, use: null, at: serverTimestamp(), gift: true, reason: '칭찬', name: '선물권', dailyUse: 0, exempt: false };
+    const db = await login(env, '1');
+    await assertFails(setDoc(doc(db, 'coupons/gift_s1_c4_1'), gift));
+    await assertSucceeds(setDoc(doc(teacher(env), 'coupons/gift_s1_c4_1'), gift));
+    const b = writeBatch(db);
+    b.set(doc(db, 'couponUses/u_gift_s1_c4_1'), { sid: 's1', coupon: 'gift_s1_c4_1', type: 'c4', date: T(), n: 0, task: null, status: 'requested', at: serverTimestamp() });
+    b.update(doc(db, 'coupons/gift_s1_c4_1'), { status: 'useRequested', use: 'u_gift_s1_c4_1' });
+    await assertSucceeds(b.commit());
+  });
   it('가격을 깎아서 살 수 없다', async () => {
     const db = await login(env, '1');
     const b = writeBatch(db);

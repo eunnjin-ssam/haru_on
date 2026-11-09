@@ -1,5 +1,5 @@
 // 살핌판: 자기관리 현황 표(살펴볼 점: 마음·과제·활동·갑작스러운 변화, 열 눌러 정렬, 이름 눌러 2주 상세·메모)
-// + 쪽지/포인트(지급·지급취소·차감). 기준은 settings/teacher.care. 학생에게 보이지 않음.
+// + 쪽지/포인트(지급·지급취소·차감)/쿠폰 선물. 기준은 settings/teacher.care. 학생에게 보이지 않음.
 import {
   collection, doc, getDoc, getDocs, setDoc, writeBatch, increment, serverTimestamp, query, where, Timestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
@@ -11,6 +11,7 @@ import { isShown, excusedFor, isExpiredRepeat } from '../common/task-visible.js'
 import { DEFAULT_TEACHER_SETTINGS } from '../common/defaults.js';
 import { studentsSnap as loadStudents, tasksSnap as loadTasks, subsMap as loadSubs, attendanceSnap as loadAttendance } from './class-data.js';
 import { cached, forget, MIN } from '../common/read-cache.js';
+import { isExemptCoupon } from '../common/coupons.js';
 
 const NEG = ['upset', 'angry', 'tired'];
 const moodEmoji = (id) => (id === 'custom' ? '✏️' : MOODS.find((m) => m.id === id)?.emoji ?? '·');
@@ -202,6 +203,24 @@ export async function renderCare(root) {
     await b.commit();
   }
 
+  // 쿠폰 선물: 고른 학생마다 '가진 쿠폰'(값 0)을 하나씩 넣고 쪽지로 알려 준다.
+  // period가 'gift'라 상점 구매 횟수 제한에는 세지 않는다. 상점에서 내린 쿠폰도 학생 화면에 이름이 보이게 이름 등을 같이 적는다.
+  async function giftCoupon(item, reason) {
+    const b = writeBatch(db);
+    for (const sid of selected) {
+      const id = `gift_${sid}_${item.id}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      b.set(doc(db, 'coupons', id), {
+        sid, coupon: item.id, period: 'gift', n: 0, status: 'owned', price: 0, use: null, at: serverTimestamp(),
+        gift: true, reason, name: item.name, dailyUse: item.dailyUse ?? 0, exempt: isExemptCoupon(item),
+      });
+      b.set(doc(collection(db, 'messages')), { to: sid, body: `선생님이 '${item.name}' 쿠폰을 선물했어요! (${reason}) 상점의 '내 쿠폰'에서 볼 수 있어요.`, from: 'teacher', at: serverTimestamp(), readAt: null });
+    }
+    await b.commit();
+  }
+  // 쿠폰 종류는 몇 개 안 되니 한 번 읽어 10분 동안 다시 쓴다
+  const couponTypes = () => cached('care:shopItems', async () => (await getDocs(collection(db, 'shopItems'))).docs
+    .map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 999) - (b.order ?? 999)), 10 * MIN);
+
   const saveMemo = (sid, memo) => run(() => setDoc(doc(db, 'careNotes', sid), { memo }, { merge: true }), '메모를 저장했어요', () => {
     const r = data.rows.find((x) => x.sid === sid); if (r) r.memo = memo;
     forget('care:careNotes'); // 다음에 열면 새로 읽어 정확히
@@ -256,7 +275,28 @@ export async function renderCare(root) {
         h('button', { class: 'btn small', onclick: () => doPoints('give', '지급했어요') }, '지급'),
         h('button', { class: 'btn secondary small', onclick: () => doPoints('cancel', '지급 취소했어요') }, '지급 취소'),
         h('button', { class: 'btn danger small', onclick: () => doPoints('deduct', '차감했어요') }, '차감')),
+      couponRow(),
     );
+  }
+
+  // 쿠폰 선물 줄: 쿠폰 목록은 한 번 읽어 채운다
+  function couponRow() {
+    const pick = h('select', null, h('option', { value: '' }, '쿠폰 고르기'));
+    const why = h('input', { type: 'text', placeholder: '사유(필수, 학생에게 보여요)', style: 'flex:1' });
+    let list = [];
+    couponTypes().then((items) => {
+      list = items;
+      pick.append(...items.map((i) => h('option', { value: i.id }, i.name + (i.onSale === false ? ' (상점에서 내림)' : ''))));
+    }).catch((e) => { console.error(e); toast('쿠폰 목록을 불러오지 못했어요.', 'error'); });
+    const give = () => {
+      const item = list.find((i) => i.id === pick.value);
+      if (!item) { toast('쿠폰을 골라 주세요.', 'error'); return; }
+      if (!why.value.trim()) { toast('사유를 써 주세요.', 'error'); return; }
+      if (!confirm(`${selected.size}명에게 '${item.name}' 쿠폰을 선물할까요?`)) return;
+      run(() => giftCoupon(item, why.value.trim()), '쿠폰을 선물했어요');
+    };
+    return h('div', { class: 'row' }, h('span', { class: 'muted small' }, '쿠폰'), pick, why,
+      h('button', { class: 'btn small', onclick: give }, '선물하기'));
   }
 
   // 열 제목 눌러 정렬(한 번 더 누르면 반대로)
