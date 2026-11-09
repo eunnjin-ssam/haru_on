@@ -104,7 +104,7 @@ export async function renderShop(content, student, settings) {
       const close = (v) => { dlg.remove(); resolve(v); };
       const dlg = h('div', { class: 'sheet' }, h('div', { class: 'sheet-box' },
         h('h3', null, '어떤 과제를 면제받을까요?'),
-        h('p', { class: 'muted small', style: 'margin:0' }, '선생님이 확인하면 그 과제가 면제돼요. (포인트는 없어요)'),
+        h('p', { class: 'muted small', style: 'margin:0' }, '선생님이 확인하면 그 과제가 면제되고, 과제 포인트도 받아요.'),
         ...list.map((t) => h('button', { class: 'fb-choice', onclick: () => close(t.id) },
           h('span', { class: 'fb-emoji' }, '📋'),
           h('div', null, h('div', { class: 'fb-t' }, t.title), h('div', { class: 'muted small' }, t.subject || '')))),

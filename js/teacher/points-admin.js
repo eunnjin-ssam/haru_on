@@ -1,7 +1,7 @@
 // 포인트 관리: 쿠폰 요청(구매 승인/거절·사용 완료/다음에), 학생 제안, 상점 쿠폰 관리.
 // (공동 목표는 goals-admin.js) 포인트 거래는 교사가 쓰며 규칙은 금액을 검사하지 않는다.
 import {
-  collection, doc, getDocs, updateDoc, deleteDoc, writeBatch, increment, serverTimestamp,
+  collection, doc, getDoc, getDocs, updateDoc, deleteDoc, writeBatch, increment, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js';
 import { db } from '../common/firebase.js';
 import { h, toast } from '../common/ui.js';
@@ -15,7 +15,7 @@ const buyText = (i) => (!i.buyLimit ? '제한 없음' : `${BUY_MODES.find(([v]) 
 const useText = (i) => (i.dailyUse ? `하루에 ${i.dailyUse}번` : '제한 없음');
 
 export async function renderPointsAdmin(root) {
-  let items = []; let coupons = []; let uses = []; let ideas = []; let names = new Map(); let taskTitles = new Map();
+  let items = []; let coupons = []; let uses = []; let ideas = []; let names = new Map(); let taskTitles = new Map(); let taskPoints = new Map();
   let editing = null; let showForm = false; let prefill = null;
 
   async function load() {
@@ -33,6 +33,7 @@ export async function renderPointsAdmin(root) {
     ideas = iSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     names = new Map(sSnap.docs.map((d) => [d.id, `${d.data().number}번 ${d.data().name}`]));
     taskTitles = new Map(tSnap.docs.map((d) => [d.id, d.data().title]));
+    taskPoints = new Map(tSnap.docs.map((d) => [d.id, d.data().points ?? 0]));
   }
 
   async function run(task, done) {
@@ -59,9 +60,19 @@ export async function renderPointsAdmin(root) {
     const b = writeBatch(db);
     b.update(doc(db, 'couponUses', u.id), { status: 'used' });
     b.update(doc(db, 'coupons', u.coupon), { status: 'used' });
-    // 과제 면제권: 고른 과제를 '면제'로 (포인트 없음)
+    // 과제 면제권: 고른 과제를 '면제'로 하고, 그 과제를 한 것처럼 과제 포인트도 준다.
+    // 거래 id는 체크판 완료와 같은 task_과제_학생이라 한 과제에 두 번 받을 수 없다(이미 있으면 주지 않음).
     if (u.task) {
-      b.set(doc(db, 'submissions', `${u.task}_${u.sid}`), { task: u.task, sid: u.sid, status: 'exempt', comment: '과제 면제권', lastAt: serverTimestamp() }, { merge: true });
+      const subId = `${u.task}_${u.sid}`;
+      b.set(doc(db, 'submissions', subId), { task: u.task, sid: u.sid, status: 'exempt', comment: '과제 면제권', lastAt: serverTimestamp() }, { merge: true });
+      const p = taskPoints.get(u.task) ?? 0;
+      const txId = `task_${subId}`;
+      if (p > 0 && !(await getDoc(doc(db, 'points', txId))).exists()) {
+        b.set(doc(db, 'points', txId), {
+          sid: u.sid, type: 'task', wallet: p, total: p, reason: `과제 ${taskTitles.get(u.task) ?? ''} (면제권)`, ref: subId, by: 'teacher', at: serverTimestamp(),
+        });
+        b.update(doc(db, 'summaries', u.sid), { wallet: increment(p), total: increment(p), lastTx: txId });
+      }
     }
     await b.commit();
   }
@@ -203,7 +214,7 @@ export async function renderPointsAdmin(root) {
         h('div', { class: 'field' }, h('span', null, '반 전체가 하루에 쓸 수 있는 횟수'),
           h('div', { class: 'row' }, useSel, useCount), useSay,
           h('p', { class: 'muted small', style: 'margin:0' }, '예) 자유자리권을 하루에 2명만 쓰게 하려면 ‘하루에’ + 2번')),
-        h('label', { class: 'pick' }, exempt, '과제 면제권 (쓸 때 학생이 과제를 고르고, ‘사용 완료’하면 그 과제가 ‘면제’돼요)'),
+        h('label', { class: 'pick' }, exempt, '과제 면제권 (쓸 때 학생이 과제를 고르고, ‘사용 완료’하면 그 과제가 ‘면제’되고 과제 포인트도 받아요)'),
         h('label', { class: 'pick' }, onSale, '판매 중'),
         h('div', { class: 'row' },
           h('button', { class: 'btn', onclick: async () => {
