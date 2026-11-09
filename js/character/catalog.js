@@ -459,6 +459,41 @@ export const CATALOG = {
     boxes: (c) => [b(-4.0, 23, -1.8, 2.4, 2.0, 2.4, c), b(-3.5, 24.8, -1.3, 1.5, 1.5, 1.5, c), b(1.6, 23, -1.8, 2.4, 2.0, 2.4, c), b(2.0, 24.8, -1.3, 1.5, 1.5, 1.5, c)] },
   flower: { category: 'headAcc', name: '꽃 장식', starter: false, prices: { pink: 60, red: 60, purple: 60, white: 60, yellow: 60, blue: 60, orange: 60 },
     boxes: (c) => [b(1.1, 23.2, -1.2, 1.3, 1.3, 1.1, c), b(3.0, 23.2, -1.2, 1.3, 1.3, 1.1, c), b(2.05, 24.3, -1.2, 1.3, 1.3, 1.1, c), b(2.05, 22.1, -1.2, 1.3, 1.3, 1.1, c), b(1.95, 23.2, -1.3, 1.5, 1.3, 1.1, '#f7d14b')] },
+  flowerCrown: { category: 'headAcc', name: '꽃 화관', starter: false, prices: { pink: 80, red: 80, purple: 80, yellow: 80, white: 80, skyblue: 80, orange: 80 },
+    boxes: (c) => {
+      const leaf = '#4caf50'; const vine = '#2e8b57'; const mid = '#f7d14b'; const small = c === '#f5f5f5' ? '#ffd1e3' : '#f5f5f5';
+      const Y = 21.1; const cy = Y + 0.35; // 덩굴 띠 높이, 꽃 가운데 높이
+      // 앞·뒤를 보는 꽃(z0 면에 붙음, s = 바깥쪽 방향 -1 앞 / +1 뒤): 꽃잎 4장 + 노란 가운데
+      const fz = (x, z0, s, col, k = 1) => {
+        const p = 0.8 * k; const zz = s < 0 ? z0 - 0.5 : z0;
+        return [b(x - 1.5 * p, cy - p / 2, zz, p, p, 0.5, col), b(x + p / 2, cy - p / 2, zz, p, p, 0.5, col),
+          b(x - p / 2, cy + p / 2, zz, p, p, 0.5, col), b(x - p / 2, cy - 1.5 * p, zz, p, p, 0.5, col),
+          b(x - p / 2, cy - p / 2, zz + 0.1 * s, p, p, 0.5, mid)];
+      };
+      // 옆을 보는 꽃(x0 면에 붙음, s = -1 왼쪽 / +1 오른쪽)
+      const fx = (x0, z, s, col, k = 1) => {
+        const p = 0.8 * k; const xx = s < 0 ? x0 - 0.5 : x0;
+        return [b(xx, cy - p / 2, z - 1.5 * p, 0.5, p, p, col), b(xx, cy - p / 2, z + p / 2, 0.5, p, p, col),
+          b(xx, cy + p / 2, z - p / 2, 0.5, p, p, col), b(xx, cy - 1.5 * p, z - p / 2, 0.5, p, p, col),
+          b(xx + 0.1 * s, cy - p / 2, z - p / 2, 0.5, p, p, mid)];
+      };
+      return [
+        // 머리를 빙 두른 초록 덩굴 띠(앞·뒤·양옆)
+        b(-5.0, Y, -4.1, 10.0, 0.7, 0.6, vine), b(-5.0, Y, 3.5, 10.0, 0.7, 0.6, vine),
+        b(-5.0, Y, -3.5, 0.6, 0.7, 7.0, vine), b(4.4, Y, -3.5, 0.6, 0.7, 7.0, vine),
+        // 앞: 큰 꽃 3송이(고른 색), 사이는 잎
+        ...fz(-3.0, -4.1, -1, c), ...fz(0, -4.1, -1, c, 1.15), ...fz(3.0, -4.1, -1, c),
+        b(-1.85, Y + 0.1, -4.4, 0.5, 0.5, 0.3, leaf), b(1.35, Y + 0.1, -4.4, 0.5, 0.5, 0.3, leaf),
+        // 양옆: 큰 꽃 1송이씩 + 작은 꽃
+        ...fx(-5.0, -1.4, -1, c), ...fx(5.0, -1.4, 1, c), ...fx(-5.0, 1.9, -1, small, 0.75), ...fx(5.0, 1.9, 1, small, 0.75),
+        // 뒤: 꽃 2송이
+        ...fz(-1.8, 4.1, 1, c), ...fz(1.8, 4.1, 1, small, 0.8),
+        // 잎사귀(꽃 사이로 삐죽)
+        b(-4.6, Y + 0.6, -4.3, 0.6, 0.4, 0.3, leaf), b(4.0, Y + 0.6, -4.3, 0.6, 0.4, 0.3, leaf),
+        b(-5.3, Y + 0.5, 0.0, 0.3, 0.4, 0.7, leaf), b(5.0, Y + 0.5, 0.0, 0.3, 0.4, 0.7, leaf),
+        b(-0.3, Y + 0.6, 4.1, 0.6, 0.4, 0.3, leaf),
+      ];
+    } },
   tiara: { category: 'headAcc', name: '다이아몬드 티아라', starter: false, prices: { blue: 280, mint: 280, purple: 280, pink: 280, white: 280 },
     boxes: (c) => [b(-4.4, 20.5, -3.85, 8.8, 0.9, 1.1, c), b(-0.9, 21.3, -3.95, 1.8, 1.3, 0.9, '#8fe3f0'), b(-2.8, 21, -3.9, 1, 0.9, 0.8, '#bfeef7'), b(1.8, 21, -3.9, 1, 0.9, 0.8, '#bfeef7')] },
   headband: { category: 'headAcc', name: '머리띠', starter: false, prices: { pink: 20, red: 20, black: 20, white: 20, yellow: 20, purple: 20, mint: 20, blue: 20 },
