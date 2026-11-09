@@ -520,7 +520,19 @@ export const CATALOG = {
     }) },
   // 얼굴 소품
   glasses: { category: 'faceAcc', name: '안경', starter: false, prices: { black: 25, brown: 25, blue: 25, red: 25, mint: 25, purple: 25 },
-    boxes: (c) => [b(-2.8, 16.6, -3.8, 1.9, 1.5, 0.4, c), b(0.9, 16.6, -3.8, 1.9, 1.5, 0.4, c), b(-0.9, 17.1, -3.8, 1.8, 0.3, 0.4, c)] },
+    // 테두리만 있는 안경: 렌즈 자리를 비워 어느 표정이든 눈이 보이게(눈은 x ±1.4~2.4, y 16.8~18.0).
+    // 예전엔 렌즈를 꽉 찬 판으로 만들어 눈을 가렸다.
+    boxes: (c) => [-1, 1].flatMap((side) => {
+      const x0 = side < 0 ? -3.2 : 0.6; // 렌즈 바깥 왼쪽 끝(렌즈 2.6 × 2.4, 테 0.3)
+      const t = 0.3; const z = -4.15; const d = 0.25;
+      const temple = side < 0 ? -4.65 : 4.4;
+      return [
+        b(x0, 18.2, z, 2.6, t, d, c), b(x0, 16.1, z, 2.6, t, d, c), // 위·아래 테
+        b(x0, 16.1, z, t, 2.4, d, c), b(x0 + 2.6 - t, 16.1, z, t, 2.4, d, c), // 양옆 테
+        b(side < 0 ? -4.65 : 3.2, 17.7, z, 1.45, t, d, c), // 렌즈에서 머리 옆까지
+        b(temple, 17.7, z, 0.25, t, 3.0, c), // 귀로 가는 다리
+      ];
+    }).concat([b(-0.6, 17.4, -4.15, 1.2, 0.3, 0.25, c)]) }, // 코 다리
   mask: { category: 'faceAcc', name: '마스크', starter: false, prices: { white: 20, blue: 20, black: 20, pink: 20, mint: 20, green: 20 },
     boxes: (c) => [b(-3.2, 13.8, -4.2, 6.4, 2.9, 0.7, c)] },
   sunglasses: { category: 'faceAcc', name: '선글라스', starter: false, retired: true, prices: { black: 50, navy: 50, purple: 50, red: 50, pink: 50, orange: 50 },
