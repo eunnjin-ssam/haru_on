@@ -143,10 +143,31 @@ export async function renderPointsAdmin(root) {
   }
 
   function studentCoupons() {
-    const owned = coupons.filter((c) => c.status === 'owned');
+    // 번호순, 같은 학생은 선물 쿠폰을 뒤에
+    const num = (sid) => parseInt(names.get(sid) ?? '', 10) || 999;
+    const owned = coupons.filter((c) => c.status === 'owned').sort((a, b) => num(a.sid) - num(b.sid) || Number(!!a.gift) - Number(!!b.gift));
+    const waitingGifts = coupons.filter((c) => c.gift && c.status === 'useRequested').length;
     return h('section', { class: 'card' }, h('h2', null, '학생별 보유 쿠폰'),
+      h('p', { class: 'muted small', style: 'margin:-2px 0 6px' }, '🎁는 선생님이 살핌판에서 선물한 쿠폰이에요. 아직 안 쓴 선물은 ‘선물 취소’로 거둘 수 있어요.'
+        + (waitingGifts ? ` (학생이 사용 신청한 선물 ${waitingGifts}장은 위 쿠폰 요청에서 ‘다음에’를 누른 뒤 취소할 수 있어요)` : '')),
       owned.length === 0 ? h('p', { class: 'muted' }, '보유 중인 쿠폰이 없어요.')
-        : h('ul', null, ...owned.map((c) => h('li', null, `${names.get(c.sid) ?? c.sid} · ${itemName(c.coupon)}`))));
+        : h('div', null, ...owned.map((c) => h('div', { class: 'req-row' },
+          h('span', null, `${names.get(c.sid) ?? c.sid} · ${c.name ?? itemName(c.coupon)}`,
+            c.gift ? h('span', { class: 'muted small' }, ` 🎁 선물${c.reason ? ` (${c.reason})` : ''}`) : null),
+          c.gift ? h('button', { class: 'btn danger small', onclick: () => cancelGift(c) }, '선물 취소') : null))));
+  }
+
+  // 선물 취소: 아직 안 쓴(보유 중) 선물 쿠폰만 지운다. 값 0으로 준 것이라 돌려줄 포인트는 없다.
+  function cancelGift(c) {
+    const who = names.get(c.sid) ?? c.sid; const what = c.name ?? itemName(c.coupon);
+    if (!confirm(`${who}에게 선물한 '${what}' 쿠폰을 취소할까요?\n학생의 '내 쿠폰'에서 사라져요.`)) return;
+    const tell = confirm(`${who}에게 취소했다고 쪽지를 보낼까요?\n(확인: 보내기 / 취소: 안 보내기)`);
+    run(async () => {
+      const b = writeBatch(db);
+      b.delete(doc(db, 'coupons', c.id));
+      if (tell) b.set(doc(collection(db, 'messages')), { to: c.sid, body: `선생님이 보낸 '${what}' 쿠폰 선물을 취소했어요.`, from: 'teacher', at: serverTimestamp(), readAt: null });
+      await b.commit();
+    }, '선물을 취소했어요');
   }
 
   function ideaList() {
